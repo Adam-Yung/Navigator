@@ -1,14 +1,20 @@
-import type { IndexedElement, Mode, Settings } from '../shared/types';
+import type { IndexedElement, Mode, Direction, Settings } from '../shared/types';
 import { AURA_COLORS, AURA_INTENSITY_SHADOWS } from '../shared/constants';
 
 let host: HTMLElement | null = null;
 let shadow: ShadowRoot | null = null;
 let ring: HTMLElement | null = null;
-let isVisible = false;
+let visible = false;
 let animDuration = 250;
 let auraIntensity: Settings['auraIntensity'] = 'normal';
+let trackedElement: HTMLElement | null = null;
+let rafId: number | null = null;
+let isTransitioning = false;
 
 export function initAuraRing(): void {
+  const existing = document.getElementById('navigator-aura-host');
+  if (existing) existing.remove();
+
   host = document.createElement('div');
   host.id = 'navigator-aura-host';
   host.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;z-index:2147483646;pointer-events:none;';
@@ -36,7 +42,7 @@ export function updateAuraSettings(settings: Settings): void {
 export function transitionTo(target: IndexedElement, mode: Mode): void {
   if (!ring) return;
 
-  const rect = target.rect;
+  const rect = target.el.getBoundingClientRect();
   const padding = 8;
   const borderRadius = getTargetBorderRadius(target.el, padding);
 
@@ -45,6 +51,8 @@ export function transitionTo(target: IndexedElement, mode: Mode): void {
   const width = Math.max(rect.width + padding * 2, 24);
   const height = Math.max(rect.height + padding * 2, 24);
 
+  isTransitioning = true;
+  ring.style.transitionDuration = `${animDuration}ms`;
   ring.style.top = `${top}px`;
   ring.style.left = `${left}px`;
   ring.style.width = `${width}px`;
@@ -61,31 +69,88 @@ export function transitionTo(target: IndexedElement, mode: Mode): void {
     `${shadows.spread3} ${withAlpha(color, 0.15)}`,
   ].join(', ');
 
-  if (!isVisible) {
+  if (!visible) {
     show();
   }
+
+  trackedElement = target.el;
+
+  setTimeout(() => {
+    isTransitioning = false;
+  }, animDuration);
+}
+
+export function bumpDirection(direction: Direction): void {
+  if (!ring) return;
+  const offsets: Record<Direction, [number, number]> = {
+    left: [-3, 0], right: [3, 0], up: [0, -3], down: [0, 3],
+  };
+  const [dx, dy] = offsets[direction];
+  ring.style.transition = 'transform 80ms ease-out';
+  ring.style.transform = `translate(${dx}px, ${dy}px)`;
+  setTimeout(() => {
+    if (!ring) return;
+    ring.style.transition = 'transform 80ms ease-in';
+    ring.style.transform = 'translate(0, 0)';
+  }, 80);
 }
 
 export function show(): void {
   if (!ring) return;
   ring.classList.add('visible');
-  isVisible = true;
+  visible = true;
+  startTracking();
 }
 
 export function hide(): void {
   if (!ring) return;
   ring.classList.remove('visible');
-  isVisible = false;
+  visible = false;
+  trackedElement = null;
+  stopTracking();
 }
 
 export function destroyAuraRing(): void {
+  stopTracking();
   if (host) {
     host.remove();
     host = null;
     shadow = null;
     ring = null;
-    isVisible = false;
+    visible = false;
+    trackedElement = null;
   }
+}
+
+function startTracking(): void {
+  if (rafId !== null) return;
+  rafId = requestAnimationFrame(trackPosition);
+}
+
+function stopTracking(): void {
+  if (rafId !== null) {
+    cancelAnimationFrame(rafId);
+    rafId = null;
+  }
+}
+
+function trackPosition(): void {
+  rafId = null;
+  if (!ring || !trackedElement || !visible) return;
+  if (isTransitioning) {
+    rafId = requestAnimationFrame(trackPosition);
+    return;
+  }
+
+  const rect = trackedElement.getBoundingClientRect();
+  const padding = 8;
+  ring.style.transitionDuration = '0ms';
+  ring.style.top = `${rect.top - padding}px`;
+  ring.style.left = `${rect.left - padding}px`;
+  ring.style.width = `${Math.max(rect.width + padding * 2, 24)}px`;
+  ring.style.height = `${Math.max(rect.height + padding * 2, 24)}px`;
+
+  rafId = requestAnimationFrame(trackPosition);
 }
 
 function getTargetBorderRadius(el: HTMLElement, padding: number): string {
@@ -124,10 +189,11 @@ function getStyles(): string {
       box-sizing: border-box;
       pointer-events: none;
       opacity: 0;
+      transform: translate(0, 0);
       transition-property: top, left, width, height, border-radius, border-color, box-shadow, opacity;
       transition-duration: ${animDuration}ms;
       transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-      will-change: top, left, width, height, opacity;
+      will-change: top, left, width, height, opacity, transform;
       animation: aura-breathe 2.5s ease-in-out infinite;
     }
 
@@ -136,8 +202,8 @@ function getStyles(): string {
     }
 
     @keyframes aura-breathe {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.75; }
+      0%, 100% { transform: scale(1) translate(var(--bump-x, 0), var(--bump-y, 0)); }
+      50% { transform: scale(0.97) translate(var(--bump-x, 0), var(--bump-y, 0)); }
     }
 
     .aura-ring:not(.visible) {

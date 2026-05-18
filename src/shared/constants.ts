@@ -6,6 +6,8 @@ export const DEFAULT_KEYBINDINGS: Keybindings = {
   returnToNormal: 'Escape',
   activate: 'Enter',
   openNewTab: 'Ctrl+Enter',
+  toggleExtension: 'Ctrl+Alt+KeyA',
+  hintMode: 'KeyF',
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -14,6 +16,7 @@ export const DEFAULT_SETTINGS: Settings = {
   coneAngle: 90,
   autoScroll: true,
   auraIntensity: 'normal',
+  disabledSites: [],
 };
 
 export const NAV_SELECTORS = [

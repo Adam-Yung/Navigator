@@ -15,6 +15,8 @@ export interface Keybindings {
   returnToNormal: string;
   activate: string;
   openNewTab: string;
+  toggleExtension: string;
+  hintMode: string;
 }
 
 export interface Settings {
@@ -23,6 +25,7 @@ export interface Settings {
   coneAngle: number;
   autoScroll: boolean;
   auraIntensity: 'subtle' | 'normal' | 'vibrant';
+  disabledSites: string[];
 }
 
 export type ModeChangeCallback = (newMode: Mode, prevMode: Mode) => void;
