@@ -91,11 +91,7 @@ function nodeCouldBeFocusable(node: Node): boolean {
   if (el.hasAttribute('contenteditable')) return true;
   if (el.hasAttribute('role')) return true;
 
-  if (el.children && el.children.length > 0) {
-    return el.querySelector('a,button,input,select,textarea,[tabindex],[contenteditable],[role]') !== null;
-  }
-
-  return false;
+  return el.children.length > 0;
 }
 
 function handleScroll(): void {
