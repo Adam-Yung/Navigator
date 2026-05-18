@@ -3,10 +3,11 @@ import { getSettings, onSettingsChanged } from '../shared/storage';
 import { getCurrentMode, onModeChange, setMode } from './mode-manager';
 import { scanElements, findNearestToPoint } from './spatial-nav';
 import { setNavQueueState, setFlushCallback, setDeadEndCallback } from './nav-queue';
-import { initKeyHandler, updateKeyHandlerSettings, setFocusedElement, setTabCycleHandler, setToggleHandler } from './key-handler';
+import { initKeyHandler, updateKeyHandlerSettings, setFocusedElement, setTabCycleHandler, setToggleHandler, setHintKeyHandler } from './key-handler';
 import { startObserving, stopObserving, updateMode } from './mutation-observer';
 import { initAuraRing, updateAuraSettings, transitionTo, hide as hideAura, bumpDirection } from './aura-ring';
 import { initIndicator, showModeIndicator, hideIndicator } from './indicator';
+import { initHintMode, activateHintMode, deactivateHintMode, isHintModeActive, getFilteredElements, handleHintKey, destroyHintMode } from './hint-mode';
 
 let elements: IndexedElement[] = [];
 let focused: IndexedElement | null = null;
@@ -31,6 +32,7 @@ async function init(): Promise<void> {
   initAuraRing();
   updateAuraSettings(settings);
   initIndicator();
+  initHintMode();
 
   onSettingsChanged((newSettings) => {
     settings = newSettings;
@@ -42,6 +44,7 @@ async function init(): Promise<void> {
   setDeadEndCallback((dir) => { bumpDirection(dir); });
   setTabCycleHandler(cycleElement);
   setToggleHandler(toggleExtension);
+  setHintKeyHandler(handleHintKeyEvent);
 
   onModeChange((newMode, _prevMode) => {
     if (!extensionEnabled && newMode !== 'normal') {
@@ -51,6 +54,7 @@ async function init(): Promise<void> {
 
     if (newMode === 'normal') {
       stopObserving();
+      deactivateHintMode();
       elements = [];
       focused = null;
       setFocusedElement(null);
@@ -119,18 +123,19 @@ function handleElementsInvalidation(newElements: IndexedElement[]): void {
 }
 
 export function cycleElement(direction: 'next' | 'prev'): void {
-  if (elements.length === 0) return;
+  const list = isHintModeActive() ? getFilteredElements() : elements;
+  if (list.length === 0) return;
 
-  const currentIdx = focused ? elements.findIndex(e => e.el === focused!.el) : -1;
+  const currentIdx = focused ? list.findIndex(e => e.el === focused!.el) : -1;
   let nextIdx: number;
 
   if (direction === 'next') {
-    nextIdx = (currentIdx + 1) % elements.length;
+    nextIdx = (currentIdx + 1) % list.length;
   } else {
-    nextIdx = (currentIdx - 1 + elements.length) % elements.length;
+    nextIdx = (currentIdx - 1 + list.length) % list.length;
   }
 
-  const target = elements[nextIdx];
+  const target = list[nextIdx];
   focused = target;
   setFocusedElement(target.el);
   setNavQueueState(target, elements, settings.coneAngle);
@@ -152,6 +157,43 @@ function toggleExtension(): void {
   } else {
     extensionEnabled = true;
   }
+}
+
+function handleHintKeyEvent(key: string, event: KeyboardEvent): boolean {
+  if (!settings) return false;
+
+  if (isHintModeActive()) {
+    return handleHintKey(key, event);
+  }
+
+  if (key.toLowerCase() === codeToChar(settings.keybindings.hintMode) && !event.ctrlKey && !event.altKey && !event.metaKey) {
+    const mode = getCurrentMode();
+    if (mode === 'navigation' || mode === 'editing') {
+      activateHintMode(elements, mode, handleHintSelect, handleHintCancel);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function handleHintSelect(element: IndexedElement): void {
+  focused = element;
+  setFocusedElement(element.el);
+  setNavQueueState(element, elements, settings.coneAngle);
+  const mode = getCurrentMode();
+  if (mode !== 'normal') {
+    transitionTo(element, mode);
+  }
+}
+
+function handleHintCancel(): void {
+  // Just deactivate — focus stays where it was
+}
+
+function codeToChar(code: string): string {
+  if (code.startsWith('Key')) return code.slice(3).toLowerCase();
+  return code.toLowerCase();
 }
 
 function scrollIntoViewIfNeeded(target: IndexedElement): void {
