@@ -49,24 +49,22 @@ export function setMode(newMode: Mode): void {
   }
 }
 
-export function activateElement(el: HTMLElement): void {
+export function activateElement(el: HTMLElement, sticky: boolean = false): void {
   const isLink = el.tagName === 'A' && el.hasAttribute('href');
-  const isButton = el.tagName === 'BUTTON' || el.getAttribute('role') === 'button';
   const isEditable = isEditableElement(el);
 
-  if (isLink) {
-    el.click();
-    setMode('normal');
-  } else if (isButton) {
-    el.click();
-    setMode('normal');
-  } else if (isEditable) {
+  if (isEditable) {
     activeInput = { element: el, returnMode: currentMode };
     el.focus();
     setMode('normal');
-  } else {
+  } else if (isLink && !sticky) {
     el.click();
     setMode('normal');
+  } else {
+    el.click();
+    if (!sticky) {
+      setMode('normal');
+    }
   }
 }
 

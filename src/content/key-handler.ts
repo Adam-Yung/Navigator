@@ -7,6 +7,7 @@ let currentFocusedElement: HTMLElement | null = null;
 let onTabCycle: ((direction: 'next' | 'prev') => void) | null = null;
 let onHintKey: ((key: string, event: KeyboardEvent) => boolean) | null = null;
 let onToggle: (() => void) | null = null;
+let onGoBack: (() => void) | null = null;
 
 export function initKeyHandler(initialSettings: Settings): void {
   settings = initialSettings;
@@ -31,6 +32,10 @@ export function setHintKeyHandler(handler: (key: string, event: KeyboardEvent) =
 
 export function setToggleHandler(handler: () => void): void {
   onToggle = handler;
+}
+
+export function setGoBackHandler(handler: () => void): void {
+  onGoBack = handler;
 }
 
 export function destroyKeyHandler(): void {
@@ -94,12 +99,28 @@ function handleKeydown(e: KeyboardEvent): void {
       return;
     }
 
+    if (combo === settings.keybindings.stickyActivate) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (currentFocusedElement) {
+        activateElement(currentFocusedElement, true);
+      }
+      return;
+    }
+
     if (combo === settings.keybindings.openNewTab) {
       e.preventDefault();
       e.stopPropagation();
       if (currentFocusedElement) {
         openInNewTab(currentFocusedElement);
       }
+      return;
+    }
+
+    if (combo === settings.keybindings.goBack) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (onGoBack) onGoBack();
       return;
     }
 
@@ -136,10 +157,10 @@ function keyToDirection(e: KeyboardEvent): Direction | null {
   if (e.ctrlKey || e.altKey || e.metaKey) return null;
 
   switch (e.key.toLowerCase()) {
-    case 'h': return 'left';
-    case 'j': return 'down';
-    case 'k': return 'up';
-    case 'l': return 'right';
+    case 'h': case 'arrowleft': return 'left';
+    case 'j': case 'arrowdown': return 'down';
+    case 'k': case 'arrowup': return 'up';
+    case 'l': case 'arrowright': return 'right';
     default: return null;
   }
 }

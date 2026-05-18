@@ -14,7 +14,9 @@ export interface Keybindings {
   enterEditing: string;
   returnToNormal: string;
   activate: string;
+  stickyActivate: string;
   openNewTab: string;
+  goBack: string;
   toggleExtension: string;
   hintMode: string;
 }

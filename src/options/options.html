@@ -20,48 +20,77 @@
 
     <section class="card">
       <h2>Keybindings</h2>
-      <div class="field">
-        <label for="kb-navigation">Enter Navigation Mode</label>
-        <button class="keybind-btn" id="kb-navigation" data-key="enterNavigation">
-          <span class="keycaps"></span>
-        </button>
-      </div>
-      <div class="field">
-        <label for="kb-editing">Enter Editing Mode</label>
-        <button class="keybind-btn" id="kb-editing" data-key="enterEditing">
-          <span class="keycaps"></span>
-        </button>
-      </div>
-      <div class="field">
-        <label for="kb-normal">Return to Normal</label>
-        <button class="keybind-btn" id="kb-normal" data-key="returnToNormal">
-          <span class="keycaps"></span>
-        </button>
-      </div>
-      <div class="field">
-        <label for="kb-activate">Activate Element</label>
-        <button class="keybind-btn" id="kb-activate" data-key="activate">
-          <span class="keycaps"></span>
-        </button>
-      </div>
-      <div class="field">
-        <label for="kb-newtab">Open in New Tab</label>
-        <button class="keybind-btn" id="kb-newtab" data-key="openNewTab">
-          <span class="keycaps"></span>
-        </button>
-      </div>
-      <div class="field">
-        <label for="kb-toggle">Toggle Extension</label>
-        <button class="keybind-btn" id="kb-toggle" data-key="toggleExtension">
-          <span class="keycaps"></span>
-        </button>
-      </div>
-      <div class="field">
-        <label for="kb-hint">Hint Mode</label>
-        <button class="keybind-btn" id="kb-hint" data-key="hintMode">
-          <span class="keycaps"></span>
-        </button>
-      </div>
+
+      <details class="keybind-section" open>
+        <summary>Modes</summary>
+        <div class="field">
+          <label for="kb-navigation">Enter Navigation Mode</label>
+          <button class="keybind-btn" id="kb-navigation" data-key="enterNavigation">
+            <span class="keycaps"></span>
+          </button>
+        </div>
+        <div class="field">
+          <label for="kb-editing">Enter Editing Mode</label>
+          <button class="keybind-btn" id="kb-editing" data-key="enterEditing">
+            <span class="keycaps"></span>
+          </button>
+        </div>
+        <div class="field">
+          <label for="kb-normal">Return to Normal</label>
+          <button class="keybind-btn" id="kb-normal" data-key="returnToNormal">
+            <span class="keycaps"></span>
+          </button>
+        </div>
+        <div class="field">
+          <label for="kb-toggle">Toggle Extension</label>
+          <button class="keybind-btn" id="kb-toggle" data-key="toggleExtension">
+            <span class="keycaps"></span>
+          </button>
+        </div>
+      </details>
+
+      <details class="keybind-section">
+        <summary>Navigation</summary>
+        <div class="field">
+          <label>Directional Keys</label>
+          <span class="info-value">h j k l or Arrow Keys</span>
+        </div>
+        <div class="field">
+          <label for="kb-hint">Hint Mode</label>
+          <button class="keybind-btn" id="kb-hint" data-key="hintMode">
+            <span class="keycaps"></span>
+          </button>
+        </div>
+        <div class="field">
+          <label for="kb-goback">Go Back</label>
+          <button class="keybind-btn" id="kb-goback" data-key="goBack">
+            <span class="keycaps"></span>
+          </button>
+        </div>
+      </details>
+
+      <details class="keybind-section">
+        <summary>Actions</summary>
+        <div class="field">
+          <label for="kb-activate">Activate Element</label>
+          <button class="keybind-btn" id="kb-activate" data-key="activate">
+            <span class="keycaps"></span>
+          </button>
+        </div>
+        <div class="field">
+          <label for="kb-sticky">Sticky Activate</label>
+          <button class="keybind-btn" id="kb-sticky" data-key="stickyActivate">
+            <span class="keycaps"></span>
+          </button>
+        </div>
+        <div class="field">
+          <label for="kb-newtab">Open in New Tab</label>
+          <button class="keybind-btn" id="kb-newtab" data-key="openNewTab">
+            <span class="keycaps"></span>
+          </button>
+        </div>
+      </details>
+
       <div class="conflict-warning" id="conflict-warning" hidden>
         <span class="conflict-icon">!</span>
         <span class="conflict-text"></span>

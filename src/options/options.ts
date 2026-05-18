@@ -230,7 +230,9 @@ function formatKeyName(key: keyof Keybindings): string {
     enterEditing: 'Enter Editing',
     returnToNormal: 'Return to Normal',
     activate: 'Activate',
+    stickyActivate: 'Sticky Activate',
     openNewTab: 'Open New Tab',
+    goBack: 'Go Back',
     toggleExtension: 'Toggle Extension',
     hintMode: 'Hint Mode',
   };

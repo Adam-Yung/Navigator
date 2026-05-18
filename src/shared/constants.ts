@@ -5,7 +5,9 @@ export const DEFAULT_KEYBINDINGS: Keybindings = {
   enterEditing: 'Ctrl+Alt+KeyE',
   returnToNormal: 'Escape',
   activate: 'Enter',
+  stickyActivate: 'Shift+Enter',
   openNewTab: 'Ctrl+Enter',
+  goBack: 'Ctrl+KeyO',
   toggleExtension: 'Ctrl+Alt+KeyA',
   hintMode: 'KeyF',
 };

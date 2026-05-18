@@ -363,3 +363,49 @@ textarea::placeholder {
   color: #6a6a8a;
   margin-bottom: 10px;
 }
+
+.keybind-section {
+  border: none;
+  margin-bottom: 0;
+}
+
+.keybind-section summary {
+  cursor: pointer;
+  padding: 10px 0;
+  font-weight: 600;
+  font-size: 13px;
+  color: #c4c4e0;
+  border-bottom: 1px solid #1e1e3a;
+  list-style: none;
+  display: flex;
+  align-items: center;
+}
+
+.keybind-section summary::-webkit-details-marker {
+  display: none;
+}
+
+.keybind-section summary::before {
+  content: '\25B6';
+  margin-right: 8px;
+  font-size: 10px;
+  transition: transform 0.2s ease;
+  display: inline-block;
+}
+
+.keybind-section[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.keybind-section[open] summary {
+  margin-bottom: 4px;
+}
+
+.info-value {
+  font-size: 12px;
+  color: #8888a8;
+  font-family: monospace;
+  background: #1e1e3a;
+  padding: 4px 10px;
+  border-radius: 6px;
+}

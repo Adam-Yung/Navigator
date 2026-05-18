@@ -1,489 +1,378 @@
 # Navigator — Improvement Roadmap
 
-This document is the comprehensive improvement roadmap for the Navigator browser extension. It catalogs bugs, performance issues, missing edge cases, accessibility concerns, UX improvements, architecture improvements, and feature gaps discovered through a full audit of the source code.
-
-Items are organized by priority and include specific references to the codebase.
+Guiding principle: **keyboard users should be able to navigate any page as fast as possible with minimal friction.** Every item here targets either faster navigation, clearer feedback, or reduced latency. Items are ranked by impact on daily keyboard-first workflows.
 
 ---
 
-## Critical Priority
+## Critical — Blocks Core Navigation Speed
 
-### 1. Stale `rect` data causes incorrect navigation after scroll/resize
-
-**Category:** Bug  
-**Location:** `src/content/spatial-nav.ts` → `IndexedElement.rect`, `src/content/index.ts`
-
-**Problem:** `IndexedElement` stores a `rect: DOMRect` captured at scan time. After a scroll or resize event, the `rect` values (which are viewport-relative) become stale. The mutation observer (`mutation-observer.ts:55`) rescans on scroll/resize with a 100ms debounce, but during that 100ms window, any navigation keystroke uses outdated coordinates. Worse, `transitionTo()` in `aura-ring.ts:39` uses `target.rect` directly, so the aura ring jumps to the wrong position until the next rescan.
-
-**Suggested fix:**  
-In `handleNavigationResult()` and `transitionTo()`, recompute `getBoundingClientRect()` fresh from `target.el` rather than relying on the cached `target.rect`. Reserve the cached rect for distance calculations during the spatial search only (where relative positions still hold within a single scan batch).
-
----
-
-### 2. Key handler blocks ALL keypresses in active mode — breaks accessibility and expected behavior
-
-**Category:** Bug / Accessibility  
-**Location:** `src/content/key-handler.ts:92-96`
-
-**Problem:** Lines 92-96 catch all remaining key events (that aren't directional, mode switches, or modifier combos) with a blanket `e.preventDefault(); e.stopPropagation()`. This means Tab, Space (for scrolling or activating checkboxes), digits, F-keys, and browser keyboard shortcuts (Ctrl+T, Ctrl+W, Ctrl+L) are all swallowed when modifiers aren't present. In practice:
-
-- Users can't type numbers or use Space to scroll
-- Browser shortcuts without Ctrl (like F5 refresh) are blocked
-- Screen reader shortcuts are completely broken
-
-**Suggested fix:**  
-Replace the blanket block with a targeted allowlist/denylist approach:
-
-1. Allow unmodified F-keys (F1–F12) through unconditionally
-2. Allow Space and Tab (or make them configurable — e.g., Space = activate, Tab = next-in-DOM-order)
-3. Never block Ctrl/Cmd+key combos that aren't explicitly bound (the current check at line 92 is correct but happens *after* the directional/activation checks, so it's fine — the issue is the else-clause)
-4. Consider a passthrough mode or a `passthrough` key that disables interception for the next keystroke
-
----
-
-### 3. No iframe support — elements inside iframes are invisible
-
-**Category:** Bug / Feature Gap  
-**Location:** `src/content/spatial-nav.ts:8` → `document.querySelectorAll()`
-
-**Problem:** `scanElements()` only queries the top-level `document`. Any focusable elements inside same-origin iframes (common on YouTube, Google Docs, and embedded widgets) are completely invisible to the extension. Cross-origin iframes are inaccessible by design, but same-origin ones should be supported.
-
-**Suggested fix:**  
-Recursively query same-origin iframes. For each `<iframe>` on the page, attempt to access `iframe.contentDocument`; if accessible, run the selector query within it. Offset the resulting rects by the iframe's own viewport position. Store a reference to the containing document so `el.click()` / `el.focus()` work correctly.
-
----
-
-### 4. `openInNewTab` fails silently for relative URLs and non-anchor elements
-
-**Category:** Bug  
-**Location:** `src/content/mode-manager.ts:73-78`
-
-**Problem:** `openInNewTab()` reads `el.getAttribute('href')` which returns the raw attribute value (potentially relative like `/about`). Passing a relative URL to `window.open()` works in some cases but is unreliable. More importantly, if the focused element is not an anchor (e.g., a `role="link"` div that uses `onclick` for navigation), this function does nothing — no fallback, no user feedback.
-
-**Suggested fix:**  
-
-1. For `<a>` elements, use `(el as HTMLAnchorElement).href` (the resolved absolute URL property) instead of `getAttribute('href')`
-2. For non-anchor elements, check for `data-href`, or fallback to simulating Ctrl+click
-3. Provide visual feedback (brief flash of the aura ring or a toast) when the action has no effect
-
----
-
-## High Priority
-
-### 5. Content script has no cleanup — accumulates on SPA navigation
-
-**Category:** Performance / Bug  
-**Location:** `src/content/index.ts:125`
-
-**Problem:** `init()` is called once at `document_idle` and never cleaned up. On SPAs (GitHub, YouTube, Gmail) that don't trigger full page reloads, the content script persists correctly. However, if the extension is reloaded or updated mid-session, the old content script remains attached alongside the new one (duplicate listeners, duplicate shadow DOM hosts). There's no mechanism to detect this and self-destruct.
-
-**Suggested fix:**  
-
-1. On init, check for the existence of `#navigator-aura-host` — if present, the old instance is still alive. Remove it and re-initialize.
-2. Listen for a "ping" message from the background script that the new instance can respond to; old instances that don't respond can be presumed dead.
-3. Expose `destroy()` functions (already partially written: `destroyKeyHandler`, `destroyAuraRing`, `destroyIndicator`) and wire them to a lifecycle tear-down.
-
----
-
-### 6. `scanElements` only finds viewport-visible elements — no scroll exploration
-
-**Category:** UX / Feature Gap  
-**Location:** `src/content/spatial-nav.ts:16` → `isInViewport()` filter
-
-**Problem:** Elements outside the current viewport are excluded from candidates. This means pressing `j` at the bottom of the visible area finds nothing, even though there are clearly more elements below. The user must manually scroll, then re-enter the mode. The `autoScroll` feature only scrolls *to* an already-found target; it doesn't help discover off-screen targets.
-
-**Suggested fix:**  
-When navigation in a given direction yields `null` from the in-viewport candidates:
-
-1. Perform a limited off-screen scan (query elements whose rects are within 1–2 viewport heights in the requested direction)
-2. If a candidate is found, scroll to it and focus it
-3. Cap the off-screen search to prevent scanning the entire DOM on huge pages (use `IntersectionObserver` or a bounded rect check)
-
----
-
-### 7. Aura ring position drifts during page scroll (fixed positioning without updates)
-
-**Category:** Bug  
-**Location:** `src/content/aura-ring.ts:48-51`
-
-**Problem:** The aura ring uses `position: fixed` and sets `top`/`left` based on `getBoundingClientRect()` values at transition time. This is correct for the moment of transition, but if the user scrolls the page *without* moving focus (e.g., with a trackpad or mouse wheel while in navigation mode), the aura ring stays visually anchored while the target element scrolls away.
-
-**Suggested fix:**  
-Add a scroll event listener (throttled, ~60fps via `requestAnimationFrame`) that re-positions the ring relative to the currently focused element's live `getBoundingClientRect()`. Alternatively, switch to `position: absolute` within the document flow, but this is harder to isolate in Shadow DOM.
-
----
-
-### 8. No duplicate keybinding detection in options page
-
-**Category:** UX / Bug  
-**Location:** `src/options/options.ts:158-167`
-
-**Problem:** When recording a keybinding, there's no check for conflicts. A user can accidentally bind "Enter" to both `activate` and `returnToNormal`, causing undefined behavior. The last-written binding "wins" in the key handler (first match), but the user gets no warning.
-
-**Suggested fix:**  
-After recording a new combo, check all other keybinding values. If a conflict exists, highlight both fields in red and show an inline warning message. Optionally offer to clear the conflicting binding.
-
----
-
-### 9. `getComputedStyle()` called twice per element during scan — expensive on large DOMs
-
-**Category:** Performance  
-**Location:** `src/content/spatial-nav.ts:127-140` → `isVisible()`
-
-**Problem:** `isVisible()` calls `getComputedStyle(el)` once for the `offsetParent` check (line 129) and once for the display/visibility/opacity check (line 135). On a page with 500+ focusable elements (GitHub issue list, YouTube feed), this results in 1000+ forced style recalculations during scan. Combined with the 100ms debounce on mutation/scroll, this can cause visible jank.
-
-**Suggested fix:**  
-
-1. Call `getComputedStyle` only once, reuse the result
-2. Check `offsetParent === null` first (cheap) and only call `getComputedStyle` if needed
-3. Consider using `IntersectionObserver` as a pre-filter to avoid scanning off-screen elements entirely
-4. Add a size threshold (skip elements smaller than 4x4px)
-
----
-
-### 10. MutationObserver watches the entire `document.body` subtree
-
-**Category:** Performance  
-**Location:** `src/content/mutation-observer.ts:20-24`
-
-**Problem:** Observing `childList + subtree + attributes` on `document.body` fires on virtually every DOM change. On dynamic pages (React/Vue apps, Twitter feed, YouTube comments), this triggers hundreds of mutation batches per second. The 100ms debounce helps, but the observer callback itself still runs for every batch, creating GC pressure from the MutationRecord arrays.
-
-**Suggested fix:**  
-
-1. Disconnect the observer during the debounce period (reconnect after rescan completes)
-2. Use `requestIdleCallback` instead of `setTimeout` for non-urgent rescans
-3. Inspect mutation records to determine if the change could affect focusable elements (e.g., added/removed nodes containing anchor/button tags) rather than always doing a full rescan
-4. Consider a two-tier approach: immediate rescan for large structural changes, deferred for attribute-only changes
-
----
-
-## Medium Priority
-
-### 11. No visual feedback when navigation reaches a dead end
+### 1. Arrow key support as alternative directional input
 
 **Category:** UX  
-**Location:** `src/content/nav-queue.ts:65`
+**Location:** `src/content/key-handler.ts` → `keyToDirection()`
 
-**Problem:** When `findNext()` returns `null` (no element found in the requested direction), the `flush()` function simply does nothing — `target !== currentElement` is false, so `onFlush` is never called. The user gets zero feedback that their keypress was recognized but found nothing.
+**Problem:** Only `h/j/k/l` are recognized as directional keys. Many keyboard-heavy users who aren't Vim veterans (screen reader users, accessibility-focused power users, people on non-QWERTY layouts) default to arrow keys. Currently, arrow presses are swallowed silently in navigation mode.
 
-**Suggested fix:**  
-Add a subtle "bump" animation to the aura ring (brief scale pulse or directional nudge of 2-3px in the pressed direction, then back). This gives haptic-like feedback that the boundary was reached. Expose a `bumpDirection(direction)` function from `aura-ring.ts`.
+**Fix:** Add arrow key mappings inside `keyToDirection`. Optionally, make directional keys configurable in settings.
 
 ---
 
-### 12. `activateElement()` always returns to Normal mode — unintuitive for sequential actions
+### 2. Count prefix for repeated navigation (`3j` = jump 3 down)
 
 **Category:** UX  
-**Location:** `src/content/mode-manager.ts:52-71`
+**Location:** `src/content/key-handler.ts`, `src/content/nav-queue.ts`
 
-**Problem:** After activating any element (link click, button click), the mode unconditionally resets to `'normal'`. When a user wants to click multiple buttons in a toolbar or navigate through a list clicking items, they must re-enter navigation mode after every activation. This is tedious for power users.
+**Problem:** Reaching a target 7 elements away requires pressing `j` 7 times. Vim's count-prefix pattern (`3j`, `5l`) would allow O(1) keypress targeting by distance, dramatically reducing time-to-target on dense pages.
 
-**Suggested fix:**  
-
-1. For links that trigger navigation, returning to normal is correct
-2. For buttons and other non-navigating elements, remain in the current mode after click (let the mutation observer handle any DOM changes)
-3. Add a "sticky mode" option in settings that keeps the mode active after activation
-4. Consider a "quick-click" variant (e.g., Shift+Enter) that activates without leaving mode
+**Fix:** Buffer digit keypresses before a directional key. On direction key, repeat the enqueue by the count. Clear the count buffer on any non-digit, non-direction key.
 
 ---
 
-### 13. `buildComboString` uses `e.code` — layout-independent but confusing for non-QWERTY users
+### 3. Hint label overflow — pages with >81 elements show "undefined" labels
+
+**Category:** Bug  
+**Location:** `src/content/hint-mode.ts` → `generateLabels()`, `activateHintMode()`
+
+**Problem:** `HINT_CHARS` has 9 characters, supporting at most 81 two-character labels. On dense pages (news feeds, GitHub, search results with 100+ links), elements beyond index 80 get `undefined` as their label. This breaks hint mode on the pages where it's most useful.
+
+**Fix:** Extend `generateLabels` to support 3+ character labels when needed. Expand `HINT_CHARS` to the full home row plus common reach keys (`qwertyuiopasdfghjklzxcvbnm`) for shorter labels.
+
+---
+
+### 4. No "activate and stay" — clicking always exits navigation mode
+
+**Category:** UX  
+**Location:** `src/content/mode-manager.ts` → `activateElement()`
+
+**Problem:** After clicking a button (like/save/expand/collapse), the mode resets to Normal. Users working through a list of actions (starring emails, checking todos, toggling settings) must re-enter navigation mode after every single activation. This doubles keypresses for batch operations.
+
+**Fix:** Add a "sticky activation" keybinding (e.g. `Shift+Enter`) that activates without leaving mode. For elements that trigger page navigation (links), always return to Normal. For buttons, checkboxes, and interactive elements, remain in the current mode by default.
+
+---
+
+### 5. No jump stack / navigation history (go-back shortcut)
+
+**Category:** UX  
+**Location:** `src/content/index.ts`
+
+**Problem:** After navigating far from a starting point (e.g. jumping to a header then back to the sidebar), there's no way to return to the previous position. Users must manually navigate back, which is slow on complex layouts.
+
+**Fix:** Maintain a stack of previously focused elements (max depth ~20). Add a configurable "go back" keybinding (e.g. `Ctrl+O` / `Ctrl+I` mirroring Vim's jumplist) that pops the stack and transitions to the previous element.
+
+---
+
+## High — Significantly Improves Daily Workflow
+
+### 6. Continuous rAF loop burns CPU while ring is visible
+
+**Category:** Performance  
+**Location:** `src/content/aura-ring.ts` → `trackPosition()`
+
+**Problem:** `requestAnimationFrame` runs in a continuous loop the entire time the ring is visible, calling `getBoundingClientRect()` 60 times per second — even when nothing is scrolling and the element isn't moving. On battery-powered devices, this measurably increases power consumption.
+
+**Fix:** Replace the continuous rAF loop with event-driven tracking: listen for `scroll` (throttled via rAF) and `ResizeObserver` on the tracked element. Only update position when movement actually occurs. Start rAF tracking only during the transition animation, then switch to passive observers.
+
+---
+
+### 7. Double `getComputedStyle` per element during scan
+
+**Category:** Performance  
+**Location:** `src/content/spatial-nav.ts` → `isVisible()`
+
+**Problem:** `isVisible()` calls `getComputedStyle(el)` once for the `offsetParent` fallback path (line 207) and once unconditionally (line 212). On pages with 300+ focusable elements, this forces hundreds of style recalculations during each scan, causing visible frame drops on mutation-triggered rescans.
+
+**Fix:** Call `getComputedStyle` only once per element and reuse the result. Check `offsetParent === null` first (cheap layout check) and skip the `getComputedStyle` call entirely for elements where `offsetParent` is non-null (most elements).
+
+---
+
+### 8. Scroll events trigger full DOM rescan
+
+**Category:** Performance  
+**Location:** `src/content/mutation-observer.ts` → `handleScroll()`
+
+**Problem:** Every scroll event (debounced to 100ms) triggers `scanElements()` which queries all matching elements, calls `getComputedStyle` on each, and rebuilds the entire candidate list. On smooth-scroll pages, this fires repeatedly during scroll momentum, competing with the aura-ring's rAF for CPU time.
+
+**Fix:** Differentiate scroll rescans from mutation rescans. On scroll, only recompute `getBoundingClientRect()` and the viewport-visibility filter on existing elements — don't re-query the DOM or re-check `getComputedStyle`. Only trigger a full rescan when actual DOM mutations occur.
+
+---
+
+### 9. Reduced-motion accessibility support
+
+**Category:** Accessibility / UX  
+**Location:** `src/content/aura-ring.ts`, `src/content/indicator.ts`
+
+**Problem:** No `prefers-reduced-motion` media query is respected anywhere. Users who have enabled reduced motion in their OS see the full breathe animation, scale transitions, and sliding indicator. This is an accessibility requirement (WCAG 2.1 SC 2.3.3).
+
+**Fix:** Add `@media (prefers-reduced-motion: reduce)` blocks that disable the breathe keyframe, set `animation: none`, and reduce transition durations to near-instant (e.g. 50ms). Expose a `reducedMotion` setting in options for manual override.
+
+---
+
+### 10. Smart element prioritization — rank targets by likely interaction intent
+
+**Category:** UX  
+**Location:** `src/content/spatial-nav.ts` → `scoreInCone()`
+
+**Problem:** The cone search scores purely by distance and angular deviation. On visually complex pages, users typically want to reach primary interactive elements (nav links, action buttons, form fields) rather than minor elements (social share icons, footer links). All elements are weighted equally, making navigation feel "dumb" on cluttered pages.
+
+**Fix:** Add a weight multiplier based on element characteristics: larger elements get a slight priority bonus, elements with specific roles (`main`, `navigation`, `article`) get context-based scoring, elements with visible text labels rank higher than icon-only elements. Keep the multiplier subtle (0.8x–1.2x) so spatial proximity still dominates.
+
+---
+
+### 11. Visual feedback when extension is toggled on/off
+
+**Category:** UX  
+**Location:** `src/content/index.ts` → `toggleExtension()`
+
+**Problem:** Pressing the toggle keybinding enables or disables the extension with zero visual feedback. Users can't tell if the extension is on or off without attempting to enter a mode.
+
+**Fix:** Show a brief full-screen overlay flash (like macOS keyboard brightness feedback) — a centered icon that fades in/out over 300ms showing "Navigator ON" or "Navigator OFF". Also update the toolbar badge text/color via message to background script.
+
+---
+
+### 12. Keyboard layout awareness for directional keys
 
 **Category:** UX / Accessibility  
-**Location:** `src/content/key-handler.ts:111-118`, `src/options/options.ts:170-177`
+**Location:** `src/content/key-handler.ts` → `keyToDirection()`
 
-**Problem:** Using `e.code` (physical key position) means keybindings are QWERTY-layout-specific. A user with a Dvorak or AZERTY layout will see "KeyN" displayed and need to press the physical N position regardless of what character that key produces. The display in options (`comboToKeycaps`) strips the "Key" prefix showing the letter, but for non-QWERTY users this is misleading.
+**Problem:** `keyToDirection` matches on `e.key` ('h', 'j', 'k', 'l') which is logical-key based. This works correctly for QWERTY users but produces unintuitive physical positions on Dvorak (`h`=`d`, `j`=`h`, `k`=`t`, `l`=`n`) and Colemak. Users on these layouts must press physically scattered keys for directional navigation.
 
-**Suggested fix:**  
-
-1. Store both `e.code` and `e.key` in the keybinding definition
-2. Match on `e.code` for consistency (correct behavior) but *display* the character from `e.key` (user-friendly)
-3. Add a note in the options UI explaining that bindings are position-based
+**Fix:** Add a "use physical key positions" option that matches `e.code` (`KeyH`, `KeyJ`, `KeyK`, `KeyL`) instead of `e.key`. Default to logical (`e.key`) for compatibility but allow the toggle for users who prefer QWERTY-position navigation regardless of layout. Also support arrow keys (item #1) as a universal alternative.
 
 ---
 
-### 14. No way to disable the extension on specific sites
+## Medium — Quality of Life for Power Users
 
-**Category:** Feature Gap  
-**Location:** Manifests, `src/content/index.ts`
-
-**Problem:** The content script runs on `<all_urls>`. Some sites (Google Docs, VS Code Web, Figma) have their own extensive keyboard shortcuts that conflict heavily. There's no mechanism to disable the extension per-site or add a blocklist.
-
-**Suggested fix:**  
-
-1. Add a `disabledSites: string[]` field to `Settings` containing URL patterns (e.g., `*://docs.google.com/`*)
-2. In `init()`, check `window.location.href` against the pattern list before proceeding
-3. Add a "Disabled Sites" section in the options page with an editable list
-4. Consider a quick-toggle via the background script (toolbar icon click toggles for current tab)
-
----
-
-### 15. Aura ring breathe animation conflicts with CSS `opacity` visibility toggle
-
-**Category:** Bug (cosmetic)  
-**Location:** `src/content/aura-ring.ts:138-141`
-
-**Problem:** The `aura-breathe` keyframe animation oscillates opacity between 1.0 and 0.75. But when the ring is hidden, `.aura-ring:not(.visible)` sets `animation: none` *while* the base class has `opacity: 0`. However, when showing, the `.visible` class sets `opacity: 1` via the transition — but the `aura-breathe` animation also sets opacity, creating a potential flash or conflict on the first frame of show/hide transitions.
-
-**Suggested fix:**  
-Use `transform: scale()` instead of `opacity` for the breathe effect (e.g., `scale(1)` → `scale(0.97)` → `scale(1)`). This avoids conflicting with the opacity-based visibility transition entirely and is also more performant (compositor-only property).
-
----
-
-### 16. Navigation queue collapses multi-directional input into a single result
+### 13. `gg` / `G` jump-to-top / jump-to-bottom shortcuts
 
 **Category:** UX  
-**Location:** `src/content/nav-queue.ts:56-61`
-
-**Problem:** The nav queue batches all keypresses within 16ms and processes them sequentially against the *same candidate set*. This means rapid "j j j" moves 3 elements down (correct), but rapid "j l" computes from the final intermediate target's perspective using potentially stale candidates. Since candidates aren't recomputed between queued moves, intermediate positions may not accurately reflect actual element positions if the page is scrolling.
-
-**Suggested fix:**  
-For single-direction repeated presses, the current behavior is fine. For direction changes within a batch, flush the queue at the direction change boundary (animate to the intermediate target, then re-scan, then continue). Alternatively, just make the queue single-directional: flush immediately on direction change.
-
----
-
-### 17. No TypeScript strict mode — potential null safety issues
-
-**Category:** Code Quality  
-**Location:** Project-wide (no `tsconfig.json` found in source files)
-
-**Problem:** The project uses TypeScript but there's no visible `tsconfig.json` with `strict: true`. The code uses non-null assertions (`!`) in multiple places (e.g., `options.ts:49`, `indicator.ts:52-53`) which could throw at runtime if DOM queries return null (e.g., on future HTML changes).
-
-**Suggested fix:**  
-
-1. Add a `tsconfig.json` with `"strict": true`
-2. Replace non-null assertions with proper null checks or early returns
-3. Consider using a DOM query helper that logs warnings in development when selectors miss
-
----
-
-### 18. Shadow DOM hosts are never removed if the extension encounters an error during init
-
-**Category:** Bug  
-**Location:** `src/content/aura-ring.ts:25`, `src/content/indicator.ts:32`
-
-**Problem:** Both `initAuraRing()` and `initIndicator()` append elements to `document.documentElement` before the full init completes. If `getSettings()` or `onModeChange` throws during init, the shadow DOM hosts remain orphaned in the page with no way to clean them up (no references held externally). On extension reload, duplicates accumulate.
-
-**Suggested fix:**  
-
-1. Wrap the init in try/catch with cleanup in the catch path
-2. Check for existing hosts by ID before creating new ones (`document.getElementById('navigator-aura-host')`)
-3. Add a global error handler that calls all destroy functions
-
----
-
-## Low Priority
-
-### 19. Options page `setInterval` in preview leaks when navigating away
-
-**Category:** Code Quality  
-**Location:** `src/options/options.ts:220-223`
-
-**Problem:** `setupPreview()` creates a `setInterval` that toggles the preview ring position every 2 seconds. This interval is never cleared. While this only matters in the options page tab (not a content script), it's still a resource leak if the options page is opened in a long-lived tab.
-
-**Suggested fix:**  
-Store the interval ID and clear it on `window.onbeforeunload` or use a `visibilitychange` listener to pause/resume the animation when the tab is hidden.
-
----
-
-### 20. No keyboard shortcut for cycling through modes (Nav → Edit → Normal → Nav)
-
-**Category:** Feature Gap  
 **Location:** `src/content/key-handler.ts`
 
-**Problem:** Switching between Navigation and Editing modes requires returning to Normal first (Escape), then pressing the other mode's keybinding. This is two keypresses for a common operation.
+**Problem:** To reach the first or last element on a page, users must hold a directional key. There's no instant jump to page extremes — a fundamental Vim motion.
 
-**Suggested fix:**  
-Add a configurable "cycle mode" binding (e.g., `Tab` while in a modal mode) that rotates through the active modes. Also consider allowing direct Navigation↔Editing switches (already partially implemented — lines 78-90 allow entering the other mode while in a mode, but the keybinding is multi-key).
-
----
-
-### 21. No hint/label mode for quick-jump (like Vimium's `f` key)
-
-**Category:** Feature Gap  
-**Location:** N/A (new feature)
-
-**Problem:** For pages with many elements, spatial navigation can require many keypresses to reach a distant target. A hint-label overlay (showing 1-2 character labels on each element) would allow O(1) targeting for any visible element.
-
-**Suggested fix:**  
-Implement a "hint mode" activated by a configurable key (e.g., `f` in navigation mode):
-
-1. Generate short labels (a, s, d, f, ... then aa, as, ...) for all visible elements
-2. Render labels in a Shadow DOM overlay near each element
-3. As the user types characters, filter to matching labels
-4. On unique match, focus/activate that element
-5. Escape or unmatched key cancels hint mode
+**Fix:** Implement key sequence support. Track the last key pressed and its timestamp. If `g` is pressed twice within 300ms, jump to the first element. If `G` (Shift+g) is pressed, jump to the last element. Expose these as configurable bindings.
 
 ---
 
-### 22. No persistence of focused element across re-scans
+### 14. Passthrough key — temporarily disable interception for one keystroke
 
 **Category:** UX  
-**Location:** `src/content/index.ts:86-98` → `handleElementsInvalidation()`
+**Location:** `src/content/key-handler.ts`
 
-**Problem:** When elements are invalidated and the focused element is still in the DOM, its `IndexedElement` is updated correctly. But the reference equality check (`elements.find(e => e.el === focused!.el)`) can fail if the element was removed and re-added to the DOM (common in React virtual DOM reconciliation), because `el` is a new DOM node at the same position.
+**Problem:** In navigation mode, all unbound keys are swallowed. Users who need to press a single page-specific shortcut (e.g. `?` for help on GitHub, `c` for compose in Gmail) must exit navigation mode, press the key, then re-enter. Three keystrokes for one action.
 
-**Suggested fix:**  
-Fall back to a positional heuristic: if the exact element reference isn't found, search for the element nearest to the previous focused element's last known `cx`/`cy` coordinates. This preserves focus continuity through React re-renders.
-
----
-
-### 23. `webextension-polyfill` dependency is unused
-
-**Category:** Code Quality  
-**Location:** `package.json:18`
-
-**Problem:** The project lists `webextension-polyfill` as a production dependency, but the actual code uses a manual `(globalThis as any).browser || (globalThis as any).chrome` pattern everywhere (storage.ts:4, background/index.ts:2, options.ts:4). The polyfill is never imported.
-
-**Suggested fix:**  
-Either:
-
-1. Remove the dependency (saves bundle size and simplifies) — the manual pattern works fine
-2. Or actually import and use the polyfill consistently to get proper Promise-based APIs in Firefox
+**Fix:** Add a configurable "passthrough" binding (e.g. `'` or `` ` ``). When pressed, the next keystroke is allowed through to the page without interception. After that single key passes through, interception resumes.
 
 ---
 
-### 24. No test infrastructure
+### 15. Hint labels positioned at element center with smarter overlap avoidance
 
-**Category:** Testing  
-**Location:** Project-wide
+**Category:** UX  
+**Location:** `src/content/hint-mode.ts` → `activateHintMode()`
 
-**Problem:** There are zero tests — no unit tests for the spatial navigation algorithm, no integration tests for the key handler, no end-to-end tests for the extension. The spatial nav algorithm (`scoreInCone`, `angleDifference`, `findNext`) is pure logic that's highly testable.
+**Problem:** Hint labels are pinned to the top-left corner of elements. For large elements (hero banners, full-width cards), the label is far from the visual center, making it hard to associate the label with its target. On dense UIs, labels stack on top of each other.
 
-**Suggested fix:**  
-
-1. Add `vitest` or `jest` for unit testing
-2. Priority test targets:
-  - `spatial-nav.ts`: `findNext()` with various element layouts, `angleDifference()` edge cases (wraparound at ±180°), cone widening behavior
-  - `nav-queue.ts`: batching behavior, flush timing
-  - `mode-manager.ts`: state machine transitions
-  - `key-handler.ts`: `buildComboString()` for various platforms
-3. Add Playwright + `web-ext` for E2E testing of the loaded extension
+**Fix:** Position labels at the element's visual center (or the nearest unoccluded position). Implement basic overlap detection: if two labels would overlap, offset the later one down or right by the label's height. For very dense groups, fall back to a column layout.
 
 ---
 
-### 25. No ARIA announcements for mode changes — screen reader users get no feedback
+### 16. Badge on toolbar icon showing current mode
+
+**Category:** UX  
+**Location:** `src/background/index.ts`, `src/content/index.ts`
+
+**Problem:** The toolbar icon is static — users have no at-a-glance indicator of whether navigation mode is active, especially when the in-page indicator has faded to a dot.
+
+**Fix:** Send a message from the content script to the background on every mode change. In the background, call `api.action.setBadgeText()` with a short label ("NAV", "EDT", or empty for normal) and `setBadgeBackgroundColor()` with the mode color.
+
+---
+
+### 17. Element text search — filter visible elements by content
+
+**Category:** UX  
+**Location:** `src/content/index.ts`, new module
+
+**Problem:** On pages with many similar elements (list of links, table rows), spatial navigation is slow because the user must traverse element-by-element. Hint mode helps but requires memorizing random labels.
+
+**Fix:** Add a "search and jump" mode (e.g. `/` key): shows a small input field, user types partial text, elements whose visible text matches are highlighted and filtered. Arrow keys or Tab cycle through matches. Enter jumps to the selected match. This mirrors Vim's `/` search and browser native Ctrl+F but scoped to navigable elements only.
+
+---
+
+### 18. `nodeCouldBeFocusable` runs expensive querySelector on subtree additions
+
+**Category:** Performance  
+**Location:** `src/content/mutation-observer.ts` → `nodeCouldBeFocusable()`
+
+**Problem:** When a large DOM subtree is added (e.g. React rendering a list of 50 items), `nodeCouldBeFocusable` is called on the parent container, which triggers `el.querySelector(...)` scanning the entire subtree. For deeply nested components, this is quadratic in the worst case.
+
+**Fix:** Remove the `querySelector` call. Instead, always return `true` for elements with children (optimistic approach — the subsequent `scanElements` will correctly filter). The debounce already prevents cascading rescans, so a false-positive here only costs one extra scan cycle.
+
+---
+
+### 19. Adaptive repeat rate — holding a direction key should accelerate
+
+**Category:** UX  
+**Location:** `src/content/nav-queue.ts`
+
+**Problem:** Holding `j` navigates at a constant rate (one element per key-repeat event, ~30ms apart depending on OS settings). On a page with 50 elements in a vertical list, reaching element #40 requires holding `j` for over a second with no acceleration.
+
+**Fix:** Track consecutive same-direction flushes. After 3 consecutive flushes in the same direction within 500ms, double the step count (skip every other element). After 6, triple. Reset the acceleration on direction change or pause. This mimics cursor acceleration in text editors.
+
+---
+
+### 20. Options page — import/export settings and cheat sheet
+
+**Category:** UX  
+**Location:** `src/options/options.ts`, `src/options/options.html`
+
+**Problem:** No way to back up keybinding customizations. Users who reinstall the extension or switch machines lose their configuration. Additionally, new users have no quick-reference for what keys do what.
+
+**Fix:** Add "Export JSON" / "Import JSON" buttons that serialize/deserialize the full settings object. Add a "Keyboard Shortcuts" card showing all current bindings in a formatted reference table (auto-generated from settings, not hardcoded).
+
+---
+
+### 21. Dialog and popover awareness — auto-scope to visible modal content
+
+**Category:** UX  
+**Location:** `src/content/mutation-observer.ts`, `src/content/index.ts`
+
+**Problem:** When a modal dialog or popover opens, the navigation candidate list includes elements behind the modal (visually obscured). Users can navigate to invisible background elements, causing confusion.
+
+**Fix:** Detect open `<dialog>`, `[popover]:popover-open`, and `[aria-modal="true"]` elements. When one is detected, scope `scanElements` to only search within that modal's DOM subtree. When the modal closes, restore full-page scanning.
+
+---
+
+### 22. Configurable hint characters and ordering
+
+**Category:** UX  
+**Location:** `src/content/hint-mode.ts`, `src/options/options.ts`
+
+**Problem:** `HINT_CHARS = 'asdfghjkl'` is optimized for QWERTY home row but suboptimal for Dvorak (`aoeu`), Colemak (`arstne`), or users who prefer different finger patterns. Non-configurable.
+
+**Fix:** Add a `hintChars` field to settings (string of characters to use for hint labels, in priority order). Default to `asdfghjkl` but allow customization from the options page.
+
+---
+
+### 23. Highlight target element during hint mode filtering
+
+**Category:** UX  
+**Location:** `src/content/hint-mode.ts`
+
+**Problem:** As the user types characters in hint mode and the filtered set narrows, there's no preview of which element will be selected. The user must commit (Enter or full match) to see which element was targeted — only then does the aura ring move.
+
+**Fix:** When `filteredHints.length` narrows to ≤5, highlight the first match by moving the aura ring to it as a preview (with a dimmed/pulsing style to indicate "pending, not confirmed"). On exact match or Enter, confirm the selection with normal ring style.
+
+---
+
+### 24. Prevent double injection on extension reload
+
+**Category:** Bug  
+**Location:** `src/background/index.ts`, `src/content/index.ts`
+
+**Problem:** When the extension is reloaded during development or auto-updated, the background script's re-injection logic (`scripting.executeScript`) can inject a second instance of the content script alongside the still-running original. This causes duplicate event listeners, double shadow DOM hosts, and erratic behavior.
+
+**Fix:** Before injection, send a "ping" message to the tab. If the content script responds, it's still alive — skip re-injection. In the content script's `init()`, respond to ping messages. Additionally, at startup, check for existing shadow DOM hosts by ID and clean up stale instances.
+
+---
+
+## Low — Polish and Robustness
+
+### 25. Options page slider debounce — saves to storage on every pixel drag
+
+**Category:** Performance  
+**Location:** `src/options/options.ts`
+
+**Problem:** The `input` event on range sliders fires dozens of times per second during a drag. Each fires `save()` which writes to `chrome.storage.sync`. This causes unnecessary storage write throttling and potential sync conflicts.
+
+**Fix:** Debounce `save()` calls with a 300ms trailing debounce. The UI updates immediately (already does), but storage writes batch naturally.
+
+---
+
+### 26. `setInterval` in options preview leaks when tab is backgrounded
+
+**Category:** Performance  
+**Location:** `src/options/options.ts` → `setupPreview()`
+
+**Problem:** The preview ring animation interval runs indefinitely, consuming CPU even when the options tab is hidden or the user is on another tab.
+
+**Fix:** Use `document.addEventListener('visibilitychange', ...)` to pause the interval when the page is hidden and resume when visible again. Store the interval ID for proper cleanup.
+
+---
+
+### 27. Blurry toolbar icon — using 96px image for 16px slot
+
+**Category:** UX  
+**Location:** `manifests/v3.json`, `manifests/v2.json`
+
+**Problem:** The manifests reference `favicon-96x96.png` for the 16px and 48px icon slots. Browsers downscale these, producing blurry toolbar icons especially on non-Retina displays.
+
+**Fix:** Generate properly sized icons (16x16, 32x32, 48x48, 128x128) from the SVG source. Reference each at its correct size in the manifest. Add an npm script (e.g. using `sharp` or `svgexport`) to regenerate icons from the SVG.
+
+---
+
+### 28. Screen reader mode announcements via aria-live
 
 **Category:** Accessibility  
 **Location:** `src/content/indicator.ts`, `src/content/mode-manager.ts`
 
-**Problem:** When the mode changes, only a visual indicator chip is shown. Screen reader users receive no announcement of the mode change or the currently focused element. The aura ring is purely visual.
+**Problem:** Mode changes and focus changes are only communicated visually. Screen reader users who rely on keyboard navigation get zero audio feedback about the extension's state.
 
-**Suggested fix:**  
-
-1. Add a visually hidden `aria-live="polite"` region to the Shadow DOM (or the main document)
-2. On mode change, update its text content with "Navigation mode" / "Editing mode" / "Normal mode"
-3. On focus change, announce the focused element's accessible name
-4. Consider adding `aria-label` to the focused element dynamically (or using `aria-activedescendant` on a container)
+**Fix:** Add a visually-hidden `aria-live="assertive"` region to the document. On mode change, update its text ("Navigation mode active — use h/j/k/l to move"). On focus change, announce the element's accessible name. Keep announcements terse for rapid navigation.
 
 ---
 
-### 26. Options page has no keyboard accessibility for the keybinding recorder
+### 29. Firefox add-on signing — missing `browser_specific_settings`
 
-**Category:** Accessibility  
-**Location:** `src/options/options.ts:125-131`
+**Category:** Bug  
+**Location:** `manifests/v2.json`
 
-**Problem:** The keybinding buttons can be focused with Tab and activated with Enter/Space, but once recording starts, the only way to cancel is to click outside or press Escape. There's no visible instruction telling the user how to cancel. The "..." placeholder gives no context to screen reader users about what's happening.
+**Problem:** Firefox requires `browser_specific_settings.gecko.id` for extension signing and update checks. Without it, the extension cannot be submitted to AMO or installed from a signed XPI.
 
-**Suggested fix:**  
-
-1. Add `aria-label="Press a key combination to set binding, or Escape to cancel"` when recording
-2. Add visible helper text below the recording button: "Press keys or Esc to cancel"
-3. Add a timeout (e.g., 10 seconds) that auto-cancels recording
+**Fix:** Add `"browser_specific_settings": { "gecko": { "id": "navigator@extension", "strict_min_version": "109.0" } }` to the Firefox manifest.
 
 ---
 
-### 27. Background script doesn't handle tab discarding/freezing (Chrome MV3)
+### 30. Shared code duplication across bundles
 
-**Category:** Bug (Chrome-specific)  
-**Location:** `src/background/index.ts:24-37`
+**Category:** Performance (build)  
+**Location:** `webpack.config.js`
 
-**Problem:** In Chrome's MV3, the service worker is ephemeral and tabs can be discarded/frozen. When `api.tabs.sendMessage()` is called on a discarded tab, it will fail silently or throw. There's no error handling around the `sendMessage` call, and no attempt to re-inject the content script into tabs that were discarded and then reloaded.
+**Problem:** `src/shared/constants.ts`, `src/shared/types.ts`, and `src/shared/storage.ts` are bundled into all three entry points (content, background, options). The `DEFAULT_SETTINGS` object and selector strings are duplicated, increasing total extension size.
 
-**Suggested fix:**  
-
-1. Wrap `sendMessage` in a try/catch
-2. On failure, attempt to re-inject the content script via `chrome.scripting.executeScript()` (MV3) then retry the message
-3. Handle the `runtime.onConnect` event for a more robust content-script-alive detection
+**Fix:** Add `optimization.splitChunks` with a `shared` chunk for code imported by multiple entry points. For a browser extension this requires either dynamic `import()` or concatenating the shared chunk before each entry — evaluate whether the complexity is worth the ~2KB savings.
 
 ---
 
-### 28. No dark/light mode detection for options page
+## Summary
 
-**Category:** UX  
-**Location:** `src/options/options.css`
-
-**Problem:** The options page is hardcoded to a dark theme. Users with a system light mode preference, or those using light browser themes, get a jarring visual disconnect when opening the settings page.
-
-**Suggested fix:**  
-Add `@media (prefers-color-scheme: light)` overrides with appropriate light-mode colors. Or add a theme toggle to the options page. Consider also respecting the browser's built-in dark/light extension page theming.
-
----
-
-### 29. Documentation: no CONTRIBUTING.md, no architecture decision records
-
-**Category:** Documentation  
-**Location:** Project root
-
-**Problem:** The README is thorough for users but provides no guidance for contributors. Key architectural decisions (why cone-based nav vs. DOM-order, why Shadow DOM, why nav-queue batching) are not documented anywhere.
-
-**Suggested fix:**  
-
-1. Create `CONTRIBUTING.md` with development setup, testing instructions, PR guidelines
-2. Create `docs/architecture.md` documenting key design decisions and their rationale
-3. Add JSDoc comments to the main exported functions in each module
-
----
-
-### 30. No telemetry or error reporting mechanism
-
-**Category:** Feature Gap / Quality  
-**Location:** Project-wide
-
-**Problem:** When users encounter bugs in the wild, there's no way to collect diagnostic information. Silent failures (like storage unavailable, sendMessage errors) are swallowed without logging.
-
-**Suggested fix:**  
-
-1. Add a debug mode (settable in options) that logs to `console.debug` with a `[Navigator]` prefix
-2. Optionally store recent errors in local storage for a "Copy debug info" button in options
-3. Consider a lightweight opt-in anonymous error reporting to a Sentry-like service (be transparent about this)
-
----
-
-## Summary Table
-
-
-| #   | Priority | Category | Title                                  |
-| --- | -------- | -------- | -------------------------------------- |
-| 1   | Critical | Bug      | Stale rect data after scroll           |
-| 2   | Critical | Bug/A11y | Key handler blocks all keypresses      |
-| 3   | Critical | Bug      | No iframe support                      |
-| 4   | Critical | Bug      | `openInNewTab` fails for relative URLs |
-| 5   | High     | Perf/Bug | No cleanup on SPA navigation           |
-| 6   | High     | UX       | No off-screen element discovery        |
-| 7   | High     | Bug      | Aura ring drifts during scroll         |
-| 8   | High     | UX       | No duplicate keybinding detection      |
-| 9   | High     | Perf     | Double `getComputedStyle` per element  |
-| 10  | High     | Perf     | MutationObserver on full subtree       |
-| 11  | Medium   | UX       | No dead-end feedback                   |
-| 12  | Medium   | UX       | Activate always exits mode             |
-| 13  | Medium   | UX/A11y  | `e.code` confusing for non-QWERTY      |
-| 14  | Medium   | Feature  | No per-site disable                    |
-| 15  | Medium   | Bug      | Breathe animation conflicts opacity    |
-| 16  | Medium   | UX       | Multi-direction queue issues           |
-| 17  | Medium   | Quality  | No TypeScript strict mode              |
-| 18  | Medium   | Bug      | Orphaned shadow DOM on init error      |
-| 19  | Low      | Quality  | Options preview interval leak          |
-| 20  | Low      | Feature  | No mode cycling shortcut               |
-| 21  | Low      | Feature  | No hint/label quick-jump               |
-| 22  | Low      | UX       | Focus lost on React re-renders         |
-| 23  | Low      | Quality  | Unused polyfill dependency             |
-| 24  | Low      | Testing  | No test infrastructure                 |
-| 25  | Low      | A11y     | No ARIA announcements                  |
-| 26  | Low      | A11y     | Options recorder not accessible        |
-| 27  | Low      | Bug      | Background script tab discarding       |
-| 28  | Low      | UX       | No light mode for options              |
-| 29  | Low      | Docs     | No contributing guide                  |
-| 30  | Low      | Quality  | No error reporting                     |
-
-
+| # | Priority | Category | Title |
+|---|----------|----------|-------|
+| 1 | Critical | UX | Arrow key support |
+| 2 | Critical | UX | Count prefix (`3j`) |
+| 3 | Critical | Bug | Hint label overflow >81 elements |
+| 4 | Critical | UX | Activate and stay in mode |
+| 5 | Critical | UX | Jump stack / go-back |
+| 6 | High | Performance | rAF loop burns CPU |
+| 7 | High | Performance | Double getComputedStyle |
+| 8 | High | Performance | Scroll triggers full rescan |
+| 9 | High | Accessibility | Reduced-motion support |
+| 10 | High | UX | Smart element prioritization |
+| 11 | High | UX | Toggle feedback |
+| 12 | High | UX | Keyboard layout awareness |
+| 13 | Medium | UX | `gg`/`G` top/bottom jump |
+| 14 | Medium | UX | Passthrough key |
+| 15 | Medium | UX | Hint label positioning |
+| 16 | Medium | UX | Toolbar badge shows mode |
+| 17 | Medium | UX | Element text search (`/`) |
+| 18 | Medium | Performance | nodeCouldBeFocusable cost |
+| 19 | Medium | UX | Adaptive repeat rate |
+| 20 | Medium | UX | Import/export + cheat sheet |
+| 21 | Medium | UX | Modal/dialog scoping |
+| 22 | Medium | UX | Configurable hint characters |
+| 23 | Medium | UX | Highlight during hint filter |
+| 24 | Medium | Bug | Double injection prevention |
+| 25 | Low | Performance | Slider save debounce |
+| 26 | Low | Performance | Preview interval leak |
+| 27 | Low | UX | Blurry toolbar icon |
+| 28 | Low | Accessibility | Screen reader announcements |
+| 29 | Low | Bug | Firefox signing metadata |
+| 30 | Low | Performance | Shared code deduplication |

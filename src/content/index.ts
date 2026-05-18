@@ -3,7 +3,7 @@ import { getSettings, onSettingsChanged } from '../shared/storage';
 import { getCurrentMode, onModeChange, setMode } from './mode-manager';
 import { scanElements, findNearestToPoint } from './spatial-nav';
 import { setNavQueueState, setFlushCallback, setDeadEndCallback } from './nav-queue';
-import { initKeyHandler, updateKeyHandlerSettings, setFocusedElement, setTabCycleHandler, setToggleHandler, setHintKeyHandler } from './key-handler';
+import { initKeyHandler, updateKeyHandlerSettings, setFocusedElement, setTabCycleHandler, setToggleHandler, setHintKeyHandler, setGoBackHandler } from './key-handler';
 import { startObserving, stopObserving, updateMode } from './mutation-observer';
 import { initAuraRing, updateAuraSettings, transitionTo, hide as hideAura, bumpDirection } from './aura-ring';
 import { initIndicator, showModeIndicator, hideIndicator } from './indicator';
@@ -15,6 +15,9 @@ let settings: Settings;
 let extensionEnabled = true;
 let mouseX = window.innerWidth / 2;
 let mouseY = window.innerHeight / 2;
+
+const MAX_JUMP_STACK = 20;
+let jumpStack: IndexedElement[] = [];
 
 document.addEventListener('mousemove', (e) => {
   mouseX = e.clientX;
@@ -45,6 +48,7 @@ async function init(): Promise<void> {
   setTabCycleHandler(cycleElement);
   setToggleHandler(toggleExtension);
   setHintKeyHandler(handleHintKeyEvent);
+  setGoBackHandler(handleGoBack);
 
   onModeChange((newMode, _prevMode) => {
     if (!extensionEnabled && newMode !== 'normal') {
@@ -89,6 +93,7 @@ async function init(): Promise<void> {
 }
 
 function handleNavigationResult(target: IndexedElement): void {
+  if (focused) pushJump(focused);
   focused = target;
   setFocusedElement(target.el);
   setNavQueueState(target, elements, settings.coneAngle);
@@ -156,6 +161,30 @@ function toggleExtension(): void {
     setMode('normal');
   } else {
     extensionEnabled = true;
+  }
+}
+
+function pushJump(element: IndexedElement): void {
+  if (jumpStack.length > 0 && jumpStack[jumpStack.length - 1].el === element.el) return;
+  jumpStack.push(element);
+  if (jumpStack.length > MAX_JUMP_STACK) jumpStack.shift();
+}
+
+function popJump(): IndexedElement | null {
+  return jumpStack.pop() ?? null;
+}
+
+function handleGoBack(): void {
+  const prev = popJump();
+  if (!prev) return;
+  const stillExists = elements.find(e => e.el === prev.el);
+  if (stillExists) {
+    focused = stillExists;
+    setFocusedElement(stillExists.el);
+    setNavQueueState(stillExists, elements, settings.coneAngle);
+    const mode = getCurrentMode();
+    if (mode !== 'normal') transitionTo(stillExists, mode);
+    if (settings.autoScroll) scrollIntoViewIfNeeded(stillExists);
   }
 }
 

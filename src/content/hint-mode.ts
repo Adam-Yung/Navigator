@@ -1,7 +1,7 @@
 import type { IndexedElement, Mode } from '../shared/types';
 import { AURA_COLORS } from '../shared/constants';
 
-const HINT_CHARS = 'asdfghjkl'.split('');
+const HINT_CHARS = 'asdfghjklqwertyuiopzxcvbnm'.split('');
 
 let host: HTMLElement | null = null;
 let shadow: ShadowRoot | null = null;
@@ -135,7 +135,7 @@ export function handleHintKey(key: string, event: KeyboardEvent): boolean {
     return false;
   }
 
-  if (key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
+  if (key.length === 1) {
     typedFilter += key.toLowerCase();
     applyFilter();
 
@@ -154,7 +154,7 @@ export function handleHintKey(key: string, event: KeyboardEvent): boolean {
     return true;
   }
 
-  return false;
+  return true;
 }
 
 export function destroyHintMode(): void {
@@ -201,20 +201,27 @@ function flashNoMatch(): void {
 }
 
 function generateLabels(count: number): string[] {
+  if (count <= HINT_CHARS.length) return HINT_CHARS.slice(0, count);
+
   const labels: string[] = [];
-
-  if (count <= HINT_CHARS.length) {
-    return HINT_CHARS.slice(0, count);
+  let depth = 1;
+  while (labels.length < count && depth <= 5) {
+    addLabelsOfLength(depth, count, labels);
+    depth++;
   }
-
-  for (const c1 of HINT_CHARS) {
-    for (const c2 of HINT_CHARS) {
-      labels.push(c1 + c2);
-      if (labels.length >= count) return labels;
-    }
-  }
-
   return labels;
+}
+
+function addLabelsOfLength(len: number, max: number, out: string[]): void {
+  const generate = (prefix: string, remaining: number): void => {
+    if (out.length >= max) return;
+    if (remaining === 0) { out.push(prefix); return; }
+    for (const c of HINT_CHARS) {
+      if (out.length >= max) return;
+      generate(prefix + c, remaining - 1);
+    }
+  };
+  generate('', len);
 }
 
 function getHintStyles(): string {
@@ -230,13 +237,14 @@ function getHintStyles(): string {
 
     .hint-label {
       position: fixed;
-      padding: 2px 5px;
+      padding: 1px 3px;
       background: ${AURA_COLORS.navigation};
       color: white;
-      font: bold 11px monospace;
-      border-radius: 4px;
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+      font: bold 10px/1 monospace;
+      border-radius: 3px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
       z-index: 1;
+      white-space: nowrap;
       transition: opacity 0.15s ease;
     }
 
