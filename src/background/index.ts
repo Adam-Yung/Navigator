@@ -21,7 +21,13 @@ api.runtime.onInstalled.addListener(async () => {
 });
 
 api.commands?.onCommand?.addListener(async (command: string) => {
-  const tabs = await api.tabs.query({ active: true, currentWindow: true });
+  let tabs: any[];
+  try {
+    tabs = await api.tabs.query({ active: true, currentWindow: true });
+  } catch {
+    return;
+  }
+
   const tab = tabs[0];
   if (!tab?.id) return;
 
@@ -33,6 +39,22 @@ api.commands?.onCommand?.addListener(async (command: string) => {
   }
 
   if (mode) {
-    api.tabs.sendMessage(tab.id, { type: 'set-mode', mode });
+    try {
+      await api.tabs.sendMessage(tab.id, { type: 'set-mode', mode });
+    } catch {
+      // Tab may be discarded, frozen, or content script not yet injected.
+      // Attempt to re-inject the content script (MV3 only), then retry.
+      if (api.scripting?.executeScript) {
+        try {
+          await api.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: ['content.js'],
+          });
+          await api.tabs.sendMessage(tab.id, { type: 'set-mode', mode });
+        } catch {
+          // Tab is truly unreachable (e.g. chrome:// page, discarded)
+        }
+      }
+    }
   }
 });
