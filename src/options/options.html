@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modal Navigator — Settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Modal Navigator</h1>
+      <p class="subtitle">Configure your navigation experience</p>
+    </header>
+
+    <section class="card">
+      <h2>Keybindings</h2>
+      <div class="field">
+        <label for="kb-navigation">Enter Navigation Mode</label>
+        <button class="keybind-btn" id="kb-navigation" data-key="enterNavigation">
+          <span class="keycaps"></span>
+        </button>
+      </div>
+      <div class="field">
+        <label for="kb-editing">Enter Editing Mode</label>
+        <button class="keybind-btn" id="kb-editing" data-key="enterEditing">
+          <span class="keycaps"></span>
+        </button>
+      </div>
+      <div class="field">
+        <label for="kb-normal">Return to Normal</label>
+        <button class="keybind-btn" id="kb-normal" data-key="returnToNormal">
+          <span class="keycaps"></span>
+        </button>
+      </div>
+      <div class="field">
+        <label for="kb-activate">Activate Element</label>
+        <button class="keybind-btn" id="kb-activate" data-key="activate">
+          <span class="keycaps"></span>
+        </button>
+      </div>
+      <div class="field">
+        <label for="kb-newtab">Open in New Tab</label>
+        <button class="keybind-btn" id="kb-newtab" data-key="openNewTab">
+          <span class="keycaps"></span>
+        </button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Appearance</h2>
+      <div class="field">
+        <label for="anim-duration">Animation Duration</label>
+        <div class="slider-group">
+          <input type="range" id="anim-duration" min="0" max="500" step="10" value="250">
+          <span class="slider-value" id="anim-duration-val">250ms</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>Aura Intensity</label>
+        <div class="radio-group">
+          <label class="radio-label">
+            <input type="radio" name="aura-intensity" value="subtle"> Subtle
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="aura-intensity" value="normal" checked> Normal
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="aura-intensity" value="vibrant"> Vibrant
+          </label>
+        </div>
+      </div>
+      <div class="field">
+        <label>Preview</label>
+        <div class="preview-area" id="preview-area">
+          <div class="preview-element" id="preview-el-1">Button</div>
+          <div class="preview-element" id="preview-el-2">Link</div>
+          <div class="preview-ring" id="preview-ring"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Behavior</h2>
+      <div class="field">
+        <label for="auto-scroll">Auto-scroll to off-screen elements</label>
+        <input type="checkbox" id="auto-scroll" checked>
+      </div>
+      <div class="field">
+        <label for="cone-angle">Navigation Cone Angle</label>
+        <div class="slider-group">
+          <input type="range" id="cone-angle" min="60" max="120" step="5" value="90">
+          <span class="slider-value" id="cone-angle-val">90°</span>
+        </div>
+      </div>
+    </section>
+
+    <div class="actions">
+      <button class="btn btn-danger" id="btn-reset">Reset to Defaults</button>
+    </div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

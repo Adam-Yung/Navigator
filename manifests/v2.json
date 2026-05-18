@@ -1,0 +1,43 @@
+{
+  "manifest_version": 2,
+  "name": "Modal Navigator",
+  "version": "1.0.0",
+  "description": "Vim-style modal navigation for the browser with directional spatial search and animated focus indicators",
+  "permissions": ["storage"],
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": false
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "commands": {
+    "activate-navigation": {
+      "suggested_key": {
+        "default": "Ctrl+Alt+N",
+        "mac": "MacCtrl+Alt+N"
+      },
+      "description": "Enter Navigation mode"
+    },
+    "activate-editing": {
+      "suggested_key": {
+        "default": "Ctrl+Alt+E",
+        "mac": "MacCtrl+Alt+E"
+      },
+      "description": "Enter Editing mode"
+    }
+  },
+  "icons": {
+    "16": "assets/icons/icon16.png",
+    "48": "assets/icons/icon48.png",
+    "128": "assets/icons/icon128.png"
+  }
+}
