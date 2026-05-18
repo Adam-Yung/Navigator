@@ -13,6 +13,9 @@ let onFlush: FlushCallback | null = null;
 let onDeadEnd: DeadEndCallback | null = null;
 let coneAngle = 90;
 let smartPrioritization = false;
+let consecutiveFlushes = 0;
+let lastFlushTime = 0;
+let lastFlushDir: Direction | null = null;
 
 export function setNavQueueState(
   current: IndexedElement | null,
@@ -66,15 +69,31 @@ function flush(): void {
     return;
   }
 
-  let target: IndexedElement = currentElement;
-  let lastDir: Direction = pending[pending.length - 1];
+  const now = Date.now();
+  const dir = pending[pending.length - 1];
 
-  for (const dir of pending) {
-    const next = findNext(target, candidates, dir, coneAngle, smartPrioritization);
-    if (next) {
-      target = next;
+  if (dir === lastFlushDir && now - lastFlushTime < 500) {
+    consecutiveFlushes++;
+  } else {
+    consecutiveFlushes = 0;
+  }
+  lastFlushDir = dir;
+  lastFlushTime = now;
+
+  const multiplier = getRepeatMultiplier();
+  let target: IndexedElement = currentElement;
+  let lastDir: Direction = dir;
+
+  for (const d of pending) {
+    for (let step = 0; step < multiplier; step++) {
+      const next = findNext(target, candidates, d, coneAngle, smartPrioritization);
+      if (next) {
+        target = next;
+      } else {
+        break;
+      }
     }
-    lastDir = dir;
+    lastDir = d;
   }
 
   pending = [];
@@ -85,4 +104,10 @@ function flush(): void {
   } else if (target === currentElement && onDeadEnd) {
     onDeadEnd(lastDir);
   }
+}
+
+function getRepeatMultiplier(): number {
+  if (consecutiveFlushes >= 6) return 3;
+  if (consecutiveFlushes >= 3) return 2;
+  return 1;
 }
