@@ -124,7 +124,8 @@ export function destroyAuraRing(): void {
 
 function startTracking(): void {
   if (rafId !== null) return;
-  rafId = requestAnimationFrame(trackPosition);
+  window.addEventListener('scroll', onScrollTrack, { passive: true, capture: true });
+  window.addEventListener('resize', onScrollTrack, { passive: true });
 }
 
 function stopTracking(): void {
@@ -132,15 +133,19 @@ function stopTracking(): void {
     cancelAnimationFrame(rafId);
     rafId = null;
   }
+  window.removeEventListener('scroll', onScrollTrack, true);
+  window.removeEventListener('resize', onScrollTrack);
 }
 
-function trackPosition(): void {
+function onScrollTrack(): void {
+  if (rafId !== null) return;
+  rafId = requestAnimationFrame(updatePosition);
+}
+
+function updatePosition(): void {
   rafId = null;
   if (!ring || !trackedElement || !visible) return;
-  if (isTransitioning) {
-    rafId = requestAnimationFrame(trackPosition);
-    return;
-  }
+  if (isTransitioning) return;
 
   const rect = trackedElement.getBoundingClientRect();
   const padding = 8;
@@ -149,8 +154,6 @@ function trackPosition(): void {
   ring.style.left = `${rect.left - padding}px`;
   ring.style.width = `${Math.max(rect.width + padding * 2, 24)}px`;
   ring.style.height = `${Math.max(rect.height + padding * 2, 24)}px`;
-
-  rafId = requestAnimationFrame(trackPosition);
 }
 
 function getTargetBorderRadius(el: HTMLElement, padding: number): string {
