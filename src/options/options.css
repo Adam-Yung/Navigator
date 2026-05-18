@@ -85,6 +85,11 @@ h2 {
   border-color: #5a5a8a;
 }
 
+.keybind-btn .keycaps,
+.keybind-btn .keycap {
+  pointer-events: none;
+}
+
 .keybind-btn:focus,
 .keybind-btn.recording {
   border-color: hsl(250, 80%, 65%);

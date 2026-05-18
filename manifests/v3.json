@@ -3,7 +3,15 @@
   "name": "Navigator",
   "version": "1.0.0",
   "description": "Vim-style modal navigation for the browser with directional spatial search and animated focus indicators",
-  "permissions": ["storage"],
+  "permissions": ["storage", "scripting"],
+  "action": {
+    "default_icon": {
+      "16": "assets/icons/favicon-96x96.png",
+      "48": "assets/icons/favicon-96x96.png",
+      "128": "assets/icons/web-app-manifest-192x192.png"
+    },
+    "default_title": "Navigator"
+  },
   "background": {
     "service_worker": "background.js"
   },
@@ -32,8 +40,8 @@
     }
   },
   "icons": {
-    "16": "assets/icons/icon16.png",
-    "48": "assets/icons/icon48.png",
-    "128": "assets/icons/icon128.png"
+    "16": "assets/icons/favicon-96x96.png",
+    "48": "assets/icons/favicon-96x96.png",
+    "128": "assets/icons/web-app-manifest-192x192.png"
   }
 }

@@ -1,4 +1,4 @@
-import type { IndexedElement, Settings } from '../shared/types';
+import type { Direction, IndexedElement, Settings } from '../shared/types';
 import { getSettings, onSettingsChanged } from '../shared/storage';
 import { getCurrentMode, onModeChange, setMode } from './mode-manager';
 import { scanElements, findNearestToPoint } from './spatial-nav';
@@ -41,7 +41,7 @@ async function init(): Promise<void> {
   });
 
   setFlushCallback(handleNavigationResult);
-  setDeadEndCallback((dir) => { bumpDirection(dir); });
+  setDeadEndCallback(handleDeadEnd);
   setTabCycleHandler(cycleElement);
   setToggleHandler(toggleExtension);
   setHintKeyHandler(handleHintKeyEvent);
@@ -169,6 +169,7 @@ function handleHintKeyEvent(key: string, event: KeyboardEvent): boolean {
   if (key.toLowerCase() === codeToChar(settings.keybindings.hintMode) && !event.ctrlKey && !event.altKey && !event.metaKey) {
     const mode = getCurrentMode();
     if (mode === 'navigation' || mode === 'editing') {
+      if (elements.length === 0) return false;
       activateHintMode(elements, mode, handleHintSelect, handleHintCancel);
       return true;
     }
@@ -189,6 +190,41 @@ function handleHintSelect(element: IndexedElement): void {
 
 function handleHintCancel(): void {
   // Just deactivate — focus stays where it was
+}
+
+function handleDeadEnd(direction: Direction): void {
+  if (canScrollInDirection(direction)) {
+    scrollInDirection(direction, 200);
+  } else {
+    bumpDirection(direction);
+  }
+}
+
+function canScrollInDirection(direction: Direction): boolean {
+  const doc = document.documentElement;
+  const body = document.body;
+  const scrollTop = doc.scrollTop || body.scrollTop;
+  const scrollLeft = doc.scrollLeft || body.scrollLeft;
+  const clientHeight = doc.clientHeight;
+  const clientWidth = doc.clientWidth;
+  const scrollHeight = Math.max(doc.scrollHeight, body.scrollHeight);
+  const scrollWidth = Math.max(doc.scrollWidth, body.scrollWidth);
+
+  switch (direction) {
+    case 'down': return scrollTop + clientHeight < scrollHeight - 1;
+    case 'up': return scrollTop > 0;
+    case 'right': return scrollLeft + clientWidth < scrollWidth - 1;
+    case 'left': return scrollLeft > 0;
+  }
+}
+
+function scrollInDirection(direction: Direction, amount: number): void {
+  const map: Record<Direction, [number, number]> = {
+    down: [0, amount], up: [0, -amount],
+    right: [amount, 0], left: [-amount, 0],
+  };
+  const [x, y] = map[direction];
+  window.scrollBy({ left: x, top: y, behavior: 'smooth' });
 }
 
 function codeToChar(code: string): string {

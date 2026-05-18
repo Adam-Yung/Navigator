@@ -2,6 +2,11 @@ import { DEFAULT_SETTINGS } from '../shared/constants';
 
 const api = (globalThis as any).browser || (globalThis as any).chrome;
 
+const actionApi = api.action || api.browserAction;
+actionApi?.onClicked?.addListener(() => {
+  api.runtime.openOptionsPage();
+});
+
 api.runtime.onInstalled.addListener(async () => {
   try {
     const result = await api.storage.sync.get('settings');

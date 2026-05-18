@@ -100,10 +100,10 @@ function runAnimation(el: HTMLElement): void {
         animTimer = setTimeout(() => {
           el.className = 'indicator state-dot';
           animTimer = null;
-        }, 200);
+        }, 250);
       }, 1200);
-    }, 250);
-  }, 200);
+    }, 300);
+  }, 250);
 }
 
 function getIndicatorStyles(): string {
@@ -115,8 +115,7 @@ function getIndicatorStyles(): string {
     .indicator {
       position: fixed;
       bottom: 12px;
-      left: 50%;
-      transform: translateX(-50%);
+      right: 16px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -124,41 +123,41 @@ function getIndicatorStyles(): string {
       background: var(--chip-color);
       color: white;
       border-radius: 999px;
-      overflow: hidden;
       white-space: nowrap;
       backdrop-filter: blur(4px);
       box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
-      transition: width 250ms cubic-bezier(0.4, 0, 0.2, 1),
-                  height 200ms cubic-bezier(0.4, 0, 0.2, 1),
-                  padding 200ms cubic-bezier(0.4, 0, 0.2, 1),
-                  opacity 150ms ease,
-                  transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1),
-                  background-color 150ms ease;
+      transition: all 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
       pointer-events: none;
+      min-width: 8px;
+      min-height: 8px;
     }
 
     .indicator.state-hidden {
-      width: 0;
+      min-width: 0;
+      min-height: 0;
+      max-width: 0;
       height: 0;
       padding: 0;
       opacity: 0;
-      transform: translateX(-50%) scale(0);
+      transform: scale(0);
     }
 
     .indicator.state-exit {
-      width: 6px;
-      height: 6px;
+      min-width: 0;
+      min-height: 0;
+      max-width: 8px;
+      height: 8px;
       padding: 0;
       opacity: 0;
-      transform: translateX(-50%) scale(0);
+      transform: scale(0);
     }
 
     .indicator.state-dot {
-      width: 6px;
-      height: 6px;
+      max-width: 8px;
+      height: 8px;
       padding: 0;
       opacity: 1;
-      transform: translateX(-50%) scale(1);
+      transform: scale(1);
     }
 
     .indicator.state-dot .icon,
@@ -170,22 +169,21 @@ function getIndicatorStyles(): string {
     }
 
     .indicator.state-icon {
-      width: 24px;
-      height: 24px;
-      padding: 4px;
+      max-width: 28px;
+      height: 28px;
+      padding: 5px;
       opacity: 1;
-      transform: translateX(-50%) scale(1);
+      transform: scale(1);
     }
 
     .indicator.state-icon .icon {
-      width: 14px;
-      height: 14px;
+      width: 16px;
+      height: 16px;
       opacity: 1;
-      transition: opacity 150ms ease;
     }
 
     .indicator.state-icon .label {
-      width: 0;
+      max-width: 0;
       opacity: 0;
       overflow: hidden;
       font-size: 0;
@@ -193,10 +191,10 @@ function getIndicatorStyles(): string {
 
     .indicator.state-pill {
       height: 28px;
-      padding: 4px 12px 4px 8px;
+      padding: 5px 12px 5px 8px;
       opacity: 1;
-      transform: translateX(-50%) scale(1);
-      width: auto;
+      transform: scale(1);
+      max-width: 140px;
     }
 
     .indicator.state-pill .icon {
@@ -208,18 +206,18 @@ function getIndicatorStyles(): string {
 
     .indicator.state-pill .label {
       opacity: 1;
+      max-width: 80px;
       font-size: 11px;
       font-weight: 600;
       letter-spacing: 0.5px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-      transition: opacity 200ms ease;
     }
 
     .icon {
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: width 200ms ease, height 200ms ease, opacity 150ms ease;
+      transition: all 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
     }
 
     .icon svg {
@@ -228,7 +226,7 @@ function getIndicatorStyles(): string {
     }
 
     .label {
-      transition: opacity 200ms ease, width 200ms ease, font-size 200ms ease;
+      transition: all 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
     }
   `;
 }
