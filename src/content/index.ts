@@ -3,7 +3,7 @@ import { getSettings, onSettingsChanged } from '../shared/storage';
 import { getCurrentMode, onModeChange, setMode } from './mode-manager';
 import { scanElements, findNearestToPoint } from './spatial-nav';
 import { setNavQueueState, setFlushCallback, setDeadEndCallback } from './nav-queue';
-import { initKeyHandler, updateKeyHandlerSettings, setFocusedElement, setTabCycleHandler, setToggleHandler, setHintKeyHandler, setGoBackHandler } from './key-handler';
+import { initKeyHandler, updateKeyHandlerSettings, setFocusedElement, setTabCycleHandler, setToggleHandler, setHintKeyHandler, setGoBackHandler, setExtensionEnabled } from './key-handler';
 import { startObserving, stopObserving, updateMode } from './mutation-observer';
 import { initAuraRing, updateAuraSettings, transitionTo, hide as hideAura, bumpDirection } from './aura-ring';
 import { initIndicator, showModeIndicator, hideIndicator } from './indicator';
@@ -29,6 +29,7 @@ async function init(): Promise<void> {
 
   if (isSiteDisabled(settings.disabledSites)) {
     extensionEnabled = false;
+    setExtensionEnabled(false);
   }
 
   initKeyHandler(settings);
@@ -158,9 +159,11 @@ export function cycleElement(direction: 'next' | 'prev'): void {
 function toggleExtension(): void {
   if (extensionEnabled) {
     extensionEnabled = false;
+    setExtensionEnabled(false);
     setMode('normal');
   } else {
     extensionEnabled = true;
+    setExtensionEnabled(true);
   }
 }
 

@@ -8,6 +8,7 @@ let onTabCycle: ((direction: 'next' | 'prev') => void) | null = null;
 let onHintKey: ((key: string, event: KeyboardEvent) => boolean) | null = null;
 let onToggle: (() => void) | null = null;
 let onGoBack: (() => void) | null = null;
+let extensionEnabled = true;
 
 export function initKeyHandler(initialSettings: Settings): void {
   settings = initialSettings;
@@ -38,6 +39,10 @@ export function setGoBackHandler(handler: () => void): void {
   onGoBack = handler;
 }
 
+export function setExtensionEnabled(enabled: boolean): void {
+  extensionEnabled = enabled;
+}
+
 export function destroyKeyHandler(): void {
   document.removeEventListener('keydown', handleKeydown, true);
 }
@@ -54,6 +59,8 @@ function handleKeydown(e: KeyboardEvent): void {
     if (onToggle) onToggle();
     return;
   }
+
+  if (!extensionEnabled) return;
 
   if (mode === 'normal') {
     if (combo === settings.keybindings.enterNavigation) {
