@@ -1,4 +1,4 @@
-# Modal Navigator
+# Navigator
 
 A browser extension that brings vim-style modal navigation to any web page. Navigate focusable elements with `h/j/k/l` keys using directional spatial search, highlighted by a smooth animated aura ring.
 
@@ -19,8 +19,8 @@ A browser extension that brings vim-style modal navigation to any web page. Navi
 Prerequisites: Node.js 18+, npm
 
 ```bash
-git clone <repo-url> modal-navigator
-cd modal-navigator
+git clone <repo-url> navigator
+cd navigator
 npm install
 npm run build
 ```
@@ -131,7 +131,7 @@ flowchart TD
 
 **Background Script** (`background.js`, ~1.2KB): Handles global keyboard shortcut commands and sends mode-switch messages to the active tab. Sets default settings on install.
 
-**Options Page** (`options.js` + `options.css`): Modern dark-themed settings UI with live preview of the aura ring animation and a keybinding recorder.
+**Options Page** (`options.js` + `options.css`): Dark-themed settings UI with live preview of the aura ring animation and a keybinding recorder.
 
 ## Project Structure
 

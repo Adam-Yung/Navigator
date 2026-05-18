@@ -13,7 +13,7 @@ const PEN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fil
 
 export function initIndicator(): void {
   host = document.createElement('div');
-  host.id = 'modal-nav-indicator-host';
+  host.id = 'navigator-indicator-host';
   host.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;z-index:2147483647;pointer-events:none;';
   shadow = host.attachShadow({ mode: 'closed' });
 

@@ -1,6 +1,6 @@
 {
   "manifest_version": 2,
-  "name": "Modal Navigator",
+  "name": "Navigator",
   "version": "1.0.0",
   "description": "Vim-style modal navigation for the browser with directional spatial search and animated focus indicators",
   "permissions": ["storage"],

@@ -1,5 +1,5 @@
 {
-  "name": "modal-navigator",
+  "name": "navigator",
   "version": "1.0.0",
   "description": "Vim-style modal navigation for the browser with directional spatial search and animated focus indicators",
   "scripts": {

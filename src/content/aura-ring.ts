@@ -10,7 +10,7 @@ let auraIntensity: Settings['auraIntensity'] = 'normal';
 
 export function initAuraRing(): void {
   host = document.createElement('div');
-  host.id = 'modal-nav-aura-host';
+  host.id = 'navigator-aura-host';
   host.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;z-index:2147483646;pointer-events:none;';
   shadow = host.attachShadow({ mode: 'closed' });
 
