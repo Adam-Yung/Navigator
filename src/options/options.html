@@ -45,6 +45,22 @@
           <span class="keycaps"></span>
         </button>
       </div>
+      <div class="field">
+        <label for="kb-toggle">Toggle Extension</label>
+        <button class="keybind-btn" id="kb-toggle" data-key="toggleExtension">
+          <span class="keycaps"></span>
+        </button>
+      </div>
+      <div class="field">
+        <label for="kb-hint">Hint Mode</label>
+        <button class="keybind-btn" id="kb-hint" data-key="hintMode">
+          <span class="keycaps"></span>
+        </button>
+      </div>
+      <div class="conflict-warning" id="conflict-warning" hidden>
+        <span class="conflict-icon">!</span>
+        <span class="conflict-text"></span>
+      </div>
     </section>
 
     <section class="card">
@@ -93,6 +109,12 @@
           <span class="slider-value" id="cone-angle-val">90°</span>
         </div>
       </div>
+    </section>
+
+    <section class="card">
+      <h2>Disabled Sites</h2>
+      <p class="field-desc">One URL pattern per line. Use * as wildcard.</p>
+      <textarea id="disabled-sites" rows="4" placeholder="*://docs.google.com/*&#10;*://figma.com/*"></textarea>
     </section>
 
     <div class="actions">

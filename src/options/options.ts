@@ -11,6 +11,7 @@ async function init(): Promise<void> {
   renderKeybindings();
   renderAppearance();
   renderBehavior();
+  renderDisabledSites();
   setupPreview();
   setupListeners();
 }
@@ -49,6 +50,7 @@ function renderKeybindings(): void {
       btn.querySelector('.keycaps')!.innerHTML = comboToKeycaps(settings.keybindings[key]);
     }
   }
+  clearConflictWarning();
 }
 
 function renderAppearance(): void {
@@ -68,6 +70,11 @@ function renderBehavior(): void {
   const coneSlider = document.getElementById('cone-angle') as HTMLInputElement;
   coneSlider.value = String(settings.coneAngle);
   document.getElementById('cone-angle-val')!.textContent = `${settings.coneAngle}\u00B0`;
+}
+
+function renderDisabledSites(): void {
+  const textarea = document.getElementById('disabled-sites') as HTMLTextAreaElement;
+  textarea.value = settings.disabledSites.join('\n');
 }
 
 function setupListeners(): void {
@@ -104,12 +111,19 @@ function setupListeners(): void {
     save();
   });
 
+  document.getElementById('disabled-sites')!.addEventListener('change', (e) => {
+    const text = (e.target as HTMLTextAreaElement).value;
+    settings.disabledSites = text.split('\n').map(s => s.trim()).filter(Boolean);
+    save();
+  });
+
   document.getElementById('btn-reset')!.addEventListener('click', () => {
     if (confirm('Reset all settings to defaults?')) {
       settings = { ...DEFAULT_SETTINGS };
       renderKeybindings();
       renderAppearance();
       renderBehavior();
+      renderDisabledSites();
       save();
     }
   });
@@ -129,6 +143,7 @@ function startRecording(btn: HTMLButtonElement): void {
   recordingButton = btn;
   btn.classList.add('recording');
   btn.querySelector('.keycaps')!.innerHTML = '<span class="keycap">...</span>';
+  clearConflictWarning();
 }
 
 function stopRecording(): void {
@@ -157,14 +172,69 @@ function handleRecordingKeydown(e: KeyboardEvent): void {
 
   const combo = buildComboString(e);
   const key = recordingButton.dataset.key as keyof Keybindings;
-  if (key) {
-    settings.keybindings[key] = combo;
-    recordingButton.querySelector('.keycaps')!.innerHTML = comboToKeycaps(combo);
-    save();
+  if (!key) return;
+
+  const conflict = checkDuplicates(key, combo);
+  if (conflict) {
+    showConflictWarning(key, conflict, combo);
+  } else {
+    clearConflictWarning();
   }
+
+  settings.keybindings[key] = combo;
+  recordingButton.querySelector('.keycaps')!.innerHTML = comboToKeycaps(combo);
+  save();
 
   recordingButton.classList.remove('recording');
   recordingButton = null;
+}
+
+function checkDuplicates(currentKey: keyof Keybindings, combo: string): keyof Keybindings | null {
+  for (const [k, v] of Object.entries(settings.keybindings)) {
+    if (k !== currentKey && v === combo) return k as keyof Keybindings;
+  }
+  return null;
+}
+
+function showConflictWarning(key1: keyof Keybindings, key2: keyof Keybindings, combo: string): void {
+  const warning = document.getElementById('conflict-warning')!;
+  const text = warning.querySelector('.conflict-text')!;
+  text.textContent = `"${formatKeyName(key1)}" conflicts with "${formatKeyName(key2)}" — both set to ${combo}`;
+  warning.hidden = false;
+
+  highlightConflict(key1, true);
+  highlightConflict(key2, true);
+}
+
+function clearConflictWarning(): void {
+  const warning = document.getElementById('conflict-warning');
+  if (warning) warning.hidden = true;
+
+  const buttons = document.querySelectorAll<HTMLButtonElement>('.keybind-btn');
+  for (const btn of buttons) {
+    btn.classList.remove('conflict');
+  }
+}
+
+function highlightConflict(key: keyof Keybindings, highlight: boolean): void {
+  const btn = document.querySelector<HTMLButtonElement>(`.keybind-btn[data-key="${key}"]`);
+  if (btn) {
+    if (highlight) btn.classList.add('conflict');
+    else btn.classList.remove('conflict');
+  }
+}
+
+function formatKeyName(key: keyof Keybindings): string {
+  const names: Record<keyof Keybindings, string> = {
+    enterNavigation: 'Enter Navigation',
+    enterEditing: 'Enter Editing',
+    returnToNormal: 'Return to Normal',
+    activate: 'Activate',
+    openNewTab: 'Open New Tab',
+    toggleExtension: 'Toggle Extension',
+    hintMode: 'Hint Mode',
+  };
+  return names[key] || key;
 }
 
 function buildComboString(e: KeyboardEvent): string {
