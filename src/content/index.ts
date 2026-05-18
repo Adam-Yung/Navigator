@@ -1,19 +1,31 @@
 import type { IndexedElement, Settings } from '../shared/types';
 import { getSettings, onSettingsChanged } from '../shared/storage';
 import { getCurrentMode, onModeChange, setMode } from './mode-manager';
-import { scanElements, findNearestToViewportCenter } from './spatial-nav';
-import { setNavQueueState, setFlushCallback } from './nav-queue';
-import { initKeyHandler, updateKeyHandlerSettings, setFocusedElement } from './key-handler';
+import { scanElements, findNearestToPoint } from './spatial-nav';
+import { setNavQueueState, setFlushCallback, setDeadEndCallback } from './nav-queue';
+import { initKeyHandler, updateKeyHandlerSettings, setFocusedElement, setTabCycleHandler, setToggleHandler } from './key-handler';
 import { startObserving, stopObserving, updateMode } from './mutation-observer';
-import { initAuraRing, updateAuraSettings, transitionTo, hide as hideAura } from './aura-ring';
+import { initAuraRing, updateAuraSettings, transitionTo, hide as hideAura, bumpDirection } from './aura-ring';
 import { initIndicator, showModeIndicator, hideIndicator } from './indicator';
 
 let elements: IndexedElement[] = [];
 let focused: IndexedElement | null = null;
 let settings: Settings;
+let extensionEnabled = true;
+let mouseX = window.innerWidth / 2;
+let mouseY = window.innerHeight / 2;
+
+document.addEventListener('mousemove', (e) => {
+  mouseX = e.clientX;
+  mouseY = e.clientY;
+}, { passive: true });
 
 async function init(): Promise<void> {
   settings = await getSettings();
+
+  if (isSiteDisabled(settings.disabledSites)) {
+    extensionEnabled = false;
+  }
 
   initKeyHandler(settings);
   initAuraRing();
@@ -27,8 +39,16 @@ async function init(): Promise<void> {
   });
 
   setFlushCallback(handleNavigationResult);
+  setDeadEndCallback((dir) => { bumpDirection(dir); });
+  setTabCycleHandler(cycleElement);
+  setToggleHandler(toggleExtension);
 
   onModeChange((newMode, _prevMode) => {
+    if (!extensionEnabled && newMode !== 'normal') {
+      setMode('normal');
+      return;
+    }
+
     if (newMode === 'normal') {
       stopObserving();
       elements = [];
@@ -50,7 +70,7 @@ async function init(): Promise<void> {
       transitionTo(focused, newMode);
       setNavQueueState(focused, elements, settings.coneAngle);
     } else {
-      focused = findNearestToViewportCenter(elements);
+      focused = findNearestToPoint(elements, mouseX, mouseY);
       if (focused) {
         transitionTo(focused, newMode);
       }
@@ -89,13 +109,49 @@ function handleElementsInvalidation(newElements: IndexedElement[]): void {
       focused = stillExists;
       if (mode !== 'normal') transitionTo(focused, mode);
     } else {
-      focused = findNearestToViewportCenter(elements);
+      focused = findNearestToPoint(elements, focused.cx, focused.cy);
       setFocusedElement(focused?.el ?? null);
       if (focused && mode !== 'normal') transitionTo(focused, mode);
     }
   }
 
   setNavQueueState(focused, elements, settings.coneAngle);
+}
+
+export function cycleElement(direction: 'next' | 'prev'): void {
+  if (elements.length === 0) return;
+
+  const currentIdx = focused ? elements.findIndex(e => e.el === focused!.el) : -1;
+  let nextIdx: number;
+
+  if (direction === 'next') {
+    nextIdx = (currentIdx + 1) % elements.length;
+  } else {
+    nextIdx = (currentIdx - 1 + elements.length) % elements.length;
+  }
+
+  const target = elements[nextIdx];
+  focused = target;
+  setFocusedElement(target.el);
+  setNavQueueState(target, elements, settings.coneAngle);
+
+  const mode = getCurrentMode();
+  if (mode !== 'normal') {
+    transitionTo(target, mode);
+  }
+
+  if (settings.autoScroll) {
+    scrollIntoViewIfNeeded(target);
+  }
+}
+
+function toggleExtension(): void {
+  if (extensionEnabled) {
+    extensionEnabled = false;
+    setMode('normal');
+  } else {
+    extensionEnabled = true;
+  }
 }
 
 function scrollIntoViewIfNeeded(target: IndexedElement): void {
@@ -111,13 +167,28 @@ function scrollIntoViewIfNeeded(target: IndexedElement): void {
   }
 }
 
+function isSiteDisabled(patterns: string[]): boolean {
+  const url = window.location.href;
+  for (const pattern of patterns) {
+    if (matchUrlPattern(pattern, url)) return true;
+  }
+  return false;
+}
+
+function matchUrlPattern(pattern: string, url: string): boolean {
+  const escaped = pattern
+    .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+    .replace(/\*/g, '.*');
+  return new RegExp(`^${escaped}$`).test(url);
+}
+
 function listenForBackgroundMessages(): void {
   const api = (globalThis as any).browser || (globalThis as any).chrome;
   if (!api?.runtime?.onMessage) return;
 
   api.runtime.onMessage.addListener((message: any) => {
     if (message.type === 'set-mode') {
-      setMode(message.mode);
+      if (extensionEnabled) setMode(message.mode);
     }
   });
 }

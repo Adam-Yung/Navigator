@@ -71,10 +71,20 @@ export function activateElement(el: HTMLElement): void {
 }
 
 export function openInNewTab(el: HTMLElement): void {
-  const href = el.getAttribute('href');
-  if (href) {
-    window.open(href, '_blank');
+  if (el.tagName === 'A') {
+    const href = (el as HTMLAnchorElement).href;
+    if (href) {
+      window.open(href, '_blank');
+      return;
+    }
   }
+  const clickEvent = new MouseEvent('click', {
+    ctrlKey: true,
+    metaKey: true,
+    bubbles: true,
+    cancelable: true,
+  });
+  el.dispatchEvent(clickEvent);
 }
 
 export function handleEscape(): void {

@@ -2,12 +2,15 @@ import type { Direction, IndexedElement } from '../shared/types';
 import { findNext } from './spatial-nav';
 
 type FlushCallback = (target: IndexedElement) => void;
+type DeadEndCallback = (direction: Direction) => void;
 
 let pending: Direction[] = [];
+let lastDirection: Direction | null = null;
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 let currentElement: IndexedElement | null = null;
 let candidates: IndexedElement[] = [];
 let onFlush: FlushCallback | null = null;
+let onDeadEnd: DeadEndCallback | null = null;
 let coneAngle = 90;
 
 export function setNavQueueState(
@@ -24,7 +27,16 @@ export function setFlushCallback(callback: FlushCallback): void {
   onFlush = callback;
 }
 
+export function setDeadEndCallback(callback: DeadEndCallback): void {
+  onDeadEnd = callback;
+}
+
 export function enqueue(direction: Direction): void {
+  if (lastDirection !== null && direction !== lastDirection && pending.length > 0) {
+    flush();
+  }
+
+  lastDirection = direction;
   pending.push(direction);
 
   if (flushTimer !== null) {
@@ -52,12 +64,14 @@ function flush(): void {
   }
 
   let target: IndexedElement = currentElement;
+  let lastDir: Direction = pending[pending.length - 1];
 
   for (const dir of pending) {
     const next = findNext(target, candidates, dir, coneAngle);
     if (next) {
       target = next;
     }
+    lastDir = dir;
   }
 
   pending = [];
@@ -65,5 +79,7 @@ function flush(): void {
   if (target !== currentElement && onFlush) {
     currentElement = target;
     onFlush(target);
+  } else if (target === currentElement && onDeadEnd) {
+    onDeadEnd(lastDir);
   }
 }

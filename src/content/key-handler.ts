@@ -4,6 +4,9 @@ import { enqueue } from './nav-queue';
 
 let settings: Settings | null = null;
 let currentFocusedElement: HTMLElement | null = null;
+let onTabCycle: ((direction: 'next' | 'prev') => void) | null = null;
+let onHintKey: ((key: string, event: KeyboardEvent) => boolean) | null = null;
+let onToggle: (() => void) | null = null;
 
 export function initKeyHandler(initialSettings: Settings): void {
   settings = initialSettings;
@@ -18,6 +21,18 @@ export function setFocusedElement(el: HTMLElement | null): void {
   currentFocusedElement = el;
 }
 
+export function setTabCycleHandler(handler: (direction: 'next' | 'prev') => void): void {
+  onTabCycle = handler;
+}
+
+export function setHintKeyHandler(handler: (key: string, event: KeyboardEvent) => boolean): void {
+  onHintKey = handler;
+}
+
+export function setToggleHandler(handler: () => void): void {
+  onToggle = handler;
+}
+
 export function destroyKeyHandler(): void {
   document.removeEventListener('keydown', handleKeydown, true);
 }
@@ -27,6 +42,13 @@ function handleKeydown(e: KeyboardEvent): void {
 
   const mode = getCurrentMode();
   const combo = buildComboString(e);
+
+  if (combo === settings.keybindings.toggleExtension) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onToggle) onToggle();
+    return;
+  }
 
   if (mode === 'normal') {
     if (combo === settings.keybindings.enterNavigation) {
@@ -42,6 +64,12 @@ function handleKeydown(e: KeyboardEvent): void {
   }
 
   if (mode === 'navigation' || mode === 'editing') {
+    if (onHintKey && onHintKey(e.key, e)) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
     const direction = keyToDirection(e);
     if (direction) {
       e.preventDefault();
@@ -89,7 +117,15 @@ function handleKeydown(e: KeyboardEvent): void {
       return;
     }
 
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (onTabCycle) onTabCycle(e.shiftKey ? 'prev' : 'next');
+      return;
+    }
+
     if (e.ctrlKey || e.altKey || e.metaKey) return;
+    if (e.code.startsWith('F') && /^F\d{1,2}$/.test(e.key)) return;
 
     e.preventDefault();
     e.stopPropagation();
@@ -108,7 +144,7 @@ function keyToDirection(e: KeyboardEvent): Direction | null {
   }
 }
 
-function buildComboString(e: KeyboardEvent): string {
+export function buildComboString(e: KeyboardEvent): string {
   const parts: string[] = [];
   if (e.ctrlKey) parts.push('Ctrl');
   if (e.altKey) parts.push('Alt');

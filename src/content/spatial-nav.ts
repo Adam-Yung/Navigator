@@ -5,23 +5,10 @@ export function scanElements(mode: Mode): IndexedElement[] {
   if (mode === 'normal') return [];
 
   const selector = mode === 'navigation' ? NAV_SELECTORS : EDIT_SELECTORS;
-  const elements = document.querySelectorAll<HTMLElement>(selector);
   const result: IndexedElement[] = [];
 
-  for (const el of elements) {
-    if (!isVisible(el)) continue;
-
-    const rect = el.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) continue;
-    if (!isInViewport(rect)) continue;
-
-    result.push({
-      el,
-      cx: rect.left + rect.width / 2,
-      cy: rect.top + rect.height / 2,
-      rect,
-    });
-  }
+  queryDocument(document, selector, result, 0, 0);
+  scanIframes(selector, result);
 
   return result;
 }
@@ -52,16 +39,14 @@ export function findNext(
   return null;
 }
 
-export function findNearestToViewportCenter(elements: IndexedElement[]): IndexedElement | null {
+export function findNearestToPoint(elements: IndexedElement[], x: number, y: number): IndexedElement | null {
   if (elements.length === 0) return null;
 
-  const vcx = window.innerWidth / 2;
-  const vcy = window.innerHeight / 2;
   let nearest = elements[0];
-  let minDist = distance(vcx, vcy, nearest.cx, nearest.cy);
+  let minDist = distance(x, y, nearest.cx, nearest.cy);
 
   for (let i = 1; i < elements.length; i++) {
-    const d = distance(vcx, vcy, elements[i].cx, elements[i].cy);
+    const d = distance(x, y, elements[i].cx, elements[i].cy);
     if (d < minDist) {
       minDist = d;
       nearest = elements[i];
@@ -71,9 +56,99 @@ export function findNearestToViewportCenter(elements: IndexedElement[]): Indexed
   return nearest;
 }
 
+export function scanOffscreen(
+  mode: Mode,
+  direction: Direction,
+  currentCx: number,
+  currentCy: number
+): IndexedElement | null {
+  if (mode === 'normal') return null;
+
+  const selector = mode === 'navigation' ? NAV_SELECTORS : EDIT_SELECTORS;
+  const elements = document.querySelectorAll<HTMLElement>(selector);
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  let bestCandidate: IndexedElement | null = null;
+  let bestScore = Infinity;
+  const refAngle = directionToAngle(direction);
+
+  for (const el of elements) {
+    if (!isVisible(el)) continue;
+    const rect = el.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) continue;
+    if (isInViewport(rect)) continue;
+
+    const offscreenLimit = direction === 'up' || direction === 'down' ? vh * 2 : vw * 2;
+    if (rect.top > vh + offscreenLimit || rect.bottom < -offscreenLimit) continue;
+    if (rect.left > vw + offscreenLimit || rect.right < -offscreenLimit) continue;
+
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const dx = cx - currentCx;
+    const dy = cy - currentCy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < 1) continue;
+
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+    const deviation = angleDifference(angle, refAngle);
+    if (deviation > 90) continue;
+
+    const score = dist * (1 + (deviation / 90) * 0.5);
+    if (score < bestScore) {
+      bestScore = score;
+      bestCandidate = { el, cx, cy, rect };
+    }
+  }
+
+  return bestCandidate;
+}
+
 interface ScoredCandidate {
   element: IndexedElement;
   score: number;
+}
+
+function queryDocument(
+  doc: Document,
+  selector: string,
+  result: IndexedElement[],
+  offsetX: number,
+  offsetY: number
+): void {
+  const elements = doc.querySelectorAll<HTMLElement>(selector);
+  for (const el of elements) {
+    if (!isVisible(el)) continue;
+    const rect = el.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) continue;
+
+    const adjustedLeft = rect.left + offsetX;
+    const adjustedTop = rect.top + offsetY;
+
+    if (!isInViewportAt(adjustedLeft, adjustedTop, rect.width, rect.height)) continue;
+
+    result.push({
+      el,
+      cx: adjustedLeft + rect.width / 2,
+      cy: adjustedTop + rect.height / 2,
+      rect,
+    });
+  }
+}
+
+function scanIframes(selector: string, result: IndexedElement[]): void {
+  const iframes = document.querySelectorAll('iframe');
+  for (const iframe of iframes) {
+    let doc: Document;
+    try {
+      doc = (iframe as HTMLIFrameElement).contentDocument!;
+      if (!doc) continue;
+    } catch {
+      continue;
+    }
+    const iframeRect = iframe.getBoundingClientRect();
+    queryDocument(doc, selector, result, iframeRect.left, iframeRect.top);
+  }
 }
 
 function scoreInCone(
@@ -125,19 +200,17 @@ function distance(x1: number, y1: number, x2: number, y2: number): number {
 }
 
 function isVisible(el: HTMLElement): boolean {
-  if (el.offsetParent === null && el.tagName !== 'BODY') {
-    const style = getComputedStyle(el);
-    if (style.position !== 'fixed' && style.position !== 'sticky') return false;
-  }
   if ((el as HTMLInputElement).disabled) return false;
   if (el.getAttribute('aria-hidden') === 'true') return false;
 
-  const style = getComputedStyle(el);
-  if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
-    return false;
+  if (el.offsetParent === null && el.tagName !== 'BODY') {
+    const style = getComputedStyle(el);
+    if (style.position !== 'fixed' && style.position !== 'sticky') return false;
+    return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
   }
 
-  return true;
+  const style = getComputedStyle(el);
+  return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
 }
 
 function isInViewport(rect: DOMRect): boolean {
@@ -146,5 +219,14 @@ function isInViewport(rect: DOMRect): boolean {
     rect.right > 0 &&
     rect.top < window.innerHeight &&
     rect.left < window.innerWidth
+  );
+}
+
+function isInViewportAt(left: number, top: number, width: number, height: number): boolean {
+  return (
+    top + height > 0 &&
+    left + width > 0 &&
+    top < window.innerHeight &&
+    left < window.innerWidth
   );
 }
