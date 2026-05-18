@@ -9,6 +9,10 @@ let onHintKey: ((key: string, event: KeyboardEvent) => boolean) | null = null;
 let onToggle: (() => void) | null = null;
 let onGoBack: (() => void) | null = null;
 let extensionEnabled = true;
+let onJumpToFirst: (() => void) | null = null;
+let onJumpToLast: (() => void) | null = null;
+let lastGTime = 0;
+let passthroughNext = false;
 
 export function initKeyHandler(initialSettings: Settings): void {
   settings = initialSettings;
@@ -43,6 +47,14 @@ export function setExtensionEnabled(enabled: boolean): void {
   extensionEnabled = enabled;
 }
 
+export function setJumpToFirstHandler(handler: () => void): void {
+  onJumpToFirst = handler;
+}
+
+export function setJumpToLastHandler(handler: () => void): void {
+  onJumpToLast = handler;
+}
+
 export function destroyKeyHandler(): void {
   document.removeEventListener('keydown', handleKeydown, true);
 }
@@ -61,6 +73,11 @@ function handleKeydown(e: KeyboardEvent): void {
   }
 
   if (!extensionEnabled) return;
+
+  if (passthroughNext) {
+    passthroughNext = false;
+    return;
+  }
 
   if (mode === 'normal') {
     if (combo === settings.keybindings.enterNavigation) {
@@ -128,6 +145,35 @@ function handleKeydown(e: KeyboardEvent): void {
       e.preventDefault();
       e.stopPropagation();
       if (onGoBack) onGoBack();
+      return;
+    }
+
+    if (e.key === 'G' && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (onJumpToLast) onJumpToLast();
+      return;
+    }
+
+    if (e.key === 'g' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      const now = Date.now();
+      if (now - lastGTime < 300) {
+        e.preventDefault();
+        e.stopPropagation();
+        lastGTime = 0;
+        if (onJumpToFirst) onJumpToFirst();
+        return;
+      }
+      lastGTime = now;
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
+    if (e.key === '\'' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      passthroughNext = true;
       return;
     }
 

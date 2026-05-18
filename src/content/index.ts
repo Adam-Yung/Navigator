@@ -3,7 +3,7 @@ import { getSettings, onSettingsChanged } from '../shared/storage';
 import { getCurrentMode, onModeChange, setMode } from './mode-manager';
 import { scanElements, findNearestToPoint } from './spatial-nav';
 import { setNavQueueState, setFlushCallback, setDeadEndCallback } from './nav-queue';
-import { initKeyHandler, updateKeyHandlerSettings, setFocusedElement, setTabCycleHandler, setToggleHandler, setHintKeyHandler, setGoBackHandler, setExtensionEnabled } from './key-handler';
+import { initKeyHandler, updateKeyHandlerSettings, setFocusedElement, setTabCycleHandler, setToggleHandler, setHintKeyHandler, setGoBackHandler, setExtensionEnabled, setJumpToFirstHandler, setJumpToLastHandler } from './key-handler';
 import { startObserving, stopObserving, updateMode } from './mutation-observer';
 import { initAuraRing, updateAuraSettings, transitionTo, hide as hideAura, bumpDirection } from './aura-ring';
 import { initIndicator, showModeIndicator, hideIndicator } from './indicator';
@@ -50,6 +50,8 @@ async function init(): Promise<void> {
   setToggleHandler(toggleExtension);
   setHintKeyHandler(handleHintKeyEvent);
   setGoBackHandler(handleGoBack);
+  setJumpToFirstHandler(() => jumpToIndex(0));
+  setJumpToLastHandler(() => jumpToIndex(elements.length - 1));
 
   onModeChange((newMode, _prevMode) => {
     if (!extensionEnabled && newMode !== 'normal') {
@@ -189,6 +191,18 @@ function handleGoBack(): void {
     if (mode !== 'normal') transitionTo(stillExists, mode);
     if (settings.autoScroll) scrollIntoViewIfNeeded(stillExists);
   }
+}
+
+function jumpToIndex(index: number): void {
+  if (elements.length === 0 || index < 0 || index >= elements.length) return;
+  const target = elements[index];
+  if (focused) pushJump(focused);
+  focused = target;
+  setFocusedElement(target.el);
+  setNavQueueState(target, elements, settings.coneAngle, settings.smartPrioritization);
+  const mode = getCurrentMode();
+  if (mode !== 'normal') transitionTo(target, mode);
+  if (settings.autoScroll) scrollIntoViewIfNeeded(target);
 }
 
 function handleHintKeyEvent(key: string, event: KeyboardEvent): boolean {
