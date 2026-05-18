@@ -59,6 +59,8 @@ async function init(): Promise<void> {
       return;
     }
 
+    notifyModeChange(newMode);
+
     if (newMode === 'normal') {
       stopObserving();
       deactivateHintMode();
@@ -315,6 +317,15 @@ function listenForBackgroundMessages(): void {
       if (extensionEnabled) setMode(message.mode);
     }
   });
+}
+
+function notifyModeChange(mode: string): void {
+  const api = (globalThis as any).browser || (globalThis as any).chrome;
+  try {
+    api?.runtime?.sendMessage?.({ type: 'mode-changed', mode });
+  } catch {
+    // Extension context may be invalidated
+  }
 }
 
 init();

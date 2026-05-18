@@ -7,6 +7,16 @@ actionApi?.onClicked?.addListener(() => {
   api.runtime.openOptionsPage();
 });
 
+api.runtime.onMessage.addListener((message: any, sender: any) => {
+  if (message.type === 'mode-changed' && sender.tab?.id) {
+    const tabId = sender.tab.id;
+    const text = message.mode === 'navigation' ? 'NAV' : message.mode === 'editing' ? 'EDT' : '';
+    const color = message.mode === 'navigation' ? '#7c5ce0' : message.mode === 'editing' ? '#e0960a' : '#666666';
+    actionApi?.setBadgeText?.({ text, tabId });
+    actionApi?.setBadgeBackgroundColor?.({ color, tabId });
+  }
+});
+
 api.runtime.onInstalled.addListener(async () => {
   try {
     const result = await api.storage.sync.get('settings');
