@@ -17,7 +17,8 @@ export function findNext(
   current: IndexedElement,
   candidates: IndexedElement[],
   direction: Direction,
-  coneAngle: number
+  coneAngle: number,
+  smartPrioritization: boolean = false
 ): IndexedElement | null {
   const refAngle = directionToAngle(direction);
   const filtered = candidates.filter(c => c.el !== current.el);
@@ -28,7 +29,7 @@ export function findNext(
   const maxHalfCone = 90;
 
   while (halfCone <= maxHalfCone) {
-    const inCone = scoreInCone(current, filtered, refAngle, halfCone);
+    const inCone = scoreInCone(current, filtered, refAngle, halfCone, smartPrioritization);
     if (inCone.length > 0) {
       inCone.sort((a, b) => a.score - b.score);
       return inCone[0].element;
@@ -155,7 +156,8 @@ function scoreInCone(
   current: IndexedElement,
   candidates: IndexedElement[],
   refAngle: number,
-  halfCone: number
+  halfCone: number,
+  smartPrioritization: boolean
 ): ScoredCandidate[] {
   const result: ScoredCandidate[] = [];
 
@@ -171,11 +173,23 @@ function scoreInCone(
 
     if (deviation <= halfCone) {
       const penalty = 1 + (deviation / halfCone) * 0.5;
-      result.push({ element: candidate, score: dist * penalty });
+      const priority = smartPrioritization ? elementPriority(candidate.el, candidate.rect) : 1.0;
+      result.push({ element: candidate, score: dist * penalty * priority });
     }
   }
 
   return result;
+}
+
+function elementPriority(el: HTMLElement, rect: DOMRect): number {
+  const area = rect.width * rect.height;
+  let priority = 1.0;
+  if (area > 2000) priority *= 0.9;
+  const tag = el.tagName;
+  const role = el.getAttribute('role');
+  if (tag === 'A' || tag === 'BUTTON' || role === 'button' || role === 'link') priority *= 0.85;
+  if (el.closest('nav, main, [role="navigation"], [role="main"]')) priority *= 0.9;
+  return priority;
 }
 
 function directionToAngle(direction: Direction): number {

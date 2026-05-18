@@ -12,15 +12,18 @@ let candidates: IndexedElement[] = [];
 let onFlush: FlushCallback | null = null;
 let onDeadEnd: DeadEndCallback | null = null;
 let coneAngle = 90;
+let smartPrioritization = false;
 
 export function setNavQueueState(
   current: IndexedElement | null,
   elements: IndexedElement[],
-  cone: number
+  cone: number,
+  smart: boolean = false
 ): void {
   currentElement = current;
   candidates = elements;
   coneAngle = cone;
+  smartPrioritization = smart;
 }
 
 export function setFlushCallback(callback: FlushCallback): void {
@@ -67,7 +70,7 @@ function flush(): void {
   let lastDir: Direction = pending[pending.length - 1];
 
   for (const dir of pending) {
-    const next = findNext(target, candidates, dir, coneAngle);
+    const next = findNext(target, candidates, dir, coneAngle, smartPrioritization);
     if (next) {
       target = next;
     }

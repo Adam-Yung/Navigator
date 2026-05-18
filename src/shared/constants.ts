@@ -18,6 +18,7 @@ export const DEFAULT_SETTINGS: Settings = {
   coneAngle: 90,
   autoScroll: true,
   auraIntensity: 'normal',
+  smartPrioritization: true,
   disabledSites: [],
 };
 

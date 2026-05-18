@@ -66,6 +66,7 @@ function renderAppearance(): void {
 
 function renderBehavior(): void {
   (document.getElementById('auto-scroll') as HTMLInputElement).checked = settings.autoScroll;
+  (document.getElementById('smart-priority') as HTMLInputElement).checked = settings.smartPrioritization;
 
   const coneSlider = document.getElementById('cone-angle') as HTMLInputElement;
   coneSlider.value = String(settings.coneAngle);
@@ -101,6 +102,11 @@ function setupListeners(): void {
 
   document.getElementById('auto-scroll')!.addEventListener('change', (e) => {
     settings.autoScroll = (e.target as HTMLInputElement).checked;
+    save();
+  });
+
+  document.getElementById('smart-priority')!.addEventListener('change', (e) => {
+    settings.smartPrioritization = (e.target as HTMLInputElement).checked;
     save();
   });
 

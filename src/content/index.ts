@@ -63,7 +63,7 @@ async function init(): Promise<void> {
       elements = [];
       focused = null;
       setFocusedElement(null);
-      setNavQueueState(null, [], settings.coneAngle);
+      setNavQueueState(null, [], settings.coneAngle, settings.smartPrioritization);
       hideAura();
       hideIndicator();
       return;
@@ -77,14 +77,14 @@ async function init(): Promise<void> {
       const updated = elements.find(e => e.el === focused!.el)!;
       focused = updated;
       transitionTo(focused, newMode);
-      setNavQueueState(focused, elements, settings.coneAngle);
+      setNavQueueState(focused, elements, settings.coneAngle, settings.smartPrioritization);
     } else {
       focused = findNearestToPoint(elements, mouseX, mouseY);
       if (focused) {
         transitionTo(focused, newMode);
       }
       setFocusedElement(focused?.el ?? null);
-      setNavQueueState(focused, elements, settings.coneAngle);
+      setNavQueueState(focused, elements, settings.coneAngle, settings.smartPrioritization);
     }
 
     startObserving(newMode, handleElementsInvalidation);
@@ -97,7 +97,7 @@ function handleNavigationResult(target: IndexedElement): void {
   if (focused) pushJump(focused);
   focused = target;
   setFocusedElement(target.el);
-  setNavQueueState(target, elements, settings.coneAngle);
+  setNavQueueState(target, elements, settings.coneAngle, settings.smartPrioritization);
 
   const mode = getCurrentMode();
   if (mode !== 'normal') {
@@ -125,7 +125,7 @@ function handleElementsInvalidation(newElements: IndexedElement[]): void {
     }
   }
 
-  setNavQueueState(focused, elements, settings.coneAngle);
+  setNavQueueState(focused, elements, settings.coneAngle, settings.smartPrioritization);
 }
 
 export function cycleElement(direction: 'next' | 'prev'): void {
@@ -144,7 +144,7 @@ export function cycleElement(direction: 'next' | 'prev'): void {
   const target = list[nextIdx];
   focused = target;
   setFocusedElement(target.el);
-  setNavQueueState(target, elements, settings.coneAngle);
+  setNavQueueState(target, elements, settings.coneAngle, settings.smartPrioritization);
 
   const mode = getCurrentMode();
   if (mode !== 'normal') {
@@ -184,7 +184,7 @@ function handleGoBack(): void {
   if (stillExists) {
     focused = stillExists;
     setFocusedElement(stillExists.el);
-    setNavQueueState(stillExists, elements, settings.coneAngle);
+    setNavQueueState(stillExists, elements, settings.coneAngle, settings.smartPrioritization);
     const mode = getCurrentMode();
     if (mode !== 'normal') transitionTo(stillExists, mode);
     if (settings.autoScroll) scrollIntoViewIfNeeded(stillExists);
@@ -213,7 +213,7 @@ function handleHintKeyEvent(key: string, event: KeyboardEvent): boolean {
 function handleHintSelect(element: IndexedElement): void {
   focused = element;
   setFocusedElement(element.el);
-  setNavQueueState(element, elements, settings.coneAngle);
+  setNavQueueState(element, elements, settings.coneAngle, settings.smartPrioritization);
   const mode = getCurrentMode();
   if (mode !== 'normal') {
     transitionTo(element, mode);

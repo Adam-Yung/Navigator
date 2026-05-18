@@ -27,6 +27,7 @@ export interface Settings {
   coneAngle: number;
   autoScroll: boolean;
   auraIntensity: 'subtle' | 'normal' | 'vibrant';
+  smartPrioritization: boolean;
   disabledSites: string[];
 }
 
