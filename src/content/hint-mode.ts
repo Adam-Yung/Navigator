@@ -75,8 +75,8 @@ export function activateHintMode(
     labelEl.textContent = label;
 
     const rect = entry.el.getBoundingClientRect();
-    labelEl.style.top = `${rect.top}px`;
-    labelEl.style.left = `${rect.left}px`;
+    labelEl.style.top = `${rect.top - 4}px`;
+    labelEl.style.left = `${rect.left - 2}px`;
 
     labelsContainer.appendChild(labelEl);
     allHints.push({ label, element: entry, labelEl });
@@ -237,12 +237,15 @@ function getHintStyles(): string {
 
     .hint-label {
       position: fixed;
-      padding: 1px 3px;
-      background: ${AURA_COLORS.navigation};
+      padding: 2px 4px;
+      background: rgba(15, 15, 30, 0.55);
+      backdrop-filter: blur(3px);
+      -webkit-backdrop-filter: blur(3px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
       color: white;
       font: bold 10px/1 monospace;
-      border-radius: 3px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+      border-radius: 4px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
       z-index: 1;
       white-space: nowrap;
       transition: opacity 0.15s ease;
