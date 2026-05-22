@@ -29,15 +29,13 @@
   "commands": {
     "activate-navigation": {
       "suggested_key": {
-        "default": "Ctrl+Alt+N",
-        "mac": "MacCtrl+Alt+N"
+        "default": "Alt+Shift+N"
       },
       "description": "Enter Navigation mode"
     },
     "activate-editing": {
       "suggested_key": {
-        "default": "Ctrl+Alt+E",
-        "mac": "MacCtrl+Alt+E"
+        "default": "Alt+Shift+E"
       },
       "description": "Enter Editing mode"
     }
