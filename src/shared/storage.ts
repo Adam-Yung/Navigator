@@ -37,17 +37,23 @@ export async function saveSettings(partial: Partial<Settings>): Promise<void> {
   try {
     await api.storage.sync.set({ settings: updated });
   } catch {
-    await api.storage.local.set({ settings: updated });
+    try {
+      await api.storage.local.set({ settings: updated });
+    } catch {
+      // Both storage areas unavailable
+    }
   }
 }
 
-export function onSettingsChanged(callback: (settings: Settings) => void): void {
+export function onSettingsChanged(callback: (settings: Settings) => void): () => void {
   const api = getAPI();
-  if (!api?.storage) return;
+  if (!api?.storage) return () => {};
 
-  api.storage.onChanged.addListener((changes: any) => {
+  const listener = (changes: any) => {
     if (changes.settings?.newValue) {
       callback({ ...DEFAULT_SETTINGS, ...changes.settings.newValue });
     }
-  });
+  };
+  api.storage.onChanged.addListener(listener);
+  return () => api.storage.onChanged.removeListener(listener);
 }

@@ -52,8 +52,10 @@ export function showModeIndicator(mode: Mode): void {
   const label = mode === 'editing' ? 'EDIT' : 'NAVIGATE';
 
   chip.style.setProperty('--chip-color', color);
-  chip.querySelector('.icon')!.innerHTML = icon;
-  chip.querySelector('.label')!.textContent = label;
+  const iconEl = chip.querySelector('.icon');
+  const labelEl = chip.querySelector('.label');
+  if (iconEl) iconEl.innerHTML = icon;
+  if (labelEl) labelEl.textContent = label;
 
   runAnimation(chip);
 }

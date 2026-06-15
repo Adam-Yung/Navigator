@@ -317,6 +317,10 @@ input[type="checkbox"]:checked::after {
   color: #ff8888;
 }
 
+.conflict-warning[hidden] {
+  display: none;
+}
+
 .conflict-icon {
   display: flex;
   align-items: center;

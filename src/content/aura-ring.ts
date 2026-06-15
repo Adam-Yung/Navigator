@@ -52,6 +52,7 @@ export function transitionTo(target: IndexedElement, mode: Mode): void {
   const height = Math.max(rect.height + padding * 2, 24);
 
   isTransitioning = true;
+  ring.style.willChange = 'top, left, width, height, opacity, transform';
   ring.style.transitionDuration = `${animDuration}ms`;
   ring.style.top = `${top}px`;
   ring.style.left = `${left}px`;
@@ -77,6 +78,7 @@ export function transitionTo(target: IndexedElement, mode: Mode): void {
 
   setTimeout(() => {
     isTransitioning = false;
+    if (ring) ring.style.willChange = 'auto';
   }, animDuration);
 }
 
@@ -196,7 +198,6 @@ function getStyles(): string {
       transition-property: top, left, width, height, border-radius, border-color, box-shadow, opacity;
       transition-duration: ${animDuration}ms;
       transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-      will-change: top, left, width, height, opacity, transform;
       animation: aura-breathe 2.5s ease-in-out infinite;
     }
 

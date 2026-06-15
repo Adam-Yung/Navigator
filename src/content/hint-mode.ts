@@ -238,9 +238,7 @@ function getHintStyles(): string {
     .hint-label {
       position: fixed;
       padding: 2px 4px;
-      background: rgba(15, 15, 30, 0.55);
-      backdrop-filter: blur(3px);
-      -webkit-backdrop-filter: blur(3px);
+      background: rgba(15, 15, 30, 0.88);
       border: 1px solid rgba(255, 255, 255, 0.12);
       color: white;
       font: bold 10px/1 monospace;

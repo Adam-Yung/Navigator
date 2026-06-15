@@ -38,8 +38,18 @@ async function save(): Promise<void> {
   try {
     await api.storage.sync.set({ settings });
   } catch {
-    await api.storage.local.set({ settings });
+    try {
+      await api.storage.local.set({ settings });
+    } catch {
+      // Both storage areas unavailable
+    }
   }
+}
+
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+function debouncedSave(): void {
+  if (saveTimer !== null) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { saveTimer = null; save().catch(() => {}); }, 300);
 }
 
 function renderKeybindings(): void {
@@ -89,25 +99,25 @@ function setupListeners(): void {
     settings.animDuration = parseInt(val, 10);
     document.getElementById('anim-duration-val')!.textContent = `${val}ms`;
     updatePreviewDuration();
-    save();
+    debouncedSave();
   });
 
   const radios = document.querySelectorAll<HTMLInputElement>('input[name="aura-intensity"]');
   for (const radio of radios) {
     radio.addEventListener('change', () => {
       settings.auraIntensity = radio.value as Settings['auraIntensity'];
-      save();
+      save().catch(() => {});
     });
   }
 
   document.getElementById('auto-scroll')!.addEventListener('change', (e) => {
     settings.autoScroll = (e.target as HTMLInputElement).checked;
-    save();
+    save().catch(() => {});
   });
 
   document.getElementById('smart-priority')!.addEventListener('change', (e) => {
     settings.smartPrioritization = (e.target as HTMLInputElement).checked;
-    save();
+    save().catch(() => {});
   });
 
   document.getElementById('cone-angle')!.addEventListener('input', (e) => {
@@ -120,7 +130,7 @@ function setupListeners(): void {
   document.getElementById('disabled-sites')!.addEventListener('change', (e) => {
     const text = (e.target as HTMLTextAreaElement).value;
     settings.disabledSites = text.split('\n').map(s => s.trim()).filter(Boolean);
-    save();
+    save().catch(() => {});
   });
 
   document.getElementById('btn-reset')!.addEventListener('click', () => {
@@ -130,7 +140,7 @@ function setupListeners(): void {
       renderAppearance();
       renderBehavior();
       renderDisabledSites();
-      save();
+      save().catch(() => {});
     }
   });
 
@@ -189,7 +199,7 @@ function handleRecordingKeydown(e: KeyboardEvent): void {
 
   settings.keybindings[key] = combo;
   recordingButton.querySelector('.keycaps')!.innerHTML = comboToKeycaps(combo);
-  save();
+  save().catch(() => {});
 
   recordingButton.classList.remove('recording');
   recordingButton = null;
@@ -257,7 +267,7 @@ function buildComboString(e: KeyboardEvent): string {
 
 function comboToKeycaps(combo: string): string {
   const parts = combo.split('+');
-  const isMac = navigator.platform.includes('Mac');
+  const isMac = /mac/i.test((navigator as any).userAgentData?.platform ?? navigator.platform ?? '');
 
   return parts.map(part => {
     let display = part;
@@ -295,10 +305,21 @@ function setupPreview(): void {
 
   positionRing();
 
-  setInterval(() => {
-    currentTarget = currentTarget === el1 ? el2 : el1;
-    positionRing();
-  }, 2000);
+  let previewInterval: ReturnType<typeof setInterval> | null = null;
+  function startPreview() {
+    if (previewInterval) return;
+    previewInterval = setInterval(() => {
+      currentTarget = currentTarget === el1 ? el2 : el1;
+      positionRing();
+    }, 2000);
+  }
+  function stopPreview() {
+    if (previewInterval) { clearInterval(previewInterval); previewInterval = null; }
+  }
+  startPreview();
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) stopPreview(); else startPreview();
+  });
 }
 
 function updatePreviewDuration(): void {

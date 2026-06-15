@@ -78,7 +78,8 @@ async function init(): Promise<void> {
     updateMode(newMode);
 
     if (focused && elements.some(e => e.el === focused!.el)) {
-      const updated = elements.find(e => e.el === focused!.el)!;
+      const updated = elements.find(e => e.el === focused!.el);
+      if (!updated) { focused = null; setFocusedElement(null); setNavQueueState(null, elements, settings.coneAngle, settings.smartPrioritization); return; }
       focused = updated;
       transitionTo(focused, newMode);
       setNavQueueState(focused, elements, settings.coneAngle, settings.smartPrioritization);
@@ -118,7 +119,8 @@ function handleElementsInvalidation(newElements: IndexedElement[]): void {
   const mode = getCurrentMode();
 
   if (focused) {
-    const stillExists = elements.find(e => e.el === focused!.el);
+    const focusedEl = focused.el;
+    const stillExists = elements.find(e => e.el === focusedEl);
     if (stillExists) {
       focused = stillExists;
       if (mode !== 'normal') transitionTo(focused, mode);
@@ -314,7 +316,10 @@ function listenForBackgroundMessages(): void {
 
   api.runtime.onMessage.addListener((message: any) => {
     if (message.type === 'set-mode') {
-      if (extensionEnabled) setMode(message.mode);
+      const validModes = ['normal', 'navigation', 'editing'];
+      if (extensionEnabled && validModes.includes(message.mode)) {
+        setMode(message.mode);
+      }
     }
   });
 }
@@ -328,4 +333,4 @@ function notifyModeChange(mode: string): void {
   }
 }
 
-init();
+init().catch(() => {});

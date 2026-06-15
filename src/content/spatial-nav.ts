@@ -218,6 +218,7 @@ function isVisible(el: HTMLElement): boolean {
   if (el.getAttribute('aria-hidden') === 'true') return false;
 
   if (el.offsetParent !== null || el.tagName === 'BODY') {
+    if (el.offsetWidth === 0 && el.offsetHeight === 0) return false;
     const style = getComputedStyle(el);
     return style.visibility !== 'hidden' && style.opacity !== '0';
   }

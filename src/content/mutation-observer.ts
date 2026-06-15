@@ -8,6 +8,8 @@ let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 let currentMode: Mode = 'normal';
 let callback: InvalidationCallback | null = null;
 let disconnectedDuringDebounce = false;
+let lastRescanTime = 0;
+const RESCAN_THROTTLE_MS = 300;
 
 const FOCUSABLE_TAGS = new Set([
   'A', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'SUMMARY',
@@ -94,15 +96,17 @@ function nodeCouldBeFocusable(node: Node): boolean {
   return el.children.length > 0;
 }
 
+const RESCAN_THROTTLE = 300;
+
 function handleScroll(): void {
-  scheduleRescan();
+  scheduleRescan(true);
 }
 
 function handleResize(): void {
-  scheduleRescan();
+  scheduleRescan(false);
 }
 
-function scheduleRescan(): void {
+function scheduleRescan(throttle = false): void {
   if (debounceTimer !== null) {
     clearTimeout(debounceTimer);
   } else if (observer && !disconnectedDuringDebounce) {
@@ -110,11 +114,19 @@ function scheduleRescan(): void {
     disconnectedDuringDebounce = true;
   }
 
-  debounceTimer = setTimeout(rescan, 100);
+  if (throttle) {
+    const now = Date.now();
+    const elapsed = now - lastRescanTime;
+    const delay = Math.max(RESCAN_THROTTLE - elapsed, 100);
+    debounceTimer = setTimeout(rescan, delay);
+  } else {
+    debounceTimer = setTimeout(rescan, 100);
+  }
 }
 
 function rescan(): void {
   debounceTimer = null;
+  lastRescanTime = Date.now();
 
   if (disconnectedDuringDebounce) {
     connectObserver();
