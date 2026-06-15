@@ -1,6 +1,7 @@
 import { DEFAULT_SETTINGS } from '../shared/constants';
+import { getAPI } from '../shared/browser-api';
 
-const api = (globalThis as any).browser || (globalThis as any).chrome;
+const api = getAPI();
 
 const actionApi = api.action || api.browserAction;
 actionApi?.onClicked?.addListener(() => {

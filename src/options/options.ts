@@ -1,7 +1,10 @@
 import type { Settings, Keybindings } from '../shared/types';
 import { DEFAULT_SETTINGS } from '../shared/constants';
+import { getAPI } from '../shared/browser-api';
+import { getSettings, saveSettings } from '../shared/storage';
+import { buildComboString } from '../shared/keys';
 
-const api = (globalThis as any).browser || (globalThis as any).chrome;
+const api = getAPI();
 
 let settings: Settings = { ...DEFAULT_SETTINGS };
 let recordingButton: HTMLButtonElement | null = null;
@@ -17,33 +20,11 @@ async function init(): Promise<void> {
 }
 
 async function loadSettings(): Promise<void> {
-  try {
-    const result = await api.storage.sync.get('settings');
-    if (result.settings) {
-      settings = { ...DEFAULT_SETTINGS, ...result.settings };
-    }
-  } catch {
-    try {
-      const result = await api.storage.local.get('settings');
-      if (result.settings) {
-        settings = { ...DEFAULT_SETTINGS, ...result.settings };
-      }
-    } catch {
-      // Use defaults
-    }
-  }
+  settings = await getSettings();
 }
 
 async function save(): Promise<void> {
-  try {
-    await api.storage.sync.set({ settings });
-  } catch {
-    try {
-      await api.storage.local.set({ settings });
-    } catch {
-      // Both storage areas unavailable
-    }
-  }
+  await saveSettings(settings);
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -255,15 +236,7 @@ function formatKeyName(key: keyof Keybindings): string {
   return names[key] || key;
 }
 
-function buildComboString(e: KeyboardEvent): string {
-  const parts: string[] = [];
-  if (e.ctrlKey) parts.push('Ctrl');
-  if (e.altKey) parts.push('Alt');
-  if (e.metaKey) parts.push('Meta');
-  if (e.shiftKey) parts.push('Shift');
-  parts.push(e.code);
-  return parts.join('+');
-}
+
 
 function comboToKeycaps(combo: string): string {
   const parts = combo.split('+');

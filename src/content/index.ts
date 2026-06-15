@@ -7,7 +7,8 @@ import { initKeyHandler, updateKeyHandlerSettings, setFocusedElement, setTabCycl
 import { startObserving, stopObserving, updateMode } from './mutation-observer';
 import { initAuraRing, updateAuraSettings, transitionTo, hide as hideAura, bumpDirection } from './aura-ring';
 import { initIndicator, showModeIndicator, hideIndicator } from './indicator';
-import { initHintMode, activateHintMode, deactivateHintMode, isHintModeActive, getFilteredElements, handleHintKey, destroyHintMode } from './hint-mode';
+import { initHintMode, activateHintMode, deactivateHintMode, isHintModeActive, getFilteredElements, handleHintKey } from './hint-mode';
+import { getAPI } from '../shared/browser-api';
 
 let elements: IndexedElement[] = [];
 let focused: IndexedElement | null = null;
@@ -311,7 +312,7 @@ function matchUrlPattern(pattern: string, url: string): boolean {
 }
 
 function listenForBackgroundMessages(): void {
-  const api = (globalThis as any).browser || (globalThis as any).chrome;
+  const api = getAPI();
   if (!api?.runtime?.onMessage) return;
 
   api.runtime.onMessage.addListener((message: any) => {
@@ -325,7 +326,7 @@ function listenForBackgroundMessages(): void {
 }
 
 function notifyModeChange(mode: string): void {
-  const api = (globalThis as any).browser || (globalThis as any).chrome;
+  const api = getAPI();
   try {
     api?.runtime?.sendMessage?.({ type: 'mode-changed', mode });
   } catch {

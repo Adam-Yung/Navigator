@@ -1,9 +1,6 @@
 import type { Settings } from './types';
 import { DEFAULT_SETTINGS } from './constants';
-
-function getAPI(): any {
-  return (globalThis as any).browser || (globalThis as any).chrome;
-}
+import { getAPI } from './browser-api';
 
 export async function getSettings(): Promise<Settings> {
   const api = getAPI();

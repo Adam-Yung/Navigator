@@ -1,4 +1,5 @@
 import type { Direction, Settings } from '../shared/types';
+import { buildComboString } from '../shared/keys';
 import { getCurrentMode, setMode, activateElement, openInNewTab, handleEscape } from './mode-manager';
 import { enqueue } from './nav-queue';
 
@@ -218,12 +219,3 @@ function keyToDirection(e: KeyboardEvent): Direction | null {
   }
 }
 
-export function buildComboString(e: KeyboardEvent): string {
-  const parts: string[] = [];
-  if (e.ctrlKey) parts.push('Ctrl');
-  if (e.altKey) parts.push('Alt');
-  if (e.metaKey) parts.push('Meta');
-  if (e.shiftKey) parts.push('Shift');
-  parts.push(e.code);
-  return parts.join('+');
-}
