@@ -1,6 +1,14 @@
 import type { Mode, Direction, IndexedElement } from '../shared/types';
 import { NAV_SELECTORS, EDIT_SELECTORS } from '../shared/constants';
 
+const CONE_EXPANSION_STEP = 15;
+const MAX_HALF_CONE = 90;
+const DEVIATION_PENALTY_FACTOR = 0.5;
+const LARGE_AREA_THRESHOLD = 2000;
+const LARGE_AREA_PRIORITY = 0.9;
+const INTERACTIVE_PRIORITY = 0.85;
+const LANDMARK_PRIORITY = 0.9;
+
 export function scanElements(mode: Mode): IndexedElement[] {
   if (mode === 'normal') return [];
 
@@ -26,7 +34,7 @@ export function findNext(
   if (filtered.length === 0) return null;
 
   let halfCone = coneAngle / 2;
-  const maxHalfCone = 90;
+  const maxHalfCone = MAX_HALF_CONE;
 
   while (halfCone <= maxHalfCone) {
     const inCone = scoreInCone(current, filtered, refAngle, halfCone, smartPrioritization);
@@ -34,7 +42,7 @@ export function findNext(
       inCone.sort((a, b) => a.score - b.score);
       return inCone[0].element;
     }
-    halfCone += 15;
+    halfCone += CONE_EXPANSION_STEP;
   }
 
   return null;
@@ -95,7 +103,7 @@ export function scanOffscreen(
     const deviation = angleDifference(angle, refAngle);
     if (deviation > 90) continue;
 
-    const score = dist * (1 + (deviation / 90) * 0.5);
+    const score = dist * (1 + (deviation / MAX_HALF_CONE) * DEVIATION_PENALTY_FACTOR);
     if (score < bestScore) {
       bestScore = score;
       bestCandidate = { el, cx, cy, rect };
@@ -172,7 +180,7 @@ function scoreInCone(
     const deviation = angleDifference(angle, refAngle);
 
     if (deviation <= halfCone) {
-      const penalty = 1 + (deviation / halfCone) * 0.5;
+      const penalty = 1 + (deviation / halfCone) * DEVIATION_PENALTY_FACTOR;
       const priority = smartPrioritization ? elementPriority(candidate.el, candidate.rect) : 1.0;
       result.push({ element: candidate, score: dist * penalty * priority });
     }
@@ -184,11 +192,11 @@ function scoreInCone(
 function elementPriority(el: HTMLElement, rect: DOMRect): number {
   const area = rect.width * rect.height;
   let priority = 1.0;
-  if (area > 2000) priority *= 0.9;
+  if (area > LARGE_AREA_THRESHOLD) priority *= LARGE_AREA_PRIORITY;
   const tag = el.tagName;
   const role = el.getAttribute('role');
-  if (tag === 'A' || tag === 'BUTTON' || role === 'button' || role === 'link') priority *= 0.85;
-  if (el.closest('nav, main, [role="navigation"], [role="main"]')) priority *= 0.9;
+  if (tag === 'A' || tag === 'BUTTON' || role === 'button' || role === 'link') priority *= INTERACTIVE_PRIORITY;
+  if (el.closest('nav, main, [role="navigation"], [role="main"]')) priority *= LANDMARK_PRIORITY;
   return priority;
 }
 

@@ -12,6 +12,7 @@ let onGoBack: (() => void) | null = null;
 let extensionEnabled = true;
 let onJumpToFirst: (() => void) | null = null;
 let onJumpToLast: (() => void) | null = null;
+const DOUBLE_G_TIMEOUT_MS = 300;
 let lastGTime = 0;
 let passthroughNext = false;
 
@@ -158,7 +159,7 @@ function handleKeydown(e: KeyboardEvent): void {
 
     if (e.key === 'g' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
       const now = Date.now();
-      if (now - lastGTime < 300) {
+      if (now - lastGTime < DOUBLE_G_TIMEOUT_MS) {
         e.preventDefault();
         e.stopPropagation();
         lastGTime = 0;

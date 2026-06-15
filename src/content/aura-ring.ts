@@ -1,6 +1,11 @@
 import type { IndexedElement, Mode, Direction, Settings } from '../shared/types';
 import { AURA_COLORS, AURA_INTENSITY_SHADOWS } from '../shared/constants';
 
+const RING_PADDING = 8;
+const RING_MIN_SIZE = 24;
+const BUMP_OFFSET_PX = 3;
+const BUMP_TIMING_MS = 80;
+
 let host: HTMLElement | null = null;
 let shadow: ShadowRoot | null = null;
 let ring: HTMLElement | null = null;
@@ -43,13 +48,13 @@ export function transitionTo(target: IndexedElement, mode: Mode): void {
   if (!ring) return;
 
   const rect = target.el.getBoundingClientRect();
-  const padding = 8;
+  const padding = RING_PADDING;
   const borderRadius = getTargetBorderRadius(target.el, padding);
 
   const top = rect.top - padding;
   const left = rect.left - padding;
-  const width = Math.max(rect.width + padding * 2, 24);
-  const height = Math.max(rect.height + padding * 2, 24);
+  const width = Math.max(rect.width + padding * 2, RING_MIN_SIZE);
+  const height = Math.max(rect.height + padding * 2, RING_MIN_SIZE);
 
   isTransitioning = true;
   ring.style.willChange = 'top, left, width, height, opacity, transform';
@@ -85,16 +90,16 @@ export function transitionTo(target: IndexedElement, mode: Mode): void {
 export function bumpDirection(direction: Direction): void {
   if (!ring) return;
   const offsets: Record<Direction, [number, number]> = {
-    left: [-3, 0], right: [3, 0], up: [0, -3], down: [0, 3],
+    left: [-BUMP_OFFSET_PX, 0], right: [BUMP_OFFSET_PX, 0], up: [0, -BUMP_OFFSET_PX], down: [0, BUMP_OFFSET_PX],
   };
   const [dx, dy] = offsets[direction];
-  ring.style.transition = 'transform 80ms ease-out';
+  ring.style.transition = `transform ${BUMP_TIMING_MS}ms ease-out`;
   ring.style.transform = `translate(${dx}px, ${dy}px)`;
   setTimeout(() => {
     if (!ring) return;
-    ring.style.transition = 'transform 80ms ease-in';
+    ring.style.transition = `transform ${BUMP_TIMING_MS}ms ease-in`;
     ring.style.transform = 'translate(0, 0)';
-  }, 80);
+  }, BUMP_TIMING_MS);
 }
 
 export function show(): void {
@@ -150,12 +155,12 @@ function updatePosition(): void {
   if (isTransitioning) return;
 
   const rect = trackedElement.getBoundingClientRect();
-  const padding = 8;
+  const padding = RING_PADDING;
   ring.style.transitionDuration = '0ms';
   ring.style.top = `${rect.top - padding}px`;
   ring.style.left = `${rect.left - padding}px`;
-  ring.style.width = `${Math.max(rect.width + padding * 2, 24)}px`;
-  ring.style.height = `${Math.max(rect.height + padding * 2, 24)}px`;
+  ring.style.width = `${Math.max(rect.width + padding * 2, RING_MIN_SIZE)}px`;
+  ring.style.height = `${Math.max(rect.height + padding * 2, RING_MIN_SIZE)}px`;
 }
 
 function getTargetBorderRadius(el: HTMLElement, padding: number): string {

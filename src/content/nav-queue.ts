@@ -4,6 +4,13 @@ import { findNext } from './spatial-nav';
 type FlushCallback = (target: IndexedElement) => void;
 type DeadEndCallback = (direction: Direction) => void;
 
+const FLUSH_DELAY_MS = 16;
+const CONSECUTIVE_FLUSH_WINDOW_MS = 500;
+const REPEAT_TIER_3_THRESHOLD = 6;
+const REPEAT_TIER_2_THRESHOLD = 3;
+const REPEAT_TIER_3_MULTIPLIER = 3;
+const REPEAT_TIER_2_MULTIPLIER = 2;
+
 let pending: Direction[] = [];
 let lastDirection: Direction | null = null;
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -49,7 +56,7 @@ export function enqueue(direction: Direction): void {
     clearTimeout(flushTimer);
   }
 
-  flushTimer = setTimeout(flush, 16);
+  flushTimer = setTimeout(flush, FLUSH_DELAY_MS);
 }
 
 export function flushImmediately(): void {
@@ -72,7 +79,7 @@ function flush(): void {
   const now = Date.now();
   const dir = pending[pending.length - 1];
 
-  if (dir === lastFlushDir && now - lastFlushTime < 500) {
+  if (dir === lastFlushDir && now - lastFlushTime < CONSECUTIVE_FLUSH_WINDOW_MS) {
     consecutiveFlushes++;
   } else {
     consecutiveFlushes = 0;
@@ -107,7 +114,7 @@ function flush(): void {
 }
 
 function getRepeatMultiplier(): number {
-  if (consecutiveFlushes >= 6) return 3;
-  if (consecutiveFlushes >= 3) return 2;
+  if (consecutiveFlushes >= REPEAT_TIER_3_THRESHOLD) return REPEAT_TIER_3_MULTIPLIER;
+  if (consecutiveFlushes >= REPEAT_TIER_2_THRESHOLD) return REPEAT_TIER_2_MULTIPLIER;
   return 1;
 }

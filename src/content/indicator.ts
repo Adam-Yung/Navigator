@@ -7,6 +7,12 @@ let chip: HTMLElement | null = null;
 let animTimer: ReturnType<typeof setTimeout> | null = null;
 let currentDisplayMode: Mode = 'normal';
 
+const ANIM_DOT_TO_ICON_MS = 250;
+const ANIM_ICON_TO_PILL_MS = 300;
+const ANIM_PILL_HOLD_MS = 1200;
+const ANIM_PILL_TO_DOT_MS = 250;
+const ANIM_EXIT_MS = 150;
+
 const COMPASS_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="currentColor" stroke="none"/></svg>`;
 
 const PEN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>`;
@@ -71,7 +77,7 @@ export function hideIndicator(): void {
 
   animTimer = setTimeout(() => {
     if (chip) chip.className = 'indicator state-hidden';
-  }, 150);
+  }, ANIM_EXIT_MS);
 }
 
 export function destroyIndicator(): void {
@@ -102,10 +108,10 @@ function runAnimation(el: HTMLElement): void {
         animTimer = setTimeout(() => {
           el.className = 'indicator state-dot';
           animTimer = null;
-        }, 250);
-      }, 1200);
-    }, 300);
-  }, 250);
+        }, ANIM_PILL_TO_DOT_MS);
+      }, ANIM_PILL_HOLD_MS);
+    }, ANIM_ICON_TO_PILL_MS);
+  }, ANIM_DOT_TO_ICON_MS);
 }
 
 function getIndicatorStyles(): string {
