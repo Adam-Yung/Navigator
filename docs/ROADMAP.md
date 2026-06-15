@@ -344,35 +344,35 @@ Guiding principle: **keyboard users should be able to navigate any page as fast 
 
 ## Summary
 
-| # | Priority | Category | Title |
-|---|----------|----------|-------|
-| 1 | Critical | UX | Arrow key support |
-| 2 | Critical | UX | Count prefix (`3j`) |
-| 3 | Critical | Bug | Hint label overflow >81 elements |
-| 4 | Critical | UX | Activate and stay in mode |
-| 5 | Critical | UX | Jump stack / go-back |
-| 6 | High | Performance | rAF loop burns CPU |
-| 7 | High | Performance | Double getComputedStyle |
-| 8 | High | Performance | Scroll triggers full rescan |
-| 9 | High | Accessibility | Reduced-motion support |
-| 10 | High | UX | Smart element prioritization |
-| 11 | High | UX | Toggle feedback |
-| 12 | High | UX | Keyboard layout awareness |
-| 13 | Medium | UX | `gg`/`G` top/bottom jump |
-| 14 | Medium | UX | Passthrough key |
-| 15 | Medium | UX | Hint label positioning |
-| 16 | Medium | UX | Toolbar badge shows mode |
-| 17 | Medium | UX | Element text search (`/`) |
-| 18 | Medium | Performance | nodeCouldBeFocusable cost |
-| 19 | Medium | UX | Adaptive repeat rate |
-| 20 | Medium | UX | Import/export + cheat sheet |
-| 21 | Medium | UX | Modal/dialog scoping |
-| 22 | Medium | UX | Configurable hint characters |
-| 23 | Medium | UX | Highlight during hint filter |
-| 24 | Medium | Bug | Double injection prevention |
-| 25 | Low | Performance | Slider save debounce |
-| 26 | Low | Performance | Preview interval leak |
-| 27 | Low | UX | Blurry toolbar icon |
-| 28 | Low | Accessibility | Screen reader announcements |
-| 29 | Low | Bug | Firefox signing metadata |
-| 30 | Low | Performance | Shared code deduplication |
+| # | Priority | Category | Title | Status |
+|---|----------|----------|-------|--------|
+| 1 | Critical | UX | Arrow key support | Done |
+| 2 | Critical | UX | Count prefix (`3j`) | Open |
+| 3 | Critical | Bug | Hint label overflow >81 elements | Done |
+| 4 | Critical | UX | Activate and stay in mode | Done |
+| 5 | Critical | UX | Jump stack / go-back | Done |
+| 6 | High | Performance | rAF loop burns CPU | Done |
+| 7 | High | Performance | Double getComputedStyle | Done |
+| 8 | High | Performance | Scroll triggers full rescan | Done |
+| 9 | High | Accessibility | Reduced-motion support | Open |
+| 10 | High | UX | Smart element prioritization | Done |
+| 11 | High | UX | Toggle feedback | Open |
+| 12 | High | UX | Keyboard layout awareness | Open |
+| 13 | Medium | UX | `gg`/`G` top/bottom jump | Done |
+| 14 | Medium | UX | Passthrough key | Done |
+| 15 | Medium | UX | Hint label positioning | Open |
+| 16 | Medium | UX | Toolbar badge shows mode | Done |
+| 17 | Medium | UX | Element text search (`/`) | Open |
+| 18 | Medium | Performance | nodeCouldBeFocusable cost | Open |
+| 19 | Medium | UX | Adaptive repeat rate | Done |
+| 20 | Medium | UX | Import/export + cheat sheet | Open |
+| 21 | Medium | UX | Modal/dialog scoping | Open |
+| 22 | Medium | UX | Configurable hint characters | Open |
+| 23 | Medium | UX | Highlight during hint filter | Open |
+| 24 | Medium | Bug | Double injection prevention | Open |
+| 25 | Low | Performance | Slider save debounce | Done |
+| 26 | Low | Performance | Preview interval leak | Done |
+| 27 | Low | UX | Blurry toolbar icon | Open |
+| 28 | Low | Accessibility | Screen reader announcements | Open |
+| 29 | Low | Bug | Firefox signing metadata | Done |
+| 30 | Low | Performance | Shared code deduplication | Open |

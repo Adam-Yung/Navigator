@@ -51,8 +51,10 @@ npm run build:dev # Development build with source maps
 | Mode | Activation | Behavior |
 |------|-----------|----------|
 | Normal | `Escape` | Extension is invisible. Browser behaves normally. |
-| Navigation | `Ctrl+Alt+N` | All focusable elements navigable via h/j/k/l. |
+| Navigation | `Ctrl+Alt+N` | All focusable elements navigable via h/j/k/l or arrows. |
 | Editing | `Ctrl+Alt+E` | Only editable fields (inputs, textareas) navigable. |
+
+> **Note:** The browser also registers global shortcuts (`Alt+Shift+N` / `Alt+Shift+E`) via the manifest `commands` API, which work even when no page is focused. Both mechanisms activate the same modes.
 
 ### Navigation Keys (in Navigation/Editing mode)
 
@@ -144,6 +146,7 @@ src/
 │   ├── aura-ring.ts          Animated focus ring renderer (Shadow DOM)
 │   ├── nav-queue.ts          Rapid keypress queue → single animation
 │   ├── key-handler.ts        Keydown capture and dispatch
+│   ├── hint-mode.ts          Vimperator-style label jump navigation
 │   ├── mutation-observer.ts  DOM/scroll/resize watch for re-indexing
 │   └── indicator.ts          Mode chip with dot/pill animation
 ├── background/
@@ -155,7 +158,9 @@ src/
 └── shared/
     ├── types.ts              TypeScript interfaces
     ├── constants.ts          Default settings, selectors, colors
-    └── storage.ts            Cross-browser storage abstraction
+    ├── storage.ts            Cross-browser storage abstraction
+    ├── browser-api.ts        Cross-browser extension API accessor
+    └── keys.ts               Keyboard combo string utilities
 ```
 
 ## Browser Support
@@ -166,7 +171,7 @@ src/
 | Edge | V3 | 88+ |
 | Brave | V3 | 88+ |
 | Opera | V3 | 74+ |
-| Firefox | V2 | 109+ |
+| Firefox | V2 | 140+ |
 
 ## License
 
