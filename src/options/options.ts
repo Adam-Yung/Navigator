@@ -1,8 +1,8 @@
-import type { Settings, Keybindings } from '../shared/types';
-import { DEFAULT_SETTINGS } from '../shared/constants';
 import { getAPI } from '../shared/browser-api';
-import { getSettings, saveSettings } from '../shared/storage';
+import { DEFAULT_SETTINGS } from '../shared/constants';
 import { buildComboString } from '../shared/keys';
+import { getSettings, saveSettings } from '../shared/storage';
+import type { Keybindings, Settings } from '../shared/types';
 
 const api = getAPI();
 
@@ -30,7 +30,10 @@ async function save(): Promise<void> {
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 function debouncedSave(): void {
   if (saveTimer !== null) clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => { saveTimer = null; save().catch(() => {}); }, 300);
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    save().catch(() => {});
+  }, 300);
 }
 
 function renderKeybindings(): void {
@@ -110,7 +113,10 @@ function setupListeners(): void {
 
   document.getElementById('disabled-sites')!.addEventListener('change', (e) => {
     const text = (e.target as HTMLTextAreaElement).value;
-    settings.disabledSites = text.split('\n').map(s => s.trim()).filter(Boolean);
+    settings.disabledSites = text
+      .split('\n')
+      .map((s) => s.trim())
+      .filter(Boolean);
     save().catch(() => {});
   });
 
@@ -236,25 +242,25 @@ function formatKeyName(key: keyof Keybindings): string {
   return names[key] || key;
 }
 
-
-
 function comboToKeycaps(combo: string): string {
   const parts = combo.split('+');
   const isMac = /mac/i.test((navigator as any).userAgentData?.platform ?? navigator.platform ?? '');
 
-  return parts.map(part => {
-    let display = part;
-    if (part === 'Ctrl') display = isMac ? '\u2303' : 'Ctrl';
-    else if (part === 'Alt') display = isMac ? '\u2325' : 'Alt';
-    else if (part === 'Meta') display = isMac ? '\u2318' : 'Win';
-    else if (part === 'Shift') display = isMac ? '\u21E7' : 'Shift';
-    else if (part === 'Escape') display = 'Esc';
-    else if (part === 'Enter') display = '\u21B5';
-    else if (part.startsWith('Key')) display = part.slice(3);
-    else if (part.startsWith('Digit')) display = part.slice(5);
+  return parts
+    .map((part) => {
+      let display = part;
+      if (part === 'Ctrl') display = isMac ? '\u2303' : 'Ctrl';
+      else if (part === 'Alt') display = isMac ? '\u2325' : 'Alt';
+      else if (part === 'Meta') display = isMac ? '\u2318' : 'Win';
+      else if (part === 'Shift') display = isMac ? '\u21E7' : 'Shift';
+      else if (part === 'Escape') display = 'Esc';
+      else if (part === 'Enter') display = '\u21B5';
+      else if (part.startsWith('Key')) display = part.slice(3);
+      else if (part.startsWith('Digit')) display = part.slice(5);
 
-    return `<span class="keycap">${display}</span>`;
-  }).join('');
+      return `<span class="keycap">${display}</span>`;
+    })
+    .join('');
 }
 
 function setupPreview(): void {
@@ -287,11 +293,15 @@ function setupPreview(): void {
     }, 2000);
   }
   function stopPreview() {
-    if (previewInterval) { clearInterval(previewInterval); previewInterval = null; }
+    if (previewInterval) {
+      clearInterval(previewInterval);
+      previewInterval = null;
+    }
   }
   startPreview();
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) stopPreview(); else startPreview();
+    if (document.hidden) stopPreview();
+    else startPreview();
   });
 }
 

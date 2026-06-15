@@ -1,5 +1,5 @@
-import type { IndexedElement, Mode } from '../shared/types';
 import { AURA_COLORS } from '../shared/constants';
+import type { IndexedElement, Mode } from '../shared/types';
 
 const HINT_CHARS = 'asdfghjklqwertyuiopzxcvbnm'.split('');
 
@@ -55,7 +55,7 @@ export function activateHintMode(
   elements: IndexedElement[],
   mode: Mode,
   selectCb: (element: IndexedElement) => void,
-  cancelCb: () => void
+  cancelCb: () => void,
 ): void {
   if (!labelsContainer || !modalEl) return;
 
@@ -104,7 +104,7 @@ export function isHintModeActive(): boolean {
 }
 
 export function getFilteredElements(): IndexedElement[] {
-  return filteredHints.map(h => h.element);
+  return filteredHints.map((h) => h.element);
 }
 
 export function handleHintKey(key: string, event: KeyboardEvent): boolean {
@@ -171,7 +171,7 @@ export function destroyHintMode(): void {
 }
 
 function applyFilter(): void {
-  filteredHints = allHints.filter(h => h.label.startsWith(typedFilter));
+  filteredHints = allHints.filter((h) => h.label.startsWith(typedFilter));
   updateVisuals();
   updateModal();
 }
@@ -217,7 +217,10 @@ function generateLabels(count: number): string[] {
 function addLabelsOfLength(len: number, max: number, out: string[]): void {
   const generate = (prefix: string, remaining: number): void => {
     if (out.length >= max) return;
-    if (remaining === 0) { out.push(prefix); return; }
+    if (remaining === 0) {
+      out.push(prefix);
+      return;
+    }
     for (const c of HINT_CHARS) {
       if (out.length >= max) return;
       generate(prefix + c, remaining - 1);

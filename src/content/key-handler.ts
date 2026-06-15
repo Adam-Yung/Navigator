@@ -1,6 +1,6 @@
-import type { Direction, Settings } from '../shared/types';
 import { buildComboString } from '../shared/keys';
-import { getCurrentMode, setMode, activateElement, openInNewTab, handleEscape } from './mode-manager';
+import type { Direction, Settings } from '../shared/types';
+import { activateElement, getCurrentMode, handleEscape, openInNewTab, setMode } from './mode-manager';
 import { enqueue } from './nav-queue';
 
 let settings: Settings | null = null;
@@ -172,7 +172,7 @@ function handleKeydown(e: KeyboardEvent): void {
       return;
     }
 
-    if (e.key === '\'' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    if (e.key === "'" && !e.ctrlKey && !e.altKey && !e.metaKey) {
       e.preventDefault();
       e.stopPropagation();
       passthroughNext = true;
@@ -212,11 +212,19 @@ function keyToDirection(e: KeyboardEvent): Direction | null {
   if (e.ctrlKey || e.altKey || e.metaKey) return null;
 
   switch (e.key.toLowerCase()) {
-    case 'h': case 'arrowleft': return 'left';
-    case 'j': case 'arrowdown': return 'down';
-    case 'k': case 'arrowup': return 'up';
-    case 'l': case 'arrowright': return 'right';
-    default: return null;
+    case 'h':
+    case 'arrowleft':
+      return 'left';
+    case 'j':
+    case 'arrowdown':
+      return 'down';
+    case 'k':
+    case 'arrowup':
+      return 'up';
+    case 'l':
+    case 'arrowright':
+      return 'right';
+    default:
+      return null;
   }
 }
-

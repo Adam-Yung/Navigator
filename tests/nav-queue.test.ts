@@ -1,5 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { setNavQueueState, setFlushCallback, setDeadEndCallback, enqueue, flushImmediately } from '../src/content/nav-queue';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  enqueue,
+  flushImmediately,
+  setDeadEndCallback,
+  setFlushCallback,
+  setNavQueueState,
+} from '../src/content/nav-queue';
 import type { IndexedElement } from '../src/shared/types';
 
 function makeElement(cx: number, cy: number): IndexedElement {

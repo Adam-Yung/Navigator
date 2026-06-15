@@ -1,5 +1,5 @@
-import type { IndexedElement, Mode, Direction, Settings } from '../shared/types';
 import { AURA_COLORS, AURA_INTENSITY_SHADOWS } from '../shared/constants';
+import type { Direction, IndexedElement, Mode, Settings } from '../shared/types';
 
 const RING_PADDING = 8;
 const RING_MIN_SIZE = 24;
@@ -90,7 +90,10 @@ export function transitionTo(target: IndexedElement, mode: Mode): void {
 export function bumpDirection(direction: Direction): void {
   if (!ring) return;
   const offsets: Record<Direction, [number, number]> = {
-    left: [-BUMP_OFFSET_PX, 0], right: [BUMP_OFFSET_PX, 0], up: [0, -BUMP_OFFSET_PX], down: [0, BUMP_OFFSET_PX],
+    left: [-BUMP_OFFSET_PX, 0],
+    right: [BUMP_OFFSET_PX, 0],
+    up: [0, -BUMP_OFFSET_PX],
+    down: [0, BUMP_OFFSET_PX],
   };
   const [dx, dy] = offsets[direction];
   ring.style.transition = `transform ${BUMP_TIMING_MS}ms ease-out`;
@@ -171,12 +174,12 @@ function getTargetBorderRadius(el: HTMLElement, padding: number): string {
     return `${Math.min(padding + 4, 12)}px`;
   }
 
-  const values = raw.split(' ').map(v => {
+  const values = raw.split(' ').map((v) => {
     const px = parseFloat(v);
     return isNaN(px) ? padding + 4 : px + padding;
   });
 
-  return values.map(v => `${v}px`).join(' ');
+  return values.map((v) => `${v}px`).join(' ');
 }
 
 function withAlpha(hsl: string, alpha: number): string {

@@ -1,5 +1,5 @@
-import { DEFAULT_SETTINGS } from '../shared/constants';
 import { getAPI } from '../shared/browser-api';
+import { DEFAULT_SETTINGS } from '../shared/constants';
 
 const api = getAPI();
 

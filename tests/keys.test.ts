@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { buildComboString } from '../src/shared/keys';
 
 function makeKeyEvent(overrides: Partial<KeyboardEvent> = {}): KeyboardEvent {

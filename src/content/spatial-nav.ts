@@ -1,5 +1,5 @@
-import type { Mode, Direction, IndexedElement } from '../shared/types';
-import { NAV_SELECTORS, EDIT_SELECTORS } from '../shared/constants';
+import { EDIT_SELECTORS, NAV_SELECTORS } from '../shared/constants';
+import type { Direction, IndexedElement, Mode } from '../shared/types';
 
 const CONE_EXPANSION_STEP = 15;
 const MAX_HALF_CONE = 90;
@@ -26,10 +26,10 @@ export function findNext(
   candidates: IndexedElement[],
   direction: Direction,
   coneAngle: number,
-  smartPrioritization: boolean = false
+  smartPrioritization: boolean = false,
 ): IndexedElement | null {
   const refAngle = directionToAngle(direction);
-  const filtered = candidates.filter(c => c.el !== current.el);
+  const filtered = candidates.filter((c) => c.el !== current.el);
 
   if (filtered.length === 0) return null;
 
@@ -69,7 +69,7 @@ export function scanOffscreen(
   mode: Mode,
   direction: Direction,
   currentCx: number,
-  currentCy: number
+  currentCy: number,
 ): IndexedElement | null {
   if (mode === 'normal') return null;
 
@@ -123,7 +123,7 @@ function queryDocument(
   selector: string,
   result: IndexedElement[],
   offsetX: number,
-  offsetY: number
+  offsetY: number,
 ): void {
   const elements = doc.querySelectorAll<HTMLElement>(selector);
   for (const el of elements) {
@@ -165,7 +165,7 @@ function scoreInCone(
   candidates: IndexedElement[],
   refAngle: number,
   halfCone: number,
-  smartPrioritization: boolean
+  smartPrioritization: boolean,
 ): ScoredCandidate[] {
   const result: ScoredCandidate[] = [];
 
@@ -202,10 +202,14 @@ function elementPriority(el: HTMLElement, rect: DOMRect): number {
 
 function directionToAngle(direction: Direction): number {
   switch (direction) {
-    case 'right': return 0;
-    case 'down': return 90;
-    case 'left': return 180;
-    case 'up': return -90;
+    case 'right':
+      return 0;
+    case 'down':
+      return 90;
+    case 'left':
+      return 180;
+    case 'up':
+      return -90;
   }
 }
 
@@ -237,19 +241,9 @@ function isVisible(el: HTMLElement): boolean {
 }
 
 function isInViewport(rect: DOMRect): boolean {
-  return (
-    rect.bottom > 0 &&
-    rect.right > 0 &&
-    rect.top < window.innerHeight &&
-    rect.left < window.innerWidth
-  );
+  return rect.bottom > 0 && rect.right > 0 && rect.top < window.innerHeight && rect.left < window.innerWidth;
 }
 
 function isInViewportAt(left: number, top: number, width: number, height: number): boolean {
-  return (
-    top + height > 0 &&
-    left + width > 0 &&
-    top < window.innerHeight &&
-    left < window.innerWidth
-  );
+  return top + height > 0 && left + width > 0 && top < window.innerHeight && left < window.innerWidth;
 }

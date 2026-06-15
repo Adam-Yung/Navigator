@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { findNext, findNearestToPoint } from '../src/content/spatial-nav';
+import { describe, expect, it } from 'vitest';
+import { findNearestToPoint, findNext } from '../src/content/spatial-nav';
 import type { IndexedElement } from '../src/shared/types';
 
 function makeElement(cx: number, cy: number, tag = 'BUTTON'): IndexedElement {

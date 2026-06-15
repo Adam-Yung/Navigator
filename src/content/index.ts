@@ -1,14 +1,32 @@
-import type { Direction, IndexedElement, Settings } from '../shared/types';
-import { getSettings, onSettingsChanged } from '../shared/storage';
-import { getCurrentMode, onModeChange, setMode } from './mode-manager';
-import { scanElements, findNearestToPoint } from './spatial-nav';
-import { setNavQueueState, setFlushCallback, setDeadEndCallback } from './nav-queue';
-import { initKeyHandler, updateKeyHandlerSettings, setFocusedElement, setTabCycleHandler, setToggleHandler, setHintKeyHandler, setGoBackHandler, setExtensionEnabled, setJumpToFirstHandler, setJumpToLastHandler } from './key-handler';
-import { startObserving, stopObserving, updateMode } from './mutation-observer';
-import { initAuraRing, updateAuraSettings, transitionTo, hide as hideAura, bumpDirection } from './aura-ring';
-import { initIndicator, showModeIndicator, hideIndicator } from './indicator';
-import { initHintMode, activateHintMode, deactivateHintMode, isHintModeActive, getFilteredElements, handleHintKey } from './hint-mode';
 import { getAPI } from '../shared/browser-api';
+import { getSettings, onSettingsChanged } from '../shared/storage';
+import type { Direction, IndexedElement, Settings } from '../shared/types';
+import { bumpDirection, hide as hideAura, initAuraRing, transitionTo, updateAuraSettings } from './aura-ring';
+import {
+  activateHintMode,
+  deactivateHintMode,
+  getFilteredElements,
+  handleHintKey,
+  initHintMode,
+  isHintModeActive,
+} from './hint-mode';
+import { hideIndicator, initIndicator, showModeIndicator } from './indicator';
+import {
+  initKeyHandler,
+  setExtensionEnabled,
+  setFocusedElement,
+  setGoBackHandler,
+  setHintKeyHandler,
+  setJumpToFirstHandler,
+  setJumpToLastHandler,
+  setTabCycleHandler,
+  setToggleHandler,
+  updateKeyHandlerSettings,
+} from './key-handler';
+import { getCurrentMode, onModeChange, setMode } from './mode-manager';
+import { startObserving, stopObserving, updateMode } from './mutation-observer';
+import { setDeadEndCallback, setFlushCallback, setNavQueueState } from './nav-queue';
+import { findNearestToPoint, scanElements } from './spatial-nav';
 
 let elements: IndexedElement[] = [];
 let focused: IndexedElement | null = null;
@@ -18,12 +36,16 @@ let mouseX = window.innerWidth / 2;
 let mouseY = window.innerHeight / 2;
 
 const MAX_JUMP_STACK = 20;
-let jumpStack: IndexedElement[] = [];
+const jumpStack: IndexedElement[] = [];
 
-document.addEventListener('mousemove', (e) => {
-  mouseX = e.clientX;
-  mouseY = e.clientY;
-}, { passive: true });
+document.addEventListener(
+  'mousemove',
+  (e) => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+  },
+  { passive: true },
+);
 
 async function init(): Promise<void> {
   settings = await getSettings();
@@ -78,9 +100,14 @@ async function init(): Promise<void> {
     elements = scanElements(newMode);
     updateMode(newMode);
 
-    if (focused && elements.some(e => e.el === focused!.el)) {
-      const updated = elements.find(e => e.el === focused!.el);
-      if (!updated) { focused = null; setFocusedElement(null); setNavQueueState(null, elements, settings.coneAngle, settings.smartPrioritization); return; }
+    if (focused && elements.some((e) => e.el === focused!.el)) {
+      const updated = elements.find((e) => e.el === focused!.el);
+      if (!updated) {
+        focused = null;
+        setFocusedElement(null);
+        setNavQueueState(null, elements, settings.coneAngle, settings.smartPrioritization);
+        return;
+      }
       focused = updated;
       transitionTo(focused, newMode);
       setNavQueueState(focused, elements, settings.coneAngle, settings.smartPrioritization);
@@ -121,7 +148,7 @@ function handleElementsInvalidation(newElements: IndexedElement[]): void {
 
   if (focused) {
     const focusedEl = focused.el;
-    const stillExists = elements.find(e => e.el === focusedEl);
+    const stillExists = elements.find((e) => e.el === focusedEl);
     if (stillExists) {
       focused = stillExists;
       if (mode !== 'normal') transitionTo(focused, mode);
@@ -139,7 +166,7 @@ export function cycleElement(direction: 'next' | 'prev'): void {
   const list = isHintModeActive() ? getFilteredElements() : elements;
   if (list.length === 0) return;
 
-  const currentIdx = focused ? list.findIndex(e => e.el === focused!.el) : -1;
+  const currentIdx = focused ? list.findIndex((e) => e.el === focused!.el) : -1;
   let nextIdx: number;
 
   if (direction === 'next') {
@@ -187,7 +214,7 @@ function popJump(): IndexedElement | null {
 function handleGoBack(): void {
   const prev = popJump();
   if (!prev) return;
-  const stillExists = elements.find(e => e.el === prev.el);
+  const stillExists = elements.find((e) => e.el === prev.el);
   if (stillExists) {
     focused = stillExists;
     setFocusedElement(stillExists.el);
@@ -217,7 +244,12 @@ function handleHintKeyEvent(key: string, event: KeyboardEvent): boolean {
     return handleHintKey(key, event);
   }
 
-  if (key.toLowerCase() === codeToChar(settings.keybindings.hintMode) && !event.ctrlKey && !event.altKey && !event.metaKey) {
+  if (
+    key.toLowerCase() === codeToChar(settings.keybindings.hintMode) &&
+    !event.ctrlKey &&
+    !event.altKey &&
+    !event.metaKey
+  ) {
     const mode = getCurrentMode();
     if (mode === 'navigation' || mode === 'editing') {
       if (elements.length === 0) return false;
@@ -262,17 +294,23 @@ function canScrollInDirection(direction: Direction): boolean {
   const scrollWidth = Math.max(doc.scrollWidth, body.scrollWidth);
 
   switch (direction) {
-    case 'down': return scrollTop + clientHeight < scrollHeight - 1;
-    case 'up': return scrollTop > 0;
-    case 'right': return scrollLeft + clientWidth < scrollWidth - 1;
-    case 'left': return scrollLeft > 0;
+    case 'down':
+      return scrollTop + clientHeight < scrollHeight - 1;
+    case 'up':
+      return scrollTop > 0;
+    case 'right':
+      return scrollLeft + clientWidth < scrollWidth - 1;
+    case 'left':
+      return scrollLeft > 0;
   }
 }
 
 function scrollInDirection(direction: Direction, amount: number): void {
   const map: Record<Direction, [number, number]> = {
-    down: [0, amount], up: [0, -amount],
-    right: [amount, 0], left: [-amount, 0],
+    down: [0, amount],
+    up: [0, -amount],
+    right: [amount, 0],
+    left: [-amount, 0],
   };
   const [x, y] = map[direction];
   window.scrollBy({ left: x, top: y, behavior: 'smooth' });
@@ -286,10 +324,7 @@ function codeToChar(code: string): string {
 function scrollIntoViewIfNeeded(target: IndexedElement): void {
   const rect = target.el.getBoundingClientRect();
   const inView =
-    rect.top >= 0 &&
-    rect.left >= 0 &&
-    rect.bottom <= window.innerHeight &&
-    rect.right <= window.innerWidth;
+    rect.top >= 0 && rect.left >= 0 && rect.bottom <= window.innerHeight && rect.right <= window.innerWidth;
 
   if (!inView) {
     target.el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -305,9 +340,7 @@ function isSiteDisabled(patterns: string[]): boolean {
 }
 
 function matchUrlPattern(pattern: string, url: string): boolean {
-  const escaped = pattern
-    .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
-    .replace(/\*/g, '.*');
+  const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
   return new RegExp(`^${escaped}$`).test(url);
 }
 

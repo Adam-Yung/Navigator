@@ -1,4 +1,4 @@
-import type { Mode, IndexedElement } from '../shared/types';
+import type { IndexedElement, Mode } from '../shared/types';
 import { scanElements } from './spatial-nav';
 
 type InvalidationCallback = (elements: IndexedElement[]) => void;
@@ -11,9 +11,7 @@ let disconnectedDuringDebounce = false;
 let lastRescanTime = 0;
 const RESCAN_THROTTLE_MS = 300;
 
-const FOCUSABLE_TAGS = new Set([
-  'A', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'SUMMARY',
-]);
+const FOCUSABLE_TAGS = new Set(['A', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'SUMMARY']);
 
 export function startObserving(mode: Mode, onInvalidate: InvalidationCallback): void {
   currentMode = mode;

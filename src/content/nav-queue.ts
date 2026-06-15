@@ -28,7 +28,7 @@ export function setNavQueueState(
   current: IndexedElement | null,
   elements: IndexedElement[],
   cone: number,
-  smart: boolean = false
+  smart: boolean = false,
 ): void {
   currentElement = current;
   candidates = elements;

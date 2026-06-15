@@ -1,4 +1,4 @@
-import type { Settings, Keybindings } from './types';
+import type { Keybindings, Settings } from './types';
 
 export const DEFAULT_KEYBINDINGS: Keybindings = {
   enterNavigation: 'Ctrl+Alt+KeyN',

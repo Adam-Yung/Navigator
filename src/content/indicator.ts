@@ -1,11 +1,10 @@
-import type { Mode } from '../shared/types';
 import { AURA_COLORS } from '../shared/constants';
+import type { Mode } from '../shared/types';
 
 let host: HTMLElement | null = null;
 let shadow: ShadowRoot | null = null;
 let chip: HTMLElement | null = null;
 let animTimer: ReturnType<typeof setTimeout> | null = null;
-let currentDisplayMode: Mode = 'normal';
 
 const ANIM_DOT_TO_ICON_MS = 250;
 const ANIM_ICON_TO_PILL_MS = 300;
@@ -54,7 +53,6 @@ export function showModeIndicator(mode: Mode): void {
     animTimer = null;
   }
 
-  currentDisplayMode = mode;
   const color = mode === 'editing' ? AURA_COLORS.editing : AURA_COLORS.navigation;
   const icon = mode === 'editing' ? PEN_SVG : COMPASS_SVG;
   const label = mode === 'editing' ? 'EDIT' : 'NAVIGATE';
@@ -74,7 +72,6 @@ export function hideIndicator(): void {
     clearTimeout(animTimer);
     animTimer = null;
   }
-  currentDisplayMode = 'normal';
   chip.className = 'indicator state-exit';
 
   animTimer = setTimeout(() => {

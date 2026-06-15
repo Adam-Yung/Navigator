@@ -1,6 +1,6 @@
-import type { Settings } from './types';
-import { DEFAULT_SETTINGS } from './constants';
 import { getAPI } from './browser-api';
+import { DEFAULT_SETTINGS } from './constants';
+import type { Settings } from './types';
 
 export async function getSettings(): Promise<Settings> {
   const api = getAPI();
