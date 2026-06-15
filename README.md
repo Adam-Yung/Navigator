@@ -19,7 +19,7 @@ A browser extension that brings vim-style modal navigation to any web page. Navi
 Prerequisites: Node.js 18+, npm
 
 ```bash
-git clone <repo-url> navigator
+git clone "https://github.com/Adam-Yung/Navigator.git"
 cd navigator
 npm install
 npm run build
