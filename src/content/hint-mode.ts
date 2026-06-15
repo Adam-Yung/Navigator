@@ -40,8 +40,10 @@ export function initHintMode(): void {
 
   modalEl = document.createElement('div');
   modalEl.className = 'hint-modal hidden';
+  modalEl.setAttribute('role', 'dialog');
+  modalEl.setAttribute('aria-label', 'Hint mode filter');
   modalEl.innerHTML = `
-    <div class="hint-input"><span class="hint-typed"></span><span class="hint-cursor">|</span></div>
+    <div class="hint-input" aria-live="polite"><span class="hint-typed"></span><span class="hint-cursor">|</span></div>
     <div class="hint-help">Tab to cycle &bull; Enter to select &bull; Esc to cancel</div>
   `;
   shadow.appendChild(modalEl);

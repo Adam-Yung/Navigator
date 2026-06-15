@@ -169,6 +169,23 @@ input[type="range"]::-moz-range-thumb {
   text-align: right;
 }
 
+.radio-field {
+  border: none;
+  padding: 0;
+}
+
+.radio-field legend {
+  font-size: 13px;
+  color: #b0b0cc;
+  padding: 0;
+  float: left;
+  width: auto;
+}
+
+.radio-field .radio-group {
+  float: right;
+}
+
 .radio-group {
   display: flex;
   gap: 16px;

@@ -32,8 +32,10 @@ export function initIndicator(): void {
 
   chip = document.createElement('div');
   chip.className = 'indicator';
+  chip.setAttribute('role', 'status');
+  chip.setAttribute('aria-live', 'polite');
   chip.innerHTML = `
-    <span class="icon"></span>
+    <span class="icon" aria-hidden="true"></span>
     <span class="label"></span>
   `;
   shadow.appendChild(chip);
