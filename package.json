@@ -4,7 +4,7 @@
   "description": "Vim-style modal navigation for the browser with directional spatial search and animated focus indicators",
   "scripts": {
     "dev": "webpack --watch --mode development",
-    "build": "webpack --mode production",
+    "build": "webpack --mode production && node scripts/package.js",
     "build:dev": "webpack --mode development"
   },
   "devDependencies": {
