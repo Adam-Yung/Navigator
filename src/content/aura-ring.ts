@@ -57,6 +57,7 @@ export function transitionTo(target: IndexedElement, mode: Mode): void {
   const height = Math.max(rect.height + padding * 2, RING_MIN_SIZE);
 
   isTransitioning = true;
+  ring.classList.add('transitioning');
   ring.style.willChange = 'top, left, width, height, opacity, transform';
   ring.style.transitionDuration = `${animDuration}ms`;
   ring.style.top = `${top}px`;
@@ -83,7 +84,10 @@ export function transitionTo(target: IndexedElement, mode: Mode): void {
 
   setTimeout(() => {
     isTransitioning = false;
-    if (ring) ring.style.willChange = 'auto';
+    if (ring) {
+      ring.style.willChange = 'auto';
+      ring.classList.remove('transitioning');
+    }
   }, animDuration);
 }
 
@@ -205,12 +209,17 @@ function getStyles(): string {
       transform: translate(0, 0);
       transition-property: top, left, width, height, border-radius, border-color, box-shadow, opacity;
       transition-duration: ${animDuration}ms;
-      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+      transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
       animation: aura-breathe 2.5s ease-in-out infinite;
     }
 
     .aura-ring.visible {
       opacity: 1;
+      will-change: transform;
+    }
+
+    .aura-ring.transitioning {
+      animation-play-state: paused;
     }
 
     @keyframes aura-breathe {
