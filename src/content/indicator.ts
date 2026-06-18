@@ -133,7 +133,8 @@ function getIndicatorStyles(): string {
       white-space: nowrap;
       backdrop-filter: blur(4px);
       box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
-      transition: all 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+      transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1);
+      will-change: transform, opacity;
       pointer-events: none;
       min-width: 8px;
       min-height: 8px;
@@ -147,6 +148,7 @@ function getIndicatorStyles(): string {
       padding: 0;
       opacity: 0;
       transform: scale(0);
+      will-change: auto;
     }
 
     .indicator.state-exit {
@@ -243,7 +245,7 @@ function getIndicatorStyles(): string {
     }
 
     .label {
-      transition: all 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+      transition: opacity 200ms ease-out, max-width 200ms ease-out, font-size 200ms ease-out;
     }
   `;
 }
