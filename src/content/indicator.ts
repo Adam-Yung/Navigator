@@ -159,6 +159,14 @@ function getIndicatorStyles(): string {
       transform: scale(0);
     }
 
+    .indicator.state-exit .icon,
+    .indicator.state-exit .label {
+      opacity: 0;
+      width: 0;
+      height: 0;
+      overflow: hidden;
+    }
+
     .indicator.state-dot {
       max-width: 8px;
       height: 8px;
@@ -224,12 +232,14 @@ function getIndicatorStyles(): string {
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: all 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+      transition: opacity 200ms ease-out, transform 200ms ease-out;
     }
 
     .icon svg {
       width: 100%;
       height: 100%;
+      max-width: 16px;
+      max-height: 16px;
     }
 
     .label {
