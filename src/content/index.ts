@@ -10,6 +10,7 @@ import {
   initHintMode,
   isHintModeActive,
 } from './hint-mode';
+import { cleanup as cleanupHover, revealElement } from './hover-manager';
 import { hideIndicator, initIndicator, showModeIndicator } from './indicator';
 import {
   initKeyHandler,
@@ -37,6 +38,7 @@ let mouseY = window.innerHeight / 2;
 
 const MAX_JUMP_STACK = 20;
 const jumpStack: IndexedElement[] = [];
+let lastFocusedEl: HTMLElement | null = null;
 
 document.addEventListener(
   'mousemove',
@@ -85,8 +87,10 @@ async function init(): Promise<void> {
     notifyModeChange(newMode);
 
     if (newMode === 'normal') {
+      lastFocusedEl = focused?.el ?? null;
       stopObserving();
       deactivateHintMode();
+      cleanupHover();
       elements = [];
       focused = null;
       setFocusedElement(null);
@@ -110,11 +114,14 @@ async function init(): Promise<void> {
       }
       focused = updated;
       transitionTo(focused, newMode);
+      revealElement(focused.el);
       setNavQueueState(focused, elements, settings.coneAngle, settings.smartPrioritization);
     } else {
-      focused = findNearestToPoint(elements, mouseX, mouseY);
+      const restored = lastFocusedEl ? elements.find((e) => e.el === lastFocusedEl) : null;
+      focused = restored ?? findNearestToPoint(elements, mouseX, mouseY);
       if (focused) {
         transitionTo(focused, newMode);
+        revealElement(focused.el);
       }
       setFocusedElement(focused?.el ?? null);
       setNavQueueState(focused, elements, settings.coneAngle, settings.smartPrioritization);
@@ -135,6 +142,7 @@ function handleNavigationResult(target: IndexedElement): void {
   const mode = getCurrentMode();
   if (mode !== 'normal') {
     transitionTo(target, mode);
+    revealElement(target.el);
   }
 
   if (settings.autoScroll) {
@@ -151,11 +159,17 @@ function handleElementsInvalidation(newElements: IndexedElement[]): void {
     const stillExists = elements.find((e) => e.el === focusedEl);
     if (stillExists) {
       focused = stillExists;
-      if (mode !== 'normal') transitionTo(focused, mode);
+      if (mode !== 'normal') {
+        transitionTo(focused, mode);
+        revealElement(focused.el);
+      }
     } else {
       focused = findNearestToPoint(elements, focused.cx, focused.cy);
       setFocusedElement(focused?.el ?? null);
-      if (focused && mode !== 'normal') transitionTo(focused, mode);
+      if (focused && mode !== 'normal') {
+        transitionTo(focused, mode);
+        revealElement(focused.el);
+      }
     }
   }
 
@@ -183,6 +197,7 @@ export function cycleElement(direction: 'next' | 'prev'): void {
   const mode = getCurrentMode();
   if (mode !== 'normal') {
     transitionTo(target, mode);
+    revealElement(target.el);
   }
 
   if (settings.autoScroll) {
@@ -194,6 +209,7 @@ function toggleExtension(): void {
   if (extensionEnabled) {
     extensionEnabled = false;
     setExtensionEnabled(false);
+    lastFocusedEl = null;
     setMode('normal');
   } else {
     extensionEnabled = true;
@@ -220,7 +236,10 @@ function handleGoBack(): void {
     setFocusedElement(stillExists.el);
     setNavQueueState(stillExists, elements, settings.coneAngle, settings.smartPrioritization);
     const mode = getCurrentMode();
-    if (mode !== 'normal') transitionTo(stillExists, mode);
+    if (mode !== 'normal') {
+      transitionTo(stillExists, mode);
+      revealElement(stillExists.el);
+    }
     if (settings.autoScroll) scrollIntoViewIfNeeded(stillExists);
   }
 }
@@ -233,7 +252,10 @@ function jumpToIndex(index: number): void {
   setFocusedElement(target.el);
   setNavQueueState(target, elements, settings.coneAngle, settings.smartPrioritization);
   const mode = getCurrentMode();
-  if (mode !== 'normal') transitionTo(target, mode);
+  if (mode !== 'normal') {
+    transitionTo(target, mode);
+    revealElement(target.el);
+  }
   if (settings.autoScroll) scrollIntoViewIfNeeded(target);
 }
 
@@ -268,6 +290,7 @@ function handleHintSelect(element: IndexedElement): void {
   const mode = getCurrentMode();
   if (mode !== 'normal') {
     transitionTo(element, mode);
+    revealElement(element.el);
   }
 }
 
