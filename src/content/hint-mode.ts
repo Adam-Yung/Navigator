@@ -251,7 +251,7 @@ function getHintStyles(): string {
       box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
       z-index: 1;
       white-space: nowrap;
-      transition: opacity 0.15s ease;
+      transition: opacity 0.2s ease;
     }
 
     .hint-label.dimmed {
@@ -270,7 +270,7 @@ function getHintStyles(): string {
       text-align: center;
       backdrop-filter: blur(8px);
       box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
-      transition: opacity 0.15s ease, transform 0.15s ease;
+      transition: opacity 0.2s ease, transform 0.2s ease;
     }
 
     .hint-modal.hidden {
