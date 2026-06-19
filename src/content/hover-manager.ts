@@ -1,6 +1,15 @@
 const MAX_ANCESTORS = 15;
+const OPACITY_THRESHOLD = 0.1;
+
+interface SavedStyle {
+  opacity: string;
+  visibility: string;
+  pointerEvents: string;
+}
 
 let hoveredNodes: HTMLElement[] = [];
+const overriddenNodes: Map<HTMLElement, SavedStyle> = new Map();
+let pendingRevealTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function revealElement(el: HTMLElement): void {
   const newChain = getAncestorChain(el);
@@ -20,13 +29,126 @@ export function revealElement(el: HTMLElement): void {
   }
 
   hoveredNodes = newChain;
+
+  if (pendingRevealTimer !== null) {
+    clearTimeout(pendingRevealTimer);
+  }
+
+  pendingRevealTimer = setTimeout(() => {
+    pendingRevealTimer = null;
+    forceVisibilityIfNeeded(el, newChain);
+  }, 0);
 }
 
 export function cleanup(): void {
+  if (pendingRevealTimer !== null) {
+    clearTimeout(pendingRevealTimer);
+    pendingRevealTimer = null;
+  }
+
+  restoreOverrides();
+
   for (let i = hoveredNodes.length - 1; i >= 0; i--) {
     dispatchLeave(hoveredNodes[i], null);
   }
   hoveredNodes = [];
+}
+
+function forceVisibilityIfNeeded(el: HTMLElement, chain: HTMLElement[]): void {
+  if (isEffectivelyVisible(el)) {
+    restoreOverrides();
+    return;
+  }
+
+  const nodesToOverride = new Set<HTMLElement>();
+
+  for (const node of chain) {
+    const computed = getComputedStyle(node);
+    const opacity = Number.parseFloat(computed.opacity);
+    if (opacity < OPACITY_THRESHOLD) {
+      nodesToOverride.add(node);
+    }
+    if (computed.visibility === 'hidden') {
+      nodesToOverride.add(node);
+    }
+    if (computed.pointerEvents === 'none') {
+      nodesToOverride.add(node);
+    }
+  }
+
+  const toRestore = new Map(overriddenNodes);
+  for (const [node] of toRestore) {
+    if (!nodesToOverride.has(node)) {
+      restoreNode(node);
+      overriddenNodes.delete(node);
+    }
+  }
+
+  for (const node of nodesToOverride) {
+    if (!overriddenNodes.has(node)) {
+      overriddenNodes.set(node, {
+        opacity: node.style.opacity,
+        visibility: node.style.visibility,
+        pointerEvents: node.style.pointerEvents,
+      });
+    }
+
+    const computed = getComputedStyle(node);
+    if (Number.parseFloat(computed.opacity) < OPACITY_THRESHOLD) {
+      node.style.setProperty('opacity', '1', 'important');
+    }
+    if (computed.visibility === 'hidden') {
+      node.style.setProperty('visibility', 'visible', 'important');
+    }
+    if (computed.pointerEvents === 'none') {
+      node.style.setProperty('pointer-events', 'auto', 'important');
+    }
+  }
+}
+
+function restoreOverrides(): void {
+  for (const [node] of overriddenNodes) {
+    restoreNode(node);
+  }
+  overriddenNodes.clear();
+}
+
+function restoreNode(node: HTMLElement): void {
+  const saved = overriddenNodes.get(node);
+  if (!saved) return;
+
+  if (saved.opacity) {
+    node.style.opacity = saved.opacity;
+  } else {
+    node.style.removeProperty('opacity');
+  }
+
+  if (saved.visibility) {
+    node.style.visibility = saved.visibility;
+  } else {
+    node.style.removeProperty('visibility');
+  }
+
+  if (saved.pointerEvents) {
+    node.style.pointerEvents = saved.pointerEvents;
+  } else {
+    node.style.removeProperty('pointer-events');
+  }
+}
+
+function isEffectivelyVisible(el: HTMLElement): boolean {
+  let current: HTMLElement | null = el;
+  let depth = 0;
+
+  while (current && current !== document.documentElement && depth < MAX_ANCESTORS) {
+    const computed = getComputedStyle(current);
+    if (Number.parseFloat(computed.opacity) < OPACITY_THRESHOLD) return false;
+    if (computed.visibility === 'hidden') return false;
+    current = current.parentElement;
+    depth++;
+  }
+
+  return true;
 }
 
 function getAncestorChain(el: HTMLElement): HTMLElement[] {
