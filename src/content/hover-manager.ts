@@ -5,11 +5,12 @@ interface SavedStyle {
   opacity: string;
   visibility: string;
   pointerEvents: string;
+  transition: string;
 }
 
 let hoveredNodes: HTMLElement[] = [];
 const overriddenNodes: Map<HTMLElement, SavedStyle> = new Map();
-let pendingRevealTimer: ReturnType<typeof setTimeout> | null = null;
+let lastRevealedEl: HTMLElement | null = null;
 
 export function revealElement(el: HTMLElement): void {
   const newChain = getAncestorChain(el);
@@ -30,28 +31,22 @@ export function revealElement(el: HTMLElement): void {
 
   hoveredNodes = newChain;
 
-  if (pendingRevealTimer !== null) {
-    clearTimeout(pendingRevealTimer);
+  if (el === lastRevealedEl && overriddenNodes.size > 0) {
+    return;
   }
 
-  pendingRevealTimer = setTimeout(() => {
-    pendingRevealTimer = null;
-    forceVisibilityIfNeeded(el, newChain);
-  }, 0);
+  lastRevealedEl = el;
+  forceVisibilityIfNeeded(el, newChain);
 }
 
 export function cleanup(): void {
-  if (pendingRevealTimer !== null) {
-    clearTimeout(pendingRevealTimer);
-    pendingRevealTimer = null;
-  }
-
   restoreOverrides();
 
   for (let i = hoveredNodes.length - 1; i >= 0; i--) {
     dispatchLeave(hoveredNodes[i], null);
   }
   hoveredNodes = [];
+  lastRevealedEl = null;
 }
 
 function forceVisibilityIfNeeded(el: HTMLElement, chain: HTMLElement[]): void {
@@ -90,10 +85,12 @@ function forceVisibilityIfNeeded(el: HTMLElement, chain: HTMLElement[]): void {
         opacity: node.style.opacity,
         visibility: node.style.visibility,
         pointerEvents: node.style.pointerEvents,
+        transition: node.style.transition,
       });
     }
 
     const computed = getComputedStyle(node);
+    node.style.setProperty('transition', 'none', 'important');
     if (Number.parseFloat(computed.opacity) < OPACITY_THRESHOLD) {
       node.style.setProperty('opacity', '1', 'important');
     }
@@ -116,6 +113,12 @@ function restoreOverrides(): void {
 function restoreNode(node: HTMLElement): void {
   const saved = overriddenNodes.get(node);
   if (!saved) return;
+
+  if (saved.transition) {
+    node.style.transition = saved.transition;
+  } else {
+    node.style.removeProperty('transition');
+  }
 
   if (saved.opacity) {
     node.style.opacity = saved.opacity;
