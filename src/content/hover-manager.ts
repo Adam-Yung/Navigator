@@ -1,5 +1,7 @@
 const MAX_ANCESTORS = 15;
 const OPACITY_THRESHOLD = 0.1;
+const REVEAL_DEBOUNCE_MS = 100;
+const HIDE_DEBOUNCE_MS = 1500;
 
 interface SavedStyle {
   opacity: string;
@@ -11,6 +13,8 @@ interface SavedStyle {
 let hoveredNodes: HTMLElement[] = [];
 const overriddenNodes: Map<HTMLElement, SavedStyle> = new Map();
 let lastRevealedEl: HTMLElement | null = null;
+let revealTimer: ReturnType<typeof setTimeout> | null = null;
+let hideTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function revealElement(el: HTMLElement): void {
   const newChain = getAncestorChain(el);
@@ -31,15 +35,37 @@ export function revealElement(el: HTMLElement): void {
 
   hoveredNodes = newChain;
 
+  if (hideTimer !== null) {
+    clearTimeout(hideTimer);
+    hideTimer = null;
+  }
+
   if (el === lastRevealedEl && overriddenNodes.size > 0) {
     return;
   }
 
   lastRevealedEl = el;
-  forceVisibilityIfNeeded(el, newChain);
+
+  if (revealTimer !== null) {
+    clearTimeout(revealTimer);
+  }
+
+  revealTimer = setTimeout(() => {
+    revealTimer = null;
+    forceVisibilityIfNeeded(el, newChain);
+  }, REVEAL_DEBOUNCE_MS);
 }
 
 export function cleanup(): void {
+  if (revealTimer !== null) {
+    clearTimeout(revealTimer);
+    revealTimer = null;
+  }
+  if (hideTimer !== null) {
+    clearTimeout(hideTimer);
+    hideTimer = null;
+  }
+
   restoreOverrides();
 
   for (let i = hoveredNodes.length - 1; i >= 0; i--) {
@@ -51,7 +77,7 @@ export function cleanup(): void {
 
 function forceVisibilityIfNeeded(el: HTMLElement, chain: HTMLElement[]): void {
   if (isEffectivelyVisible(el)) {
-    restoreOverrides();
+    scheduleHide();
     return;
   }
 
@@ -101,6 +127,16 @@ function forceVisibilityIfNeeded(el: HTMLElement, chain: HTMLElement[]): void {
       node.style.setProperty('pointer-events', 'auto', 'important');
     }
   }
+}
+
+function scheduleHide(): void {
+  if (overriddenNodes.size === 0) return;
+  if (hideTimer !== null) return;
+
+  hideTimer = setTimeout(() => {
+    hideTimer = null;
+    restoreOverrides();
+  }, HIDE_DEBOUNCE_MS);
 }
 
 function restoreOverrides(): void {
