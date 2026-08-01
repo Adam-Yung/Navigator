@@ -29,12 +29,14 @@ async function init(): Promise<void> {
   updateAuraSettings(settings);
   initIndicator();
   initHintMode();
+  initPickerKeybinding(settings);
   initScrollEngine(settings);
 
   onSettingsChanged((newSettings) => {
     settings = newSettings;
     updateKeyHandlerSettings(newSettings);
     updateAuraSettings(newSettings);
+    updatePickerSettings(newSettings);
     updateScrollSettings(newSettings);
   });
 

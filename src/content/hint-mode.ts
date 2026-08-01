@@ -1,5 +1,10 @@
 import { AURA_COLOR } from '../shared/constants';
-import type { IndexedElement } from '../shared/types';
+import { buildComboString } from '../shared/keys';
+import type { IndexedElement, Settings } from '../shared/types';
+import { transitionTo, hide as hideAura } from './aura-ring';
+import { revealElement } from './hover-manager';
+import { registerKeyHandler } from './key-handler';
+import { scanVisibleElements } from './mutation-observer';
 
 const HINT_CHARS = 'asdfghjklqwertyuiopzxcvbnm'.split('');
 
@@ -11,13 +16,15 @@ let active = false;
 let typedFilter = '';
 let allHints: HintEntry[] = [];
 let filteredHints: HintEntry[] = [];
-let onSelect: ((element: IndexedElement) => void) | null = null;
-let onCancel: (() => void) | null = null;
+let settings: Settings | null = null;
+let unregisterKey: (() => void) | null = null;
+let lastPickedElement: HTMLElement | null = null;
 
 interface HintEntry {
   label: string;
   element: IndexedElement;
   labelEl: HTMLElement;
+  index: number;
 }
 
 export function initHintMode(): void {
@@ -40,27 +47,104 @@ export function initHintMode(): void {
   modalEl = document.createElement('div');
   modalEl.className = 'hint-modal hidden';
   modalEl.setAttribute('role', 'dialog');
-  modalEl.setAttribute('aria-label', 'Hint mode filter');
+  modalEl.setAttribute('aria-label', 'Element picker');
   modalEl.innerHTML = `
     <div class="hint-input" aria-live="polite"><span class="hint-typed"></span><span class="hint-cursor">|</span></div>
-    <div class="hint-help">Tab to cycle &bull; Enter to select &bull; Esc to cancel</div>
+    <div class="hint-help">Type to filter \u2022 Enter to select \u2022 Shift+Enter new tab \u2022 Esc to cancel</div>
   `;
   shadow.appendChild(modalEl);
 
   document.documentElement.appendChild(host);
 }
 
-export function activateHintMode(
-  elements: IndexedElement[],
-  selectCb: (element: IndexedElement) => void,
-  cancelCb: () => void,
-): void {
+export function initPickerKeybinding(initialSettings: Settings): void {
+  settings = initialSettings;
+  unregisterKey = registerKeyHandler(handlePickerKeydown);
+}
+
+export function updatePickerSettings(newSettings: Settings): void {
+  settings = newSettings;
+}
+
+function handlePickerKeydown(e: KeyboardEvent): boolean {
+  if (!settings) return false;
+
+  if (!active) {
+    const combo = buildComboString(e);
+    if (combo === settings.keybindings.picker) {
+      activatePicker();
+      return true;
+    }
+    return false;
+  }
+
+  if (e.key === 'Escape') {
+    deactivateHintMode();
+    return true;
+  }
+
+  if (e.key === 'Enter') {
+    if (filteredHints.length > 0) {
+      const target = filteredHints[0];
+      const newTab = e.shiftKey;
+      deactivateHintMode();
+      activateTarget(target.element, newTab);
+    }
+    return true;
+  }
+
+  if (e.key === 'Backspace') {
+    if (typedFilter.length > 0) {
+      typedFilter = typedFilter.slice(0, -1);
+      applyFilter();
+    }
+    return true;
+  }
+
+  if (!e.altKey && !e.ctrlKey && !e.metaKey && /^[0-9]$/.test(e.key)) {
+    const num = e.key === '0' ? 10 : parseInt(e.key);
+    const idx = num - 1;
+    if (idx < filteredHints.length) {
+      const target = filteredHints[idx];
+      const newTab = e.shiftKey;
+      deactivateHintMode();
+      activateTarget(target.element, newTab);
+    }
+    return true;
+  }
+
+  if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    typedFilter += e.key.toLowerCase();
+    applyFilter();
+
+    if (filteredHints.length === 1) {
+      const target = filteredHints[0];
+      deactivateHintMode();
+      activateTarget(target.element, false);
+    } else if (filteredHints.length === 0) {
+      flashNoMatch();
+      typedFilter = '';
+      filteredHints = [...allHints];
+      updateVisuals();
+      updateModal();
+      updateRingPosition();
+    }
+
+    return true;
+  }
+
+  return true;
+}
+
+function activatePicker(): void {
   if (!labelsContainer || !modalEl) return;
+
+  const scope = getPickerScope();
+  const elements = scanViewportElements(scope);
+  if (elements.length === 0) return;
 
   active = true;
   typedFilter = '';
-  onSelect = selectCb;
-  onCancel = cancelCb;
 
   const labels = generateLabels(elements.length);
   allHints = [];
@@ -71,19 +155,86 @@ export function activateHintMode(
     const label = labels[i];
     const labelEl = document.createElement('span');
     labelEl.className = 'hint-label';
-    labelEl.textContent = label;
+
+    if (i < 10) {
+      const numBadge = document.createElement('span');
+      numBadge.className = 'hint-number';
+      numBadge.textContent = i < 9 ? String(i + 1) : '0';
+      labelEl.appendChild(numBadge);
+    }
+
+    const textNode = document.createElement('span');
+    textNode.className = 'hint-text';
+    textNode.textContent = label;
+    labelEl.appendChild(textNode);
 
     const rect = entry.el.getBoundingClientRect();
     labelEl.style.top = `${rect.top - 4}px`;
     labelEl.style.left = `${rect.left - 2}px`;
 
     labelsContainer.appendChild(labelEl);
-    allHints.push({ label, element: entry, labelEl });
+    allHints.push({ label, element: entry, labelEl, index: i });
   }
 
   filteredHints = [...allHints];
   modalEl.classList.remove('hidden');
   updateModal();
+  updateRingPosition();
+}
+
+function scanViewportElements(scope: HTMLElement | null): IndexedElement[] {
+  const allElements = scanVisibleElements();
+  if (!scope || scope === document.body) return allElements;
+
+  return allElements.filter((indexed) => scope.contains(indexed.el));
+}
+
+function getPickerScope(): HTMLElement | null {
+  const dialog = document.querySelector('dialog[open]') as HTMLElement | null;
+  if (dialog) return dialog;
+
+  const ariaModal = document.querySelector('[aria-modal="true"]:not([hidden])') as HTMLElement | null;
+  if (ariaModal) return ariaModal;
+
+  const popover = document.querySelector('[popover]:popover-open') as HTMLElement | null;
+  if (popover) return popover;
+
+  const centerstage = detectCenterstage();
+  if (centerstage) return centerstage;
+
+  return null;
+}
+
+function detectCenterstage(): HTMLElement | null {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const vpArea = vw * vh;
+
+  const candidates = document.querySelectorAll<HTMLElement>(
+    '[role="dialog"], [role="alertdialog"], .modal, .dialog, [class*="modal"], [class*="dialog"], [class*="overlay"]'
+  );
+
+  for (const el of candidates) {
+    const style = getComputedStyle(el);
+    if (style.display === 'none' || style.visibility === 'hidden') continue;
+    if (parseFloat(style.opacity) < 0.1) continue;
+
+    const rect = el.getBoundingClientRect();
+    const area = rect.width * rect.height;
+    if (area > vpArea * 0.2 && parseInt(style.zIndex) > 100) {
+      return el;
+    }
+  }
+
+  return null;
+}
+
+export function activateHintMode(
+  _elements: IndexedElement[],
+  _selectCb: (element: IndexedElement) => void,
+  _cancelCb: () => void,
+): void {
+  activatePicker();
 }
 
 export function deactivateHintMode(): void {
@@ -94,6 +245,7 @@ export function deactivateHintMode(): void {
 
   if (labelsContainer) labelsContainer.innerHTML = '';
   if (modalEl) modalEl.classList.add('hidden');
+  hideAura();
 }
 
 export function isHintModeActive(): boolean {
@@ -104,56 +256,8 @@ export function getFilteredElements(): IndexedElement[] {
   return filteredHints.map((h) => h.element);
 }
 
-export function handleHintKey(key: string, event: KeyboardEvent): boolean {
-  if (!active) return false;
-
-  if (key === 'Escape') {
-    deactivateHintMode();
-    if (onCancel) onCancel();
-    return true;
-  }
-
-  if (key === 'Enter') {
-    if (filteredHints.length > 0) {
-      const target = filteredHints[0];
-      deactivateHintMode();
-      if (onSelect) onSelect(target.element);
-    }
-    return true;
-  }
-
-  if (key === 'Backspace') {
-    if (typedFilter.length > 0) {
-      typedFilter = typedFilter.slice(0, -1);
-      applyFilter();
-    }
-    return true;
-  }
-
-  if (key === 'Tab') {
-    return false;
-  }
-
-  if (key.length === 1) {
-    typedFilter += key.toLowerCase();
-    applyFilter();
-
-    if (filteredHints.length === 1) {
-      const target = filteredHints[0];
-      deactivateHintMode();
-      if (onSelect) onSelect(target.element);
-    } else if (filteredHints.length === 0) {
-      flashNoMatch();
-      typedFilter = '';
-      filteredHints = [...allHints];
-      updateVisuals();
-      updateModal();
-    }
-
-    return true;
-  }
-
-  return true;
+export function getLastPickedElement(): HTMLElement | null {
+  return lastPickedElement;
 }
 
 export function destroyHintMode(): void {
@@ -165,12 +269,55 @@ export function destroyHintMode(): void {
     labelsContainer = null;
     modalEl = null;
   }
+  if (unregisterKey) unregisterKey();
+}
+
+function activateTarget(indexed: IndexedElement, newTab: boolean): void {
+  lastPickedElement = indexed.el;
+  revealElement(indexed.el);
+
+  if (newTab) {
+    if (indexed.el.tagName === 'A') {
+      const href = (indexed.el as HTMLAnchorElement).href;
+      if (href) {
+        window.open(href, '_blank');
+        return;
+      }
+    }
+    const clickEvent = new MouseEvent('click', {
+      ctrlKey: true,
+      metaKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    indexed.el.dispatchEvent(clickEvent);
+  } else {
+    const isEditable = isEditableElement(indexed.el);
+    if (isEditable) {
+      indexed.el.focus();
+    } else {
+      indexed.el.click();
+    }
+  }
+}
+
+function isEditableElement(el: HTMLElement): boolean {
+  const tag = el.tagName;
+  if (tag === 'TEXTAREA') return true;
+  if (tag === 'INPUT') {
+    const type = (el as HTMLInputElement).type.toLowerCase();
+    return !['hidden', 'button', 'submit', 'reset', 'checkbox', 'radio'].includes(type);
+  }
+  if (el.isContentEditable) return true;
+  const role = el.getAttribute('role');
+  return role === 'textbox' || role === 'searchbox';
 }
 
 function applyFilter(): void {
   filteredHints = allHints.filter((h) => h.label.startsWith(typedFilter));
   updateVisuals();
   updateModal();
+  updateRingPosition();
 }
 
 function updateVisuals(): void {
@@ -188,6 +335,14 @@ function updateModal(): void {
   const typedSpan = modalEl.querySelector('.hint-typed');
   if (typedSpan) {
     typedSpan.textContent = typedFilter || '';
+  }
+}
+
+function updateRingPosition(): void {
+  if (filteredHints.length > 0) {
+    const first = filteredHints[0];
+    transitionTo(first.element);
+    revealElement(first.element.el);
   }
 }
 
@@ -239,40 +394,63 @@ function getHintStyles(): string {
 
     .hint-label {
       position: fixed;
-      padding: 2px 4px;
-      background: rgba(15, 15, 30, 0.88);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      color: white;
-      font: bold 10px/1 monospace;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 2px 5px;
+      background: rgba(15, 15, 30, 0.92);
+      border: 1px solid rgba(100, 80, 255, 0.25);
+      color: #e4e4ef;
+      font: bold 10px/1 ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
       border-radius: 4px;
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 1px rgba(100, 80, 255, 0.2);
       z-index: 1;
       white-space: nowrap;
-      transition: opacity 0.2s ease;
+      transition: opacity 80ms ease, transform 80ms ease;
+      backdrop-filter: blur(8px);
     }
 
     .hint-label.dimmed {
-      opacity: 0.2;
+      opacity: 0.15;
+      transform: scale(0.9);
+    }
+
+    .hint-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 14px;
+      height: 14px;
+      padding: 0 3px;
+      background: hsla(250, 80%, 65%, 0.25);
+      border-radius: 3px;
+      font-size: 9px;
+      font-weight: 700;
+      color: ${AURA_COLOR};
+    }
+
+    .hint-text {
+      color: #fff;
     }
 
     .hint-modal {
       position: fixed;
       bottom: 48px;
       left: 50%;
-      transform: translateX(-50%);
-      background: #1a1a2e;
-      border: 1px solid #3a3a5a;
+      transform: translateX(-50%) scale(1);
+      background: rgba(15, 15, 30, 0.94);
+      border: 1px solid rgba(100, 80, 255, 0.2);
       border-radius: 12px;
-      padding: 10px 20px;
+      padding: 12px 24px;
       text-align: center;
-      backdrop-filter: blur(8px);
-      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
-      transition: opacity 0.2s ease, transform 0.2s ease;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 1px rgba(100, 80, 255, 0.3);
+      transition: opacity 150ms cubic-bezier(0.16, 1, 0.3, 1), transform 150ms cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     .hint-modal.hidden {
       opacity: 0;
-      transform: translateX(-50%) scale(0.9);
+      transform: translateX(-50%) scale(0.95);
       pointer-events: none;
     }
 
@@ -282,7 +460,7 @@ function getHintStyles(): string {
     }
 
     .hint-input {
-      font: 16px monospace;
+      font: 16px ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
       color: #e4e4ef;
       letter-spacing: 3px;
       min-height: 22px;
@@ -306,9 +484,9 @@ function getHintStyles(): string {
     }
 
     .hint-help {
-      font-size: 11px;
+      font: 11px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
       color: #6a6a8a;
-      margin-top: 6px;
+      margin-top: 8px;
     }
   `;
 }
