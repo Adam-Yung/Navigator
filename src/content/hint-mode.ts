@@ -23,6 +23,17 @@ let settings: Settings | null = null;
 let unregisterKey: (() => void) | null = null;
 let lastPickedElement: HTMLElement | null = null;
 
+// Multi-select state
+let multiSelected: Set<HintEntry> = new Set();
+let badgeEl: HTMLElement | null = null;
+
+// Smart re-entry state
+const REENTRY_WINDOW_MS = 5000;
+let lastDeactivateTime = 0;
+let lastFilterText = '';
+let lastScrollX = 0;
+let lastScrollY = 0;
+
 interface HintEntry {
   label: string;
   element: IndexedElement;
@@ -61,6 +72,10 @@ export function initHintMode(): void {
   tooltipEl.className = 'hint-tooltip hidden';
   shadow.appendChild(tooltipEl);
 
+  badgeEl = document.createElement('div');
+  badgeEl.className = 'multi-badge hidden';
+  shadow.appendChild(badgeEl);
+
   document.documentElement.appendChild(host);
 }
 
@@ -82,16 +97,35 @@ function handlePickerKeydown(e: KeyboardEvent): boolean {
       activatePicker();
       return true;
     }
+
+    // Alt+1-9 quick-pick when picker is NOT active
+    if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && /^Digit[0-9]$/.test(e.code)) {
+      const digit = parseInt(e.code.replace('Digit', ''));
+      const idx = digit === 0 ? 9 : digit - 1;
+      activateQuickPick(idx);
+      return true;
+    }
+
     return false;
   }
 
+  // Picker is active from here on
+
   if (e.key === 'Escape') {
+    if (multiSelected.size > 0) {
+      clearMultiSelection();
+      return true;
+    }
     deactivateHintMode();
     return true;
   }
 
   if (e.key === 'Enter') {
-    if (filteredHints.length > 0) {
+    if (multiSelected.size > 0) {
+      const targets = [...multiSelected];
+      deactivateHintMode();
+      executeBatchAction(targets.map((h) => h.element));
+    } else if (filteredHints.length > 0) {
       const target = filteredHints[0];
       const newTab = e.shiftKey;
       deactivateHintMode();
@@ -113,14 +147,28 @@ function handlePickerKeydown(e: KeyboardEvent): boolean {
     const idx = num - 1;
     if (idx < filteredHints.length) {
       const target = filteredHints[idx];
-      const newTab = e.shiftKey;
-      deactivateHintMode();
-      activateTarget(target.element, newTab);
+      if (e.shiftKey) {
+        toggleMultiSelect(target);
+      } else {
+        const newTab = false;
+        deactivateHintMode();
+        activateTarget(target.element, newTab);
+      }
     }
     return true;
   }
 
-  if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+  // Shift+letter: toggle multi-select for matching hint
+  if (e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey && e.key.length === 1 && /^[a-zA-Z]$/.test(e.key)) {
+    const letter = e.key.toLowerCase();
+    const matchingHint = filteredHints.find((h) => h.label === typedFilter + letter);
+    if (matchingHint) {
+      toggleMultiSelect(matchingHint);
+      return true;
+    }
+  }
+
+  if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
     typedFilter += e.key.toLowerCase();
     applyFilter();
 
@@ -151,7 +199,17 @@ function activatePicker(): void {
   if (elements.length === 0) return;
 
   active = true;
-  typedFilter = '';
+
+  // Smart re-entry: restore filter if within window and page hasn't changed
+  const timeSinceDeactivate = Date.now() - lastDeactivateTime;
+  if (timeSinceDeactivate < REENTRY_WINDOW_MS && lastFilterText.length > 0) {
+    typedFilter = lastFilterText;
+    window.scrollTo(lastScrollX, lastScrollY);
+  } else {
+    typedFilter = '';
+  }
+
+  multiSelected = new Set();
 
   const labels = generateLabels(elements.length);
   allHints = [];
@@ -185,6 +243,11 @@ function activatePicker(): void {
 
   filteredHints = [...allHints];
 
+  // Apply re-entry filter if we restored one
+  if (typedFilter.length > 0) {
+    applyFilter();
+  }
+
   const vcx = window.innerWidth / 2;
   const vcy = window.innerHeight / 2;
   const maxDist = Math.sqrt(vcx * vcx + vcy * vcy);
@@ -207,6 +270,7 @@ function activatePicker(): void {
   modalEl.classList.remove('hidden');
   updateModal();
   updateRingPosition();
+  updateMultiBadge();
 }
 
 function scanViewportElements(scope: HTMLElement | null): IndexedElement[] {
@@ -265,14 +329,22 @@ export function activateHintMode(
 }
 
 export function deactivateHintMode(): void {
+  // Save state for smart re-entry
+  lastDeactivateTime = Date.now();
+  lastFilterText = typedFilter;
+  lastScrollX = window.scrollX;
+  lastScrollY = window.scrollY;
+
   active = false;
   typedFilter = '';
   allHints = [];
   filteredHints = [];
+  multiSelected = new Set();
   hideTooltip();
 
   if (labelsContainer) labelsContainer.innerHTML = '';
   if (modalEl) modalEl.classList.add('hidden');
+  if (badgeEl) badgeEl.classList.add('hidden');
   hideAura();
 }
 
@@ -296,6 +368,7 @@ export function destroyHintMode(): void {
     shadow = null;
     labelsContainer = null;
     modalEl = null;
+    badgeEl = null;
   }
   if (unregisterKey) unregisterKey();
 }
@@ -328,6 +401,94 @@ function activateTarget(indexed: IndexedElement, newTab: boolean): void {
       indexed.el.click();
     }
   }
+}
+
+// --- Multi-select helpers ---
+
+function toggleMultiSelect(hint: HintEntry): void {
+  if (multiSelected.has(hint)) {
+    multiSelected.delete(hint);
+    hint.labelEl.classList.remove('multi-selected');
+  } else {
+    multiSelected.add(hint);
+    hint.labelEl.classList.add('multi-selected');
+  }
+  updateMultiBadge();
+}
+
+function clearMultiSelection(): void {
+  for (const hint of multiSelected) {
+    hint.labelEl.classList.remove('multi-selected');
+  }
+  multiSelected = new Set();
+  updateMultiBadge();
+}
+
+function updateMultiBadge(): void {
+  if (!badgeEl) return;
+  if (multiSelected.size > 0) {
+    badgeEl.textContent = `${multiSelected.size} selected`;
+    badgeEl.classList.remove('hidden');
+  } else {
+    badgeEl.classList.add('hidden');
+  }
+}
+
+function executeBatchAction(elements: IndexedElement[]): void {
+  const allLinks = elements.every((e) => e.el.tagName === 'A' && (e.el as HTMLAnchorElement).href);
+  const allCheckboxes = elements.every(
+    (e) =>
+      (e.el.tagName === 'INPUT' && (e.el as HTMLInputElement).type === 'checkbox') ||
+      e.el.getAttribute('role') === 'checkbox',
+  );
+
+  if (allLinks) {
+    for (const indexed of elements) {
+      const href = (indexed.el as HTMLAnchorElement).href;
+      if (href) window.open(href, '_blank');
+    }
+  } else if (allCheckboxes) {
+    for (const indexed of elements) {
+      indexed.el.click();
+    }
+  } else {
+    for (const indexed of elements) {
+      indexed.el.click();
+    }
+  }
+
+  if (elements.length > 0) {
+    const last = elements[elements.length - 1];
+    lastPickedElement = last.el;
+    pushFocus(last.el);
+    revealElement(last.el);
+  }
+}
+
+// --- Quick-pick (Alt+1-9) ---
+
+function activateQuickPick(idx: number): void {
+  const elements = scanVisibleElements();
+  const vh = window.innerHeight;
+  const vw = window.innerWidth;
+
+  const scored = elements.map((el) => {
+    const rect = el.el.getBoundingClientRect();
+    const inViewport =
+      rect.top < vh && rect.bottom > 0 && rect.left < vw && rect.right > 0;
+    const area = rect.width * rect.height;
+    return { el, inViewport, area };
+  });
+
+  scored.sort((a, b) => {
+    if (a.inViewport !== b.inViewport) return a.inViewport ? -1 : 1;
+    return b.area - a.area;
+  });
+
+  if (idx >= scored.length) return;
+
+  const target = scored[idx].el;
+  activateTarget(target, false);
 }
 
 function isEditableElement(el: HTMLElement): boolean {
@@ -628,6 +789,48 @@ function getHintStyles(): string {
     }
 
     .hint-tooltip.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .hint-label.multi-selected {
+      border-color: ${AURA_COLOR};
+      box-shadow: 0 0 8px rgba(100, 80, 255, 0.3);
+    }
+
+    .hint-label.multi-selected::after {
+      content: '\u2713';
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      width: 12px;
+      height: 12px;
+      background: ${AURA_COLOR};
+      border-radius: 50%;
+      font-size: 8px;
+      line-height: 12px;
+      text-align: center;
+      color: #fff;
+    }
+
+    .multi-badge {
+      position: fixed;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 4px 12px;
+      background: rgba(15, 15, 30, 0.94);
+      border: 1px solid ${AURA_COLOR};
+      border-radius: 999px;
+      font: bold 11px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      color: ${AURA_COLOR};
+      backdrop-filter: blur(12px);
+      box-shadow: 0 0 12px rgba(100, 80, 255, 0.2);
+      z-index: 3;
+      transition: opacity 100ms ease;
+    }
+
+    .multi-badge.hidden {
       opacity: 0;
       pointer-events: none;
     }
