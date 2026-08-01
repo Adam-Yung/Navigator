@@ -1,25 +1,44 @@
 import type { Keybindings, Settings } from './types';
 
 export const DEFAULT_KEYBINDINGS: Keybindings = {
-  enterNavigation: 'Ctrl+Alt+KeyN',
-  enterEditing: 'Ctrl+Alt+KeyE',
-  returnToNormal: 'Escape',
-  activate: 'Enter',
-  stickyActivate: 'Shift+Enter',
-  openNewTab: 'Ctrl+Enter',
-  goBack: 'Ctrl+KeyO',
+  picker: 'Alt+KeyF',
+  tabPicker: 'Alt+KeyT',
+  search: 'Alt+Slash',
+  scrollDown: 'Alt+KeyJ',
+  scrollUp: 'Alt+KeyK',
+  scrollLeft: 'Alt+KeyH',
+  scrollRight: 'Alt+KeyL',
+  scrollFastDown: 'Alt+Shift+KeyJ',
+  scrollFastUp: 'Alt+Shift+KeyK',
+  historyBack: 'Alt+BracketLeft',
+  historyForward: 'Alt+BracketRight',
+  sectionPrev: 'Alt+Shift+BracketLeft',
+  sectionNext: 'Alt+Shift+BracketRight',
+  focusHistoryBack: 'Alt+KeyO',
+  focusHistoryForward: 'Alt+KeyI',
+  urlUp: 'Alt+KeyU',
+  urlRoot: 'Alt+Shift+KeyU',
+  focusFirstInput: 'Alt+KeyG',
+  yankMode: 'Alt+KeyY',
+  clipboardOpen: 'Alt+KeyP',
+  caretMode: 'Alt+KeyV',
+  marks: 'Alt+KeyM',
+  marksJump: "Alt+Quote",
+  quickActions: 'Alt+Space',
   toggleExtension: 'Ctrl+Alt+KeyA',
-  hintMode: 'KeyF',
 };
 
 export const DEFAULT_SETTINGS: Settings = {
   keybindings: DEFAULT_KEYBINDINGS,
-  animDuration: 250,
-  coneAngle: 90,
+  animDuration: 200,
   autoScroll: true,
   auraIntensity: 'normal',
-  smartPrioritization: true,
   disabledSites: [],
+  showAltHelper: true,
+  altHelperDelay: 200,
+  scrollBaseVelocity: 5,
+  scrollMaxVelocity: 60,
+  scrollDecelFactor: 0.92,
 };
 
 export const NAV_SELECTORS = [
@@ -39,18 +58,7 @@ export const NAV_SELECTORS = [
   '[role="radio"]',
 ].join(', ');
 
-export const EDIT_SELECTORS = [
-  'input:not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"])',
-  'textarea',
-  '[contenteditable="true"]',
-  '[role="textbox"]',
-  '[role="searchbox"]',
-].join(', ');
-
-export const AURA_COLORS = {
-  navigation: 'hsl(250, 80%, 65%)',
-  editing: 'hsl(38, 90%, 58%)',
-} as const;
+export const AURA_COLOR = 'hsl(250, 80%, 65%)';
 
 export const AURA_INTENSITY_SHADOWS = {
   subtle: {

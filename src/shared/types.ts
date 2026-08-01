@@ -1,7 +1,3 @@
-export type Mode = 'normal' | 'navigation' | 'editing';
-
-export type Direction = 'left' | 'right' | 'up' | 'down';
-
 export interface IndexedElement {
   el: HTMLElement;
   cx: number;
@@ -10,25 +6,42 @@ export interface IndexedElement {
 }
 
 export interface Keybindings {
-  enterNavigation: string;
-  enterEditing: string;
-  returnToNormal: string;
-  activate: string;
-  stickyActivate: string;
-  openNewTab: string;
-  goBack: string;
+  picker: string;
+  tabPicker: string;
+  search: string;
+  scrollDown: string;
+  scrollUp: string;
+  scrollLeft: string;
+  scrollRight: string;
+  scrollFastDown: string;
+  scrollFastUp: string;
+  historyBack: string;
+  historyForward: string;
+  sectionPrev: string;
+  sectionNext: string;
+  focusHistoryBack: string;
+  focusHistoryForward: string;
+  urlUp: string;
+  urlRoot: string;
+  focusFirstInput: string;
+  yankMode: string;
+  clipboardOpen: string;
+  caretMode: string;
+  marks: string;
+  marksJump: string;
+  quickActions: string;
   toggleExtension: string;
-  hintMode: string;
 }
 
 export interface Settings {
   keybindings: Keybindings;
   animDuration: number;
-  coneAngle: number;
   autoScroll: boolean;
   auraIntensity: 'subtle' | 'normal' | 'vibrant';
-  smartPrioritization: boolean;
   disabledSites: string[];
+  showAltHelper: boolean;
+  altHelperDelay: number;
+  scrollBaseVelocity: number;
+  scrollMaxVelocity: number;
+  scrollDecelFactor: number;
 }
-
-export type ModeChangeCallback = (newMode: Mode, prevMode: Mode) => void;

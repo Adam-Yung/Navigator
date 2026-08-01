@@ -1,5 +1,7 @@
-import { AURA_COLORS, AURA_INTENSITY_SHADOWS } from '../shared/constants';
-import type { Direction, IndexedElement, Mode, Settings } from '../shared/types';
+import { AURA_COLOR, AURA_INTENSITY_SHADOWS } from '../shared/constants';
+import type { IndexedElement, Settings } from '../shared/types';
+
+type Direction = 'left' | 'right' | 'up' | 'down';
 
 const RING_PADDING = 8;
 const RING_MIN_SIZE = 24;
@@ -44,7 +46,7 @@ export function updateAuraSettings(settings: Settings): void {
   }
 }
 
-export function transitionTo(target: IndexedElement, mode: Mode): void {
+export function transitionTo(target: IndexedElement): void {
   if (!ring) return;
 
   const rect = target.el.getBoundingClientRect();
@@ -66,7 +68,7 @@ export function transitionTo(target: IndexedElement, mode: Mode): void {
   ring.style.height = `${height}px`;
   ring.style.borderRadius = borderRadius;
 
-  const color = mode === 'editing' ? AURA_COLORS.editing : AURA_COLORS.navigation;
+  const color = AURA_COLOR;
   const shadows = AURA_INTENSITY_SHADOWS[auraIntensity];
 
   ring.style.borderColor = color;

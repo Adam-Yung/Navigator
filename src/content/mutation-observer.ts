@@ -1,25 +1,21 @@
-import type { IndexedElement, Mode } from '../shared/types';
-import { scanElements } from './spatial-nav';
+import { NAV_SELECTORS } from '../shared/constants';
+import type { IndexedElement } from '../shared/types';
 
 type InvalidationCallback = (elements: IndexedElement[]) => void;
 
 let observer: MutationObserver | null = null;
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-let currentMode: Mode = 'normal';
 let callback: InvalidationCallback | null = null;
 let disconnectedDuringDebounce = false;
 let lastRescanTime = 0;
-const RESCAN_THROTTLE_MS = 300;
 
 const FOCUSABLE_TAGS = new Set(['A', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'SUMMARY']);
+const RESCAN_THROTTLE = 300;
 
-export function startObserving(mode: Mode, onInvalidate: InvalidationCallback): void {
-  currentMode = mode;
+export function startObserving(onInvalidate: InvalidationCallback): void {
   callback = onInvalidate;
   disconnectedDuringDebounce = false;
-
   connectObserver();
-
   window.addEventListener('scroll', handleScroll, { passive: true });
   window.addEventListener('resize', handleResize, { passive: true });
 }
@@ -38,8 +34,60 @@ export function stopObserving(): void {
   disconnectedDuringDebounce = false;
 }
 
-export function updateMode(mode: Mode): void {
-  currentMode = mode;
+export function scanVisibleElements(): IndexedElement[] {
+  const result: IndexedElement[] = [];
+  const elements = document.querySelectorAll<HTMLElement>(NAV_SELECTORS);
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  for (const el of elements) {
+    if (!isVisible(el)) continue;
+    const rect = el.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) continue;
+    if (rect.bottom <= 0 || rect.right <= 0 || rect.top >= vh || rect.left >= vw) continue;
+
+    result.push({
+      el,
+      cx: rect.left + rect.width / 2,
+      cy: rect.top + rect.height / 2,
+      rect,
+    });
+  }
+
+  scanIframes(result, vw, vh);
+  return result;
+}
+
+function scanIframes(result: IndexedElement[], vw: number, vh: number): void {
+  const iframes = document.querySelectorAll('iframe');
+  for (const iframe of iframes) {
+    let doc: Document;
+    try {
+      doc = (iframe as HTMLIFrameElement).contentDocument!;
+      if (!doc) continue;
+    } catch {
+      continue;
+    }
+    const iframeRect = iframe.getBoundingClientRect();
+    const elements = doc.querySelectorAll<HTMLElement>(NAV_SELECTORS);
+    for (const el of elements) {
+      if (!isVisible(el)) continue;
+      const rect = el.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) continue;
+
+      const adjustedLeft = rect.left + iframeRect.left;
+      const adjustedTop = rect.top + iframeRect.top;
+      if (adjustedTop + rect.height <= 0 || adjustedLeft + rect.width <= 0) continue;
+      if (adjustedTop >= vh || adjustedLeft >= vw) continue;
+
+      result.push({
+        el,
+        cx: adjustedLeft + rect.width / 2,
+        cy: adjustedTop + rect.height / 2,
+        rect,
+      });
+    }
+  }
 }
 
 function connectObserver(): void {
@@ -94,8 +142,6 @@ function nodeCouldBeFocusable(node: Node): boolean {
   return el.children.length > 0;
 }
 
-const RESCAN_THROTTLE = 300;
-
 function handleScroll(): void {
   scheduleRescan(true);
 }
@@ -131,7 +177,22 @@ function rescan(): void {
     disconnectedDuringDebounce = false;
   }
 
-  if (currentMode === 'normal' || !callback) return;
-  const elements = scanElements(currentMode);
+  if (!callback) return;
+  const elements = scanVisibleElements();
   callback(elements);
+}
+
+function isVisible(el: HTMLElement): boolean {
+  if ((el as HTMLInputElement).disabled) return false;
+  if (el.getAttribute('aria-hidden') === 'true') return false;
+
+  if (el.offsetParent !== null || el.tagName === 'BODY') {
+    if (el.offsetWidth === 0 && el.offsetHeight === 0) return false;
+    const style = getComputedStyle(el);
+    return style.visibility !== 'hidden' && style.opacity !== '0';
+  }
+
+  const style = getComputedStyle(el);
+  if (style.position !== 'fixed' && style.position !== 'sticky') return false;
+  return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
 }

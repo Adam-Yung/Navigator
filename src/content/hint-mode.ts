@@ -1,5 +1,5 @@
-import { AURA_COLORS } from '../shared/constants';
-import type { IndexedElement, Mode } from '../shared/types';
+import { AURA_COLOR } from '../shared/constants';
+import type { IndexedElement } from '../shared/types';
 
 const HINT_CHARS = 'asdfghjklqwertyuiopzxcvbnm'.split('');
 
@@ -13,7 +13,6 @@ let allHints: HintEntry[] = [];
 let filteredHints: HintEntry[] = [];
 let onSelect: ((element: IndexedElement) => void) | null = null;
 let onCancel: (() => void) | null = null;
-let currentMode: Mode = 'navigation';
 
 interface HintEntry {
   label: string;
@@ -53,7 +52,6 @@ export function initHintMode(): void {
 
 export function activateHintMode(
   elements: IndexedElement[],
-  mode: Mode,
   selectCb: (element: IndexedElement) => void,
   cancelCb: () => void,
 ): void {
@@ -63,7 +61,6 @@ export function activateHintMode(
   typedFilter = '';
   onSelect = selectCb;
   onCancel = cancelCb;
-  currentMode = mode;
 
   const labels = generateLabels(elements.length);
   allHints = [];
@@ -299,7 +296,7 @@ function getHintStyles(): string {
     }
 
     .hint-cursor {
-      color: ${AURA_COLORS.navigation};
+      color: ${AURA_COLOR};
       animation: blink 1s step-end infinite;
     }
 

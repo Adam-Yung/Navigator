@@ -60,11 +60,9 @@ function renderAppearance(): void {
 
 function renderBehavior(): void {
   (document.getElementById('auto-scroll') as HTMLInputElement).checked = settings.autoScroll;
-  (document.getElementById('smart-priority') as HTMLInputElement).checked = settings.smartPrioritization;
 
-  const coneSlider = document.getElementById('cone-angle') as HTMLInputElement;
-  coneSlider.value = String(settings.coneAngle);
-  document.getElementById('cone-angle-val')!.textContent = `${settings.coneAngle}\u00B0`;
+  const showAltHelper = document.getElementById('show-alt-helper') as HTMLInputElement | null;
+  if (showAltHelper) showAltHelper.checked = settings.showAltHelper;
 }
 
 function renderDisabledSites(): void {
@@ -99,17 +97,13 @@ function setupListeners(): void {
     save().catch(() => {});
   });
 
-  document.getElementById('smart-priority')!.addEventListener('change', (e) => {
-    settings.smartPrioritization = (e.target as HTMLInputElement).checked;
-    save().catch(() => {});
-  });
-
-  document.getElementById('cone-angle')!.addEventListener('input', (e) => {
-    const val = (e.target as HTMLInputElement).value;
-    settings.coneAngle = parseInt(val, 10);
-    document.getElementById('cone-angle-val')!.textContent = `${val}\u00B0`;
-    save();
-  });
+  const showAltHelperEl = document.getElementById('show-alt-helper');
+  if (showAltHelperEl) {
+    showAltHelperEl.addEventListener('change', (e) => {
+      settings.showAltHelper = (e.target as HTMLInputElement).checked;
+      save().catch(() => {});
+    });
+  }
 
   document.getElementById('disabled-sites')!.addEventListener('change', (e) => {
     const text = (e.target as HTMLTextAreaElement).value;
@@ -229,15 +223,31 @@ function highlightConflict(key: keyof Keybindings, highlight: boolean): void {
 
 function formatKeyName(key: keyof Keybindings): string {
   const names: Record<keyof Keybindings, string> = {
-    enterNavigation: 'Enter Navigation',
-    enterEditing: 'Enter Editing',
-    returnToNormal: 'Return to Normal',
-    activate: 'Activate',
-    stickyActivate: 'Sticky Activate',
-    openNewTab: 'Open New Tab',
-    goBack: 'Go Back',
+    picker: 'Picker',
+    tabPicker: 'Tab Picker',
+    search: 'Search',
+    scrollDown: 'Scroll Down',
+    scrollUp: 'Scroll Up',
+    scrollLeft: 'Scroll Left',
+    scrollRight: 'Scroll Right',
+    scrollFastDown: 'Scroll Fast Down',
+    scrollFastUp: 'Scroll Fast Up',
+    historyBack: 'History Back',
+    historyForward: 'History Forward',
+    sectionPrev: 'Section Previous',
+    sectionNext: 'Section Next',
+    focusHistoryBack: 'Focus History Back',
+    focusHistoryForward: 'Focus History Forward',
+    urlUp: 'URL Up',
+    urlRoot: 'URL Root',
+    focusFirstInput: 'Focus First Input',
+    yankMode: 'Yank Mode',
+    clipboardOpen: 'Clipboard Open',
+    caretMode: 'Caret Mode',
+    marks: 'Marks',
+    marksJump: 'Marks Jump',
+    quickActions: 'Quick Actions',
     toggleExtension: 'Toggle Extension',
-    hintMode: 'Hint Mode',
   };
   return names[key] || key;
 }
