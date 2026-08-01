@@ -15,6 +15,12 @@ import { initScrollEngine, updateScrollSettings, destroyScrollEngine } from './s
 import { initFocusHistory, updateFocusHistorySettings } from './focus-history';
 import { initClipboardOps, updateClipboardSettings } from './clipboard-ops';
 import { initTabPicker, updateTabPickerSettings, deactivateTabPicker } from './tab-picker';
+import { initAltHoldHelper, updateAltHoldSettings } from './alt-hold-helper';
+import { initCheatsheet, updateCheatsheetSettings, deactivateCheatsheet } from './cheatsheet';
+import { initUrlNav, updateUrlNavSettings } from './url-nav';
+import { initSectionNav, updateSectionNavSettings } from './section-nav';
+import { initContextualLabel } from './contextual-label';
+import { initElementSearch, updateElementSearchSettings, deactivateElementSearch } from './element-search';
 
 let settings: Settings;
 let extensionEnabled = true;
@@ -37,6 +43,12 @@ async function init(): Promise<void> {
   initFocusHistory(settings);
   initClipboardOps(settings);
   initTabPicker(settings);
+  initAltHoldHelper(settings);
+  initCheatsheet(settings);
+  initUrlNav(settings);
+  initSectionNav(settings);
+  initContextualLabel();
+  initElementSearch(settings);
 
   onSettingsChanged((newSettings) => {
     settings = newSettings;
@@ -47,6 +59,11 @@ async function init(): Promise<void> {
     updateFocusHistorySettings(newSettings);
     updateClipboardSettings(newSettings);
     updateTabPickerSettings(newSettings);
+    updateAltHoldSettings(newSettings);
+    updateCheatsheetSettings(newSettings);
+    updateUrlNavSettings(newSettings);
+    updateSectionNavSettings(newSettings);
+    updateElementSearchSettings(newSettings);
   });
 
   registerKeyHandler((e) => {
@@ -63,6 +80,8 @@ async function init(): Promise<void> {
 export function escapeAll(): void {
   deactivateHintMode();
   deactivateTabPicker();
+  deactivateElementSearch();
+  deactivateCheatsheet();
   cleanupHover();
   hideAura();
   hideIndicator();
