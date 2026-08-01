@@ -12,6 +12,9 @@ import {
   updateKeyHandlerSettings,
 } from './key-handler';
 import { initScrollEngine, updateScrollSettings, destroyScrollEngine } from './scroll-engine';
+import { initFocusHistory, updateFocusHistorySettings } from './focus-history';
+import { initClipboardOps, updateClipboardSettings } from './clipboard-ops';
+import { initTabPicker, updateTabPickerSettings, deactivateTabPicker } from './tab-picker';
 
 let settings: Settings;
 let extensionEnabled = true;
@@ -31,6 +34,9 @@ async function init(): Promise<void> {
   initHintMode();
   initPickerKeybinding(settings);
   initScrollEngine(settings);
+  initFocusHistory(settings);
+  initClipboardOps(settings);
+  initTabPicker(settings);
 
   onSettingsChanged((newSettings) => {
     settings = newSettings;
@@ -38,6 +44,9 @@ async function init(): Promise<void> {
     updateAuraSettings(newSettings);
     updatePickerSettings(newSettings);
     updateScrollSettings(newSettings);
+    updateFocusHistorySettings(newSettings);
+    updateClipboardSettings(newSettings);
+    updateTabPickerSettings(newSettings);
   });
 
   registerKeyHandler((e) => {
@@ -53,6 +62,7 @@ async function init(): Promise<void> {
 
 export function escapeAll(): void {
   deactivateHintMode();
+  deactivateTabPicker();
   cleanupHover();
   hideAura();
   hideIndicator();
