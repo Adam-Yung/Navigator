@@ -2,7 +2,7 @@ import { getAPI } from '../shared/browser-api';
 import { getSettings, onSettingsChanged } from '../shared/storage';
 import type { Settings } from '../shared/types';
 import { hide as hideAura, initAuraRing, updateAuraSettings } from './aura-ring';
-import { initHintMode, deactivateHintMode, destroyHintMode } from './hint-mode';
+import { initHintMode, initPickerKeybinding, updatePickerSettings, deactivateHintMode, destroyHintMode } from './hint-mode';
 import { cleanup as cleanupHover } from './hover-manager';
 import { hideIndicator, initIndicator } from './indicator';
 import {
@@ -11,6 +11,7 @@ import {
   registerKeyHandler,
   updateKeyHandlerSettings,
 } from './key-handler';
+import { initScrollEngine, updateScrollSettings, destroyScrollEngine } from './scroll-engine';
 
 let settings: Settings;
 let extensionEnabled = true;
@@ -28,11 +29,13 @@ async function init(): Promise<void> {
   updateAuraSettings(settings);
   initIndicator();
   initHintMode();
+  initScrollEngine(settings);
 
   onSettingsChanged((newSettings) => {
     settings = newSettings;
     updateKeyHandlerSettings(newSettings);
     updateAuraSettings(newSettings);
+    updateScrollSettings(newSettings);
   });
 
   registerKeyHandler((e) => {
