@@ -21,6 +21,9 @@ import { initUrlNav, updateUrlNavSettings } from './url-nav';
 import { initSectionNav, updateSectionNavSettings } from './section-nav';
 import { initContextualLabel } from './contextual-label';
 import { initElementSearch, updateElementSearchSettings, deactivateElementSearch } from './element-search';
+import { initCaretMode, updateCaretModeSettings, deactivateCaretMode } from './caret-mode';
+import { initMarks, updateMarksSettings, deactivateMarks } from './marks';
+import { initQuickActions, updateQuickActionsSettings, deactivateQuickActions } from './quick-actions';
 
 let settings: Settings;
 let extensionEnabled = true;
@@ -49,6 +52,9 @@ async function init(): Promise<void> {
   initSectionNav(settings);
   initContextualLabel();
   initElementSearch(settings);
+  initCaretMode(settings);
+  initMarks(settings);
+  initQuickActions(settings);
 
   onSettingsChanged((newSettings) => {
     settings = newSettings;
@@ -64,6 +70,9 @@ async function init(): Promise<void> {
     updateUrlNavSettings(newSettings);
     updateSectionNavSettings(newSettings);
     updateElementSearchSettings(newSettings);
+    updateCaretModeSettings(newSettings);
+    updateMarksSettings(newSettings);
+    updateQuickActionsSettings(newSettings);
   });
 
   registerKeyHandler((e) => {
@@ -82,6 +91,9 @@ export function escapeAll(): void {
   deactivateTabPicker();
   deactivateElementSearch();
   deactivateCheatsheet();
+  deactivateCaretMode();
+  deactivateMarks();
+  deactivateQuickActions();
   cleanupHover();
   hideAura();
   hideIndicator();
