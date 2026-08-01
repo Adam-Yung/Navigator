@@ -11,12 +11,16 @@ const BUMP_TIMING_MS = 80;
 let host: HTMLElement | null = null;
 let shadow: ShadowRoot | null = null;
 let ring: HTMLElement | null = null;
+let ghost: HTMLElement | null = null;
 let visible = false;
 let animDuration = 250;
 let auraIntensity: Settings['auraIntensity'] = 'normal';
 let trackedElement: HTMLElement | null = null;
 let rafId: number | null = null;
 let isTransitioning = false;
+let isRapidMovement = false;
+let lastTransitionTime = 0;
+const RAPID_THRESHOLD_MS = 100;
 
 export function initAuraRing(): void {
   const existing = document.getElementById('navigator-aura-host');
@@ -35,6 +39,10 @@ export function initAuraRing(): void {
   ring.className = 'aura-ring';
   shadow.appendChild(ring);
 
+  ghost = document.createElement('div');
+  ghost.className = 'aura-ghost';
+  shadow.appendChild(ghost);
+
   document.documentElement.appendChild(host);
 }
 
@@ -47,7 +55,25 @@ export function updateAuraSettings(settings: Settings): void {
 }
 
 export function transitionTo(target: IndexedElement): void {
-  if (!ring) return;
+  if (!ring || !ghost) return;
+
+  const now = Date.now();
+  isRapidMovement = (now - lastTransitionTime) < RAPID_THRESHOLD_MS;
+  lastTransitionTime = now;
+
+  if (visible && trackedElement && !isRapidMovement) {
+    const currentRect = ring.getBoundingClientRect();
+    if (currentRect.width > 0) {
+      ghost.style.top = ring.style.top;
+      ghost.style.left = ring.style.left;
+      ghost.style.width = ring.style.width;
+      ghost.style.height = ring.style.height;
+      ghost.style.borderRadius = ring.style.borderRadius;
+      ghost.classList.remove('fading');
+      void ghost.offsetWidth;
+      ghost.classList.add('fading');
+    }
+  }
 
   const rect = target.el.getBoundingClientRect();
   const padding = RING_PADDING;
@@ -133,6 +159,7 @@ export function destroyAuraRing(): void {
     host = null;
     shadow = null;
     ring = null;
+    ghost = null;
     visible = false;
     trackedElement = null;
   }
@@ -231,6 +258,29 @@ function getStyles(): string {
 
     .aura-ring:not(.visible) {
       animation: none;
+    }
+
+    .aura-ghost {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 0;
+      height: 0;
+      border: 1px solid hsla(250, 60%, 65%, 0.3);
+      box-sizing: border-box;
+      pointer-events: none;
+      opacity: 0;
+      transition: none;
+    }
+
+    .aura-ghost.fading {
+      opacity: 0.3;
+      animation: ghost-fade 300ms ease-out forwards;
+    }
+
+    @keyframes ghost-fade {
+      from { opacity: 0.3; }
+      to { opacity: 0; }
     }
   `;
 }
