@@ -1,6 +1,7 @@
 import type { Settings } from '../shared/types';
 import { buildComboString } from '../shared/keys';
 import { registerKeyHandler, registerKeyupHandler } from './key-handler';
+import { findMagnetTarget, applyMagnetism } from './magnetic-scroll';
 
 type ScrollDirection = 'up' | 'down' | 'left' | 'right';
 
@@ -104,6 +105,8 @@ function scrollTick(): void {
   }
 
   if (state.velocity < 0.5 && !state.accelerating) {
+    const target = findMagnetTarget();
+    if (target) applyMagnetism(target);
     stopScrolling();
     return;
   }
