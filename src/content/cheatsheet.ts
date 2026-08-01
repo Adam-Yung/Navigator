@@ -80,66 +80,141 @@ function handleKey(e: KeyboardEvent): boolean {
   return false;
 }
 
+function key(label: string, cls = ''): string {
+  return `<span class="keycap ${cls}">${label}</span>`;
+}
+
+function keyWithHint(label: string, hint: string, cls = ''): string {
+  return `<span class="key-unit"><span class="keycap ${cls}">${label}</span><span class="key-hint">${hint}</span></span>`;
+}
+
 function getContent(): string {
   return `
     <div class="cs-card">
-      <h2 class="cs-title">Navigator Shortcuts</h2>
-      <div class="cs-grid">
-        <div class="cs-section">
-          <h3>Scrolling</h3>
-          <div class="cs-row"><kbd>Alt</kbd>+<kbd>J</kbd>/<kbd>K</kbd> Scroll down/up</div>
-          <div class="cs-row"><kbd>Alt</kbd>+<kbd>H</kbd>/<kbd>L</kbd> Scroll left/right</div>
-          <div class="cs-row"><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>J</kbd>/<kbd>K</kbd> Fast scroll</div>
-        </div>
-        <div class="cs-section">
-          <h3>Picking</h3>
-          <div class="cs-row"><kbd>Alt</kbd>+<kbd>F</kbd> Element picker</div>
-          <div class="cs-row"><kbd>Alt</kbd>+<kbd>T</kbd> Tab picker</div>
-          <div class="cs-row"><kbd>Alt</kbd>+<kbd>/</kbd> Text search</div>
-          <div class="cs-row"><kbd>Alt</kbd>+<kbd>Space</kbd> Quick actions</div>
-        </div>
-        <div class="cs-section">
-          <h3>Navigation</h3>
-          <div class="cs-row"><kbd>Alt</kbd>+<kbd>[</kbd>/<kbd>]</kbd> History back/forward</div>
-          <div class="cs-row"><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>[</kbd>/<kbd>]</kbd> Section jump</div>
-          <div class="cs-row"><kbd>Alt</kbd>+<kbd>U</kbd> URL up</div>
-          <div class="cs-row"><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>U</kbd> URL root</div>
-          <div class="cs-row"><kbd>Alt</kbd>+<kbd>O</kbd>/<kbd>I</kbd> Focus back/forward</div>
-          <div class="cs-row"><kbd>Alt</kbd>+<kbd>G</kbd> Focus first input</div>
-        </div>
-        <div class="cs-section">
-          <h3>Clipboard</h3>
-          <div class="cs-row"><kbd>Alt</kbd>+<kbd>Y</kbd> Copy (yank mode)</div>
-          <div class="cs-row"><kbd>Alt</kbd>+<kbd>P</kbd> Open from clipboard</div>
-        </div>
-        <div class="cs-section">
-          <h3>Selection</h3>
-          <div class="cs-row"><kbd>Alt</kbd>+<kbd>V</kbd> Caret/visual mode</div>
-          <div class="cs-row"><kbd>Alt</kbd>+<kbd>M</kbd> Set mark</div>
-          <div class="cs-row"><kbd>Alt</kbd>+<kbd>'</kbd> Jump to mark</div>
-        </div>
-        <div class="cs-section">
-          <h3>General</h3>
-          <div class="cs-row"><kbd>?</kbd> This cheatsheet</div>
-          <div class="cs-row"><kbd>Esc</kbd> Clear everything</div>
-          <div class="cs-row">Hold <kbd>Alt</kbd> Quick reference</div>
-        </div>
+      <div class="cs-header">
+        <span class="cs-title">Navigator</span>
+        <span class="cs-alt-badge">Alt + key</span>
       </div>
-      <div class="cs-footer">Press <kbd>?</kbd> or <kbd>Esc</kbd> to close</div>
+
+      <div class="cs-layout">
+
+        <!-- Top-left: Navigation -->
+        <div class="cs-cluster cluster-nav">
+          <span class="cluster-label">Navigation</span>
+          <div class="cluster-keys">
+            <div class="key-row">
+              ${keyWithHint('[', 'Back')}
+              ${keyWithHint(']', 'Fwd')}
+            </div>
+            <div class="key-row">
+              ${keyWithHint('U', 'URL up')}
+              ${keyWithHint('⇧U', 'Root')}
+            </div>
+            <div class="key-row">
+              ${keyWithHint('G', '1st input')}
+            </div>
+            <div class="key-row">
+              ${keyWithHint('I', '◁ focus')}
+              ${keyWithHint('O', 'focus ▷')}
+            </div>
+          </div>
+        </div>
+
+        <!-- Top-right: Pickers -->
+        <div class="cs-cluster cluster-pick">
+          <span class="cluster-label">Pickers</span>
+          <div class="cluster-keys">
+            <div class="key-row">
+              ${keyWithHint('F', 'Elements')}
+              ${keyWithHint('T', 'Tabs')}
+            </div>
+            <div class="key-row">
+              ${keyWithHint('/', 'Search')}
+            </div>
+            <div class="key-row">
+              ${keyWithHint('Space', 'Quick actions', 'wide')}
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom-left: Scrolling (HJKL inverted-T) -->
+        <div class="cs-cluster cluster-scroll">
+          <span class="cluster-label">Scroll</span>
+          <div class="hjkl-grid">
+            <span class="hjkl-spacer"></span>
+            <span class="key-unit hjkl-k">
+              <span class="keycap">K</span>
+              <span class="key-hint">↑</span>
+            </span>
+            <span class="hjkl-spacer"></span>
+
+            <span class="key-unit hjkl-h">
+              <span class="keycap">H</span>
+              <span class="key-hint">←</span>
+            </span>
+            <span class="key-unit hjkl-j">
+              <span class="keycap">J</span>
+              <span class="key-hint">↓</span>
+            </span>
+            <span class="key-unit hjkl-l">
+              <span class="keycap">L</span>
+              <span class="key-hint">→</span>
+            </span>
+          </div>
+          <span class="cluster-sublabel">+ Shift = fast</span>
+        </div>
+
+        <!-- Bottom-right: Clipboard & Selection -->
+        <div class="cs-cluster cluster-clip">
+          <span class="cluster-label">Clipboard & Selection</span>
+          <div class="cluster-keys">
+            <div class="key-row">
+              ${keyWithHint('Y', 'Yank')}
+              ${keyWithHint('P', 'Paste URL')}
+            </div>
+            <div class="key-row">
+              ${keyWithHint('V', 'Visual')}
+            </div>
+            <div class="key-row">
+              ${keyWithHint('M', 'Mark')}
+              ${keyWithHint("'", 'Jump')}
+            </div>
+          </div>
+        </div>
+
+        <!-- Center-bottom: General -->
+        <div class="cs-cluster cluster-general">
+          <span class="cluster-label">General</span>
+          <div class="cluster-keys cluster-keys-row">
+            ${keyWithHint('?', 'Help')}
+            ${keyWithHint('Esc', 'Clear', 'med')}
+            <span class="key-unit">
+              <span class="keycap med">Alt</span>
+              <span class="key-hint">⏱ hold</span>
+            </span>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="cs-footer">Press ${key('?')} or ${key('Esc', 'sm')} to close</div>
     </div>
   `;
 }
 
 function getStyles(): string {
   return `
+    * { box-sizing: border-box; }
+
     .cheatsheet {
       position: fixed;
       inset: 0;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: rgba(0, 0, 0, 0.5);
-      backdrop-filter: blur(4px);
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(6px);
+      opacity: 1;
       transition: opacity ${UI.anim.entryDuration} ${UI.anim.easeFastOut};
       pointer-events: auto;
     }
@@ -147,65 +222,195 @@ function getStyles(): string {
       opacity: 0;
       pointer-events: none;
     }
+
     .cs-card {
-      max-width: 700px;
-      width: 90vw;
-      max-height: 80vh;
+      max-width: 720px;
+      width: 92vw;
+      max-height: 85vh;
       overflow-y: auto;
-      padding: 24px 32px;
+      padding: 28px 36px 20px;
       background: ${UI.colors.bg};
       border: 1px solid ${UI.colors.border};
       border-radius: ${UI.radius.panel};
       backdrop-filter: ${UI.backdrop};
-      box-shadow: ${UI.shadow.panel};
+      box-shadow: ${UI.shadow.panel}, 0 0 60px rgba(100, 80, 255, 0.08);
+      transform: scale(1);
+      transition: transform ${UI.anim.entryDuration} ${UI.anim.easeSpring};
     }
-    .cs-title {
-      font: 600 18px ${UI.font.base};
-      color: ${UI.colors.text};
-      margin: 0 0 16px;
-      text-align: center;
+    .cheatsheet.hidden .cs-card {
+      transform: scale(0.96);
     }
-    .cs-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-    }
-    .cs-section h3 {
-      font: 600 ${UI.font.sizeSm} ${UI.font.base};
-      color: ${UI.colors.accent};
-      margin: 0 0 6px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .cs-row {
-      font: ${UI.font.sizeSm} ${UI.font.base};
-      color: ${UI.colors.textMuted};
-      padding: 3px 0;
+
+    .cs-header {
       display: flex;
       align-items: center;
-      gap: 3px;
-      flex-wrap: wrap;
+      justify-content: space-between;
+      margin-bottom: 24px;
     }
-    kbd {
+    .cs-title {
+      font: 700 16px ${UI.font.base};
+      color: ${UI.colors.text};
+      letter-spacing: -0.3px;
+    }
+    .cs-alt-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      background: ${UI.colors.accentDim};
+      border: 1px solid ${UI.colors.border};
+      border-radius: ${UI.radius.pill};
+      font: 600 ${UI.font.sizeXs} ${UI.font.mono};
+      color: ${UI.colors.accent};
+      letter-spacing: 0.3px;
+    }
+
+    .cs-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto auto auto;
+      gap: 20px 28px;
+    }
+
+    .cs-cluster {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .cluster-nav  { grid-column: 1; grid-row: 1; }
+    .cluster-pick { grid-column: 2; grid-row: 1; }
+    .cluster-scroll { grid-column: 1; grid-row: 2; }
+    .cluster-clip { grid-column: 2; grid-row: 2; }
+    .cluster-general { grid-column: 1 / -1; grid-row: 3; align-items: center; }
+
+    .cluster-label {
+      font: 600 ${UI.font.sizeXs} ${UI.font.base};
+      color: ${UI.colors.textMuted};
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+    .cluster-sublabel {
+      font: ${UI.font.sizeXs} ${UI.font.base};
+      color: ${UI.colors.textDim};
+      margin-top: -4px;
+    }
+
+    .cluster-keys {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .cluster-keys-row {
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 14px;
+    }
+
+    .key-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .key-unit {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+    }
+    .key-hint {
+      font: ${UI.font.sizeXs} ${UI.font.base};
+      color: ${UI.colors.textDim};
+      white-space: nowrap;
+    }
+
+    /* Keycap styling - the star of the show */
+    .keycap {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-width: 18px;
-      height: 18px;
-      padding: 0 4px;
-      background: ${UI.colors.accentDim};
-      border: 1px solid ${UI.colors.border};
-      border-radius: ${UI.radius.badge};
-      font: 600 ${UI.font.sizeXs} ${UI.font.mono};
+      min-width: 32px;
+      height: 32px;
+      padding: 0 8px;
+      background: linear-gradient(180deg, rgba(50, 45, 80, 0.9) 0%, rgba(30, 28, 55, 0.95) 100%);
+      border: 1px solid rgba(120, 100, 255, 0.25);
+      border-radius: 7px;
+      font: 700 ${UI.font.sizeMd} ${UI.font.mono};
       color: ${UI.colors.text};
+      line-height: 1;
+      box-shadow:
+        0 1px 0 1px rgba(0, 0, 0, 0.4),
+        0 3px 6px rgba(0, 0, 0, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.07),
+        0 0 8px rgba(100, 80, 255, 0.06);
+      text-shadow: 0 0 6px rgba(100, 80, 255, 0.3);
+      transition: transform 80ms ease, box-shadow 80ms ease;
+      user-select: none;
     }
+    .keycap.wide {
+      min-width: 80px;
+      padding: 0 14px;
+      font-size: ${UI.font.sizeSm};
+      letter-spacing: 0.5px;
+    }
+    .keycap.med {
+      min-width: 44px;
+      padding: 0 10px;
+      font-size: ${UI.font.sizeSm};
+    }
+    .keycap.sm {
+      min-width: 24px;
+      height: 22px;
+      padding: 0 5px;
+      font-size: ${UI.font.sizeXs};
+      border-radius: 5px;
+      box-shadow:
+        0 1px 0 rgba(0, 0, 0, 0.3),
+        0 2px 4px rgba(0, 0, 0, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+
+    /* HJKL inverted-T layout */
+    .hjkl-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 44px);
+      grid-template-rows: repeat(2, auto);
+      gap: 6px;
+      justify-items: center;
+      align-items: center;
+    }
+    .hjkl-spacer { width: 44px; }
+    .hjkl-k { grid-column: 2; grid-row: 1; }
+    .hjkl-h { grid-column: 1; grid-row: 2; }
+    .hjkl-j { grid-column: 2; grid-row: 2; }
+    .hjkl-l { grid-column: 3; grid-row: 2; }
+
     .cs-footer {
-      margin-top: 16px;
+      margin-top: 20px;
       text-align: center;
       font: ${UI.font.sizeXs} ${UI.font.base};
       color: ${UI.colors.textDim};
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
     }
+    .cs-footer .keycap {
+      min-width: 18px;
+      height: 18px;
+      padding: 0 4px;
+      font-size: 9px;
+      border-radius: 4px;
+      box-shadow:
+        0 1px 0 rgba(0, 0, 0, 0.3),
+        0 1px 3px rgba(0, 0, 0, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
     .cs-card::-webkit-scrollbar { width: 4px; }
-    .cs-card::-webkit-scrollbar-thumb { background: ${UI.colors.border}; border-radius: 2px; }
+    .cs-card::-webkit-scrollbar-thumb {
+      background: ${UI.colors.border};
+      border-radius: 2px;
+    }
   `;
 }

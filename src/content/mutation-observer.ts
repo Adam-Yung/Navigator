@@ -186,13 +186,12 @@ function isVisible(el: HTMLElement): boolean {
   if ((el as HTMLInputElement).disabled) return false;
   if (el.getAttribute('aria-hidden') === 'true') return false;
 
-  if (el.offsetParent !== null || el.tagName === 'BODY') {
-    if (el.offsetWidth === 0 && el.offsetHeight === 0) return false;
-    const style = getComputedStyle(el);
-    return style.visibility !== 'hidden' && style.opacity !== '0';
-  }
-
   const style = getComputedStyle(el);
-  if (style.position !== 'fixed' && style.position !== 'sticky') return false;
-  return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+  if (style.display === 'none' || style.visibility === 'hidden') return false;
+  if (style.opacity === '0') return false;
+
+  const rect = el.getBoundingClientRect();
+  if (rect.width === 0 && rect.height === 0) return false;
+
+  return true;
 }

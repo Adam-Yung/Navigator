@@ -302,17 +302,19 @@ function detectCenterstage(): HTMLElement | null {
   const vpArea = vw * vh;
 
   const candidates = document.querySelectorAll<HTMLElement>(
-    '[role="dialog"], [role="alertdialog"], .modal, .dialog, [class*="modal"], [class*="dialog"], [class*="overlay"]'
+    '[role="dialog"], [role="alertdialog"]'
   );
 
   for (const el of candidates) {
     const style = getComputedStyle(el);
     if (style.display === 'none' || style.visibility === 'hidden') continue;
     if (parseFloat(style.opacity) < 0.1) continue;
+    if (style.position !== 'fixed' && style.position !== 'absolute') continue;
 
     const rect = el.getBoundingClientRect();
     const area = rect.width * rect.height;
-    if (area > vpArea * 0.2 && parseInt(style.zIndex) > 100) {
+    const zIndex = parseInt(style.zIndex) || 0;
+    if (area > vpArea * 0.1 && area < vpArea * 0.95 && zIndex > 100) {
       return el;
     }
   }

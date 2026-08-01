@@ -26,22 +26,25 @@ api.runtime.onInstalled.addListener(async () => {
   }
 });
 
-api.runtime.onMessage.addListener(async (message: any, _sender: any, sendResponse: any) => {
+api.runtime.onMessage.addListener((message: any, _sender: any, sendResponse: any) => {
   if (message.type === 'get-tabs') {
-    try {
-      const tabs = await api.tabs.query({ currentWindow: true });
-      sendResponse({ tabs });
-    } catch {
+    api.tabs.query({ currentWindow: true }).then((tabs: any[]) => {
+      sendResponse({ tabs: tabs || [] });
+    }).catch(() => {
       sendResponse({ tabs: [] });
-    }
+    });
     return true;
   }
 
   if (message.type === 'switch-tab' && message.tabId) {
-    try {
-      await api.tabs.update(message.tabId, { active: true });
-    } catch {
-      // Tab may not exist
-    }
+    api.tabs.update(message.tabId, { active: true }).catch(() => {});
+    return false;
   }
+
+  if (message.type === 'move-tab-new-window' && message.tabId) {
+    api.windows.create({ tabId: message.tabId }).catch(() => {});
+    return false;
+  }
+
+  return false;
 });

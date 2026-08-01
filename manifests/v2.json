@@ -2,9 +2,10 @@
   "manifest_version": 2,
   "name": "Navigator",
   "version": "2.0.0",
-  "description": "Vim-style modal navigation for the browser with directional spatial search and animated focus indicators",
+  "description": "Alt-layer keyboard navigation for the modern web",
   "permissions": [
-    "storage"
+    "storage",
+    "tabs"
   ],
   "browser_action": {
     "default_icon": {
@@ -34,20 +35,7 @@
     "page": "options.html",
     "open_in_tab": true
   },
-  "commands": {
-    "activate-navigation": {
-      "suggested_key": {
-        "default": "Alt+Shift+N"
-      },
-      "description": "Enter Navigation mode"
-    },
-    "activate-editing": {
-      "suggested_key": {
-        "default": "Alt+Shift+E"
-      },
-      "description": "Enter Editing mode"
-    }
-  },
+  "commands": {},
   "icons": {
     "16": "assets/icons/icon16.png",
     "48": "assets/icons/icon48.png",

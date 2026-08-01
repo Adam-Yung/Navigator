@@ -1,10 +1,12 @@
 import type { Settings } from '../shared/types';
 import { registerKeyHandler, registerKeyupHandler } from './key-handler';
+import { scanVisibleElements } from './mutation-observer';
 import { UI } from './ui-tokens';
 
 let host: HTMLElement | null = null;
 let shadow: ShadowRoot | null = null;
 let bar: HTMLElement | null = null;
+let badgesContainer: HTMLElement | null = null;
 let settings: Settings | null = null;
 let holdTimer: ReturnType<typeof setTimeout> | null = null;
 let visible = false;
@@ -41,6 +43,10 @@ function createDOM(): void {
   const style = document.createElement('style');
   style.textContent = getStyles();
   shadow.appendChild(style);
+
+  badgesContainer = document.createElement('div');
+  badgesContainer.className = 'badges-container';
+  shadow.appendChild(badgesContainer);
 
   bar = document.createElement('div');
   bar.className = 'helper-bar hidden';
@@ -97,11 +103,50 @@ function showHelper(): void {
   holdTimer = null;
   visible = true;
   if (bar) bar.classList.remove('hidden');
+  showBadges();
 }
 
 function hideHelper(): void {
   visible = false;
   if (bar) bar.classList.add('hidden');
+  removeBadges();
+}
+
+function showBadges(): void {
+  if (!badgesContainer) return;
+
+  const elements = scanVisibleElements();
+  const vh = window.innerHeight;
+  const vw = window.innerWidth;
+
+  const scored = elements.map((el) => {
+    const rect = el.el.getBoundingClientRect();
+    const inViewport =
+      rect.top < vh && rect.bottom > 0 && rect.left < vw && rect.right > 0;
+    const area = rect.width * rect.height;
+    return { el, inViewport, area };
+  });
+
+  scored.sort((a, b) => {
+    if (a.inViewport !== b.inViewport) return a.inViewport ? -1 : 1;
+    return b.area - a.area;
+  });
+
+  const count = Math.min(scored.length, 10);
+
+  for (let i = 0; i < count; i++) {
+    const rect = scored[i].el.el.getBoundingClientRect();
+    const badge = document.createElement('div');
+    badge.className = 'qp-badge';
+    badge.textContent = i < 9 ? String(i + 1) : '0';
+    badge.style.top = `${rect.top}px`;
+    badge.style.left = `${rect.left}px`;
+    badgesContainer.appendChild(badge);
+  }
+}
+
+function removeBadges(): void {
+  if (badgesContainer) badgesContainer.innerHTML = '';
 }
 
 function cancelTimer(): void {
@@ -110,6 +155,33 @@ function cancelTimer(): void {
 
 function getStyles(): string {
   return `
+    .badges-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+    }
+    .qp-badge {
+      position: fixed;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(100, 80, 255, 0.9);
+      color: #fff;
+      font: bold 11px ${UI.font.mono};
+      border-radius: 5px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+      pointer-events: none;
+      animation: badge-in ${UI.anim.entryDuration} ${UI.anim.easeSpring} both;
+    }
+    @keyframes badge-in {
+      from { transform: scale(0); opacity: 0; }
+      to   { transform: scale(1); opacity: 1; }
+    }
     .helper-bar {
       position: fixed;
       bottom: 0;
