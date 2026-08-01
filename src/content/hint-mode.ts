@@ -2,6 +2,7 @@ import { AURA_COLOR } from '../shared/constants';
 import { buildComboString } from '../shared/keys';
 import type { IndexedElement, Settings } from '../shared/types';
 import { transitionTo, hide as hideAura } from './aura-ring';
+import { pushFocus } from './focus-history';
 import { revealElement } from './hover-manager';
 import { registerKeyHandler } from './key-handler';
 import { scanVisibleElements } from './mutation-observer';
@@ -12,6 +13,8 @@ let host: HTMLElement | null = null;
 let shadow: ShadowRoot | null = null;
 let modalEl: HTMLElement | null = null;
 let labelsContainer: HTMLElement | null = null;
+let tooltipEl: HTMLElement | null = null;
+let tooltipTimer: ReturnType<typeof setTimeout> | null = null;
 let active = false;
 let typedFilter = '';
 let allHints: HintEntry[] = [];
@@ -53,6 +56,10 @@ export function initHintMode(): void {
     <div class="hint-help">Type to filter \u2022 Enter to select \u2022 Shift+Enter new tab \u2022 Esc to cancel</div>
   `;
   shadow.appendChild(modalEl);
+
+  tooltipEl = document.createElement('div');
+  tooltipEl.className = 'hint-tooltip hidden';
+  shadow.appendChild(tooltipEl);
 
   document.documentElement.appendChild(host);
 }
@@ -177,6 +184,26 @@ function activatePicker(): void {
   }
 
   filteredHints = [...allHints];
+
+  const vcx = window.innerWidth / 2;
+  const vcy = window.innerHeight / 2;
+  const maxDist = Math.sqrt(vcx * vcx + vcy * vcy);
+
+  for (const hint of allHints) {
+    const rect = hint.element.el.getBoundingClientRect();
+    const dx = rect.left - vcx;
+    const dy = rect.top - vcy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const delay = (dist / maxDist) * 120;
+    hint.labelEl.style.transitionDelay = `${delay}ms`;
+    hint.labelEl.classList.add('entering');
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        hint.labelEl.classList.remove('entering');
+      });
+    });
+  }
+
   modalEl.classList.remove('hidden');
   updateModal();
   updateRingPosition();
@@ -242,6 +269,7 @@ export function deactivateHintMode(): void {
   typedFilter = '';
   allHints = [];
   filteredHints = [];
+  hideTooltip();
 
   if (labelsContainer) labelsContainer.innerHTML = '';
   if (modalEl) modalEl.classList.add('hidden');
@@ -274,6 +302,7 @@ export function destroyHintMode(): void {
 
 function activateTarget(indexed: IndexedElement, newTab: boolean): void {
   lastPickedElement = indexed.el;
+  pushFocus(indexed.el);
   revealElement(indexed.el);
 
   if (newTab) {
@@ -322,10 +351,21 @@ function applyFilter(): void {
 
 function updateVisuals(): void {
   for (const hint of allHints) {
+    const textEl = hint.labelEl.querySelector('.hint-text');
+    if (!textEl) continue;
+
     if (hint.label.startsWith(typedFilter)) {
       hint.labelEl.classList.remove('dimmed');
+      if (typedFilter.length > 0) {
+        const matched = hint.label.slice(0, typedFilter.length);
+        const rest = hint.label.slice(typedFilter.length);
+        textEl.innerHTML = `<span class="matched">${matched}</span>${rest}`;
+      } else {
+        textEl.textContent = hint.label;
+      }
     } else {
       hint.labelEl.classList.add('dimmed');
+      textEl.textContent = hint.label;
     }
   }
 }
@@ -339,10 +379,13 @@ function updateModal(): void {
 }
 
 function updateRingPosition(): void {
+  hideTooltip();
   if (filteredHints.length > 0) {
     const first = filteredHints[0];
     transitionTo(first.element);
     revealElement(first.element.el);
+    scrollToRevealIfNeeded(first.element.el);
+    showTooltipForElement(first.element.el);
   }
 }
 
@@ -381,6 +424,72 @@ function addLabelsOfLength(len: number, max: number, out: string[]): void {
   generate('', len);
 }
 
+function scrollToRevealIfNeeded(el: HTMLElement): void {
+  const rect = el.getBoundingClientRect();
+  const vh = window.innerHeight;
+  const vw = window.innerWidth;
+  const padding = 20;
+
+  const clipTop = Math.max(0, -rect.top);
+  const clipBottom = Math.max(0, rect.bottom - vh);
+  const clipLeft = Math.max(0, -rect.left);
+  const clipRight = Math.max(0, rect.right - vw);
+
+  const height = rect.height || 1;
+  const width = rect.width || 1;
+  const verticalClip = (clipTop + clipBottom) / height;
+  const horizontalClip = (clipLeft + clipRight) / width;
+
+  if (verticalClip > 0.3) {
+    const scrollY = clipTop > 0 ? -(clipTop + padding) : clipBottom + padding;
+    window.scrollBy({ top: scrollY, behavior: 'smooth' });
+  }
+  if (horizontalClip > 0.3) {
+    const scrollX = clipLeft > 0 ? -(clipLeft + padding) : clipRight + padding;
+    window.scrollBy({ left: scrollX, behavior: 'smooth' });
+  }
+}
+
+function showTooltipForElement(el: HTMLElement): void {
+  if (tooltipTimer) clearTimeout(tooltipTimer);
+  tooltipTimer = setTimeout(() => {
+    if (!tooltipEl || !active) return;
+    const text = getTooltipText(el);
+    if (!text) return;
+
+    const rect = el.getBoundingClientRect();
+    tooltipEl.textContent = text;
+    tooltipEl.style.top = `${rect.bottom + 8}px`;
+    tooltipEl.style.left = `${rect.left + rect.width / 2}px`;
+    tooltipEl.classList.remove('hidden');
+  }, 300);
+}
+
+function hideTooltip(): void {
+  if (tooltipTimer) {
+    clearTimeout(tooltipTimer);
+    tooltipTimer = null;
+  }
+  if (tooltipEl) tooltipEl.classList.add('hidden');
+}
+
+function getTooltipText(el: HTMLElement): string | null {
+  if (el.tagName === 'A') {
+    const href = (el as HTMLAnchorElement).href;
+    if (href) return href.length > 50 ? href.slice(0, 47) + '...' : href;
+  }
+  const ariaLabel = el.getAttribute('aria-label');
+  if (ariaLabel) return ariaLabel;
+  if (el.tagName === 'INPUT') {
+    return (el as HTMLInputElement).placeholder || el.getAttribute('aria-label') || null;
+  }
+  if (el.tagName === 'BUTTON') {
+    const text = el.textContent?.trim();
+    if (text && text.length < 40) return text;
+  }
+  return null;
+}
+
 function getHintStyles(): string {
   return `
     .labels-container {
@@ -413,6 +522,16 @@ function getHintStyles(): string {
     .hint-label.dimmed {
       opacity: 0.15;
       transform: scale(0.9);
+    }
+
+    .hint-label.entering {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+
+    .matched {
+      color: #fff;
+      text-shadow: 0 0 6px hsla(250, 80%, 65%, 0.6);
     }
 
     .hint-number {
@@ -487,6 +606,30 @@ function getHintStyles(): string {
       font: 11px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
       color: #6a6a8a;
       margin-top: 8px;
+    }
+
+    .hint-tooltip {
+      position: fixed;
+      transform: translateX(-50%);
+      padding: 4px 10px;
+      background: rgba(15, 15, 30, 0.94);
+      border: 1px solid rgba(100, 80, 255, 0.15);
+      border-radius: 6px;
+      backdrop-filter: blur(12px);
+      color: #8888a8;
+      font: 11px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      white-space: nowrap;
+      max-width: 300px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      transition: opacity 100ms ease;
+      z-index: 2;
+    }
+
+    .hint-tooltip.hidden {
+      opacity: 0;
+      pointer-events: none;
     }
   `;
 }
