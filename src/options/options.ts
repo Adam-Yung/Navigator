@@ -60,9 +60,23 @@ function renderAppearance(): void {
 
 function renderBehavior(): void {
   (document.getElementById('auto-scroll') as HTMLInputElement).checked = settings.autoScroll;
+  (document.getElementById('show-alt-helper') as HTMLInputElement).checked = settings.showAltHelper;
 
-  const showAltHelper = document.getElementById('show-alt-helper') as HTMLInputElement | null;
-  if (showAltHelper) showAltHelper.checked = settings.showAltHelper;
+  const delaySlider = document.getElementById('alt-helper-delay') as HTMLInputElement;
+  delaySlider.value = String(settings.altHelperDelay);
+  document.getElementById('alt-helper-delay-val')!.textContent = `${settings.altHelperDelay}ms`;
+
+  const baseVel = document.getElementById('scroll-base-velocity') as HTMLInputElement;
+  baseVel.value = String(settings.scrollBaseVelocity);
+  document.getElementById('scroll-base-velocity-val')!.textContent = String(settings.scrollBaseVelocity);
+
+  const maxVel = document.getElementById('scroll-max-velocity') as HTMLInputElement;
+  maxVel.value = String(settings.scrollMaxVelocity);
+  document.getElementById('scroll-max-velocity-val')!.textContent = String(settings.scrollMaxVelocity);
+
+  const decel = document.getElementById('scroll-decel-factor') as HTMLInputElement;
+  decel.value = String(settings.scrollDecelFactor);
+  document.getElementById('scroll-decel-factor-val')!.textContent = String(settings.scrollDecelFactor);
 }
 
 function renderDisabledSites(): void {
@@ -97,13 +111,38 @@ function setupListeners(): void {
     save().catch(() => {});
   });
 
-  const showAltHelperEl = document.getElementById('show-alt-helper');
-  if (showAltHelperEl) {
-    showAltHelperEl.addEventListener('change', (e) => {
-      settings.showAltHelper = (e.target as HTMLInputElement).checked;
-      save().catch(() => {});
-    });
-  }
+  document.getElementById('show-alt-helper')!.addEventListener('change', (e) => {
+    settings.showAltHelper = (e.target as HTMLInputElement).checked;
+    save().catch(() => {});
+  });
+
+  document.getElementById('alt-helper-delay')!.addEventListener('input', (e) => {
+    const val = (e.target as HTMLInputElement).value;
+    settings.altHelperDelay = parseInt(val, 10);
+    document.getElementById('alt-helper-delay-val')!.textContent = `${val}ms`;
+    debouncedSave();
+  });
+
+  document.getElementById('scroll-base-velocity')!.addEventListener('input', (e) => {
+    const val = (e.target as HTMLInputElement).value;
+    settings.scrollBaseVelocity = parseInt(val, 10);
+    document.getElementById('scroll-base-velocity-val')!.textContent = val;
+    debouncedSave();
+  });
+
+  document.getElementById('scroll-max-velocity')!.addEventListener('input', (e) => {
+    const val = (e.target as HTMLInputElement).value;
+    settings.scrollMaxVelocity = parseInt(val, 10);
+    document.getElementById('scroll-max-velocity-val')!.textContent = val;
+    debouncedSave();
+  });
+
+  document.getElementById('scroll-decel-factor')!.addEventListener('input', (e) => {
+    const val = (e.target as HTMLInputElement).value;
+    settings.scrollDecelFactor = parseFloat(val);
+    document.getElementById('scroll-decel-factor-val')!.textContent = val;
+    debouncedSave();
+  });
 
   document.getElementById('disabled-sites')!.addEventListener('change', (e) => {
     const text = (e.target as HTMLTextAreaElement).value;
@@ -223,29 +262,29 @@ function highlightConflict(key: keyof Keybindings, highlight: boolean): void {
 
 function formatKeyName(key: keyof Keybindings): string {
   const names: Record<keyof Keybindings, string> = {
-    picker: 'Picker',
+    picker: 'Element Picker',
     tabPicker: 'Tab Picker',
-    search: 'Search',
+    search: 'Text Search',
     scrollDown: 'Scroll Down',
     scrollUp: 'Scroll Up',
     scrollLeft: 'Scroll Left',
     scrollRight: 'Scroll Right',
-    scrollFastDown: 'Scroll Fast Down',
-    scrollFastUp: 'Scroll Fast Up',
+    scrollFastDown: 'Fast Scroll Down',
+    scrollFastUp: 'Fast Scroll Up',
     historyBack: 'History Back',
     historyForward: 'History Forward',
     sectionPrev: 'Section Previous',
     sectionNext: 'Section Next',
-    focusHistoryBack: 'Focus History Back',
-    focusHistoryForward: 'Focus History Forward',
+    focusHistoryBack: 'Focus Back',
+    focusHistoryForward: 'Focus Forward',
     urlUp: 'URL Up',
     urlRoot: 'URL Root',
     focusFirstInput: 'Focus First Input',
     yankMode: 'Yank Mode',
-    clipboardOpen: 'Clipboard Open',
-    caretMode: 'Caret Mode',
-    marks: 'Marks',
-    marksJump: 'Marks Jump',
+    clipboardOpen: 'Open Clipboard URL',
+    caretMode: 'Caret/Visual Mode',
+    marks: 'Set Mark',
+    marksJump: 'Jump to Mark',
     quickActions: 'Quick Actions',
     toggleExtension: 'Toggle Extension',
   };
@@ -265,6 +304,11 @@ function comboToKeycaps(combo: string): string {
       else if (part === 'Shift') display = isMac ? '\u21E7' : 'Shift';
       else if (part === 'Escape') display = 'Esc';
       else if (part === 'Enter') display = '\u21B5';
+      else if (part === 'Space') display = 'Space';
+      else if (part === 'Slash') display = '/';
+      else if (part === 'BracketLeft') display = '[';
+      else if (part === 'BracketRight') display = ']';
+      else if (part === 'Quote') display = "'";
       else if (part.startsWith('Key')) display = part.slice(3);
       else if (part.startsWith('Digit')) display = part.slice(5);
 

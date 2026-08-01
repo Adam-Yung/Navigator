@@ -13,79 +13,129 @@
   <div class="container">
     <header>
       <h1>Navigator</h1>
-      <p class="subtitle">Configure your navigation experience</p>
+      <p class="subtitle">Alt-layer keyboard navigation for the modern web</p>
     </header>
 
     <section class="card">
       <h2>Keybindings</h2>
 
       <details class="keybind-section" open>
-        <summary>Modes</summary>
+        <summary>Picking &amp; Search</summary>
         <div class="field">
-          <label for="kb-navigation">Enter Navigation Mode</label>
-          <button class="keybind-btn" id="kb-navigation" data-key="enterNavigation">
-            <span class="keycaps"></span>
-          </button>
+          <label>Element Picker</label>
+          <button class="keybind-btn" data-key="picker"><span class="keycaps"></span></button>
         </div>
         <div class="field">
-          <label for="kb-editing">Enter Editing Mode</label>
-          <button class="keybind-btn" id="kb-editing" data-key="enterEditing">
-            <span class="keycaps"></span>
-          </button>
+          <label>Tab Picker</label>
+          <button class="keybind-btn" data-key="tabPicker"><span class="keycaps"></span></button>
         </div>
         <div class="field">
-          <label for="kb-normal">Return to Normal</label>
-          <button class="keybind-btn" id="kb-normal" data-key="returnToNormal">
-            <span class="keycaps"></span>
-          </button>
+          <label>Text Search</label>
+          <button class="keybind-btn" data-key="search"><span class="keycaps"></span></button>
         </div>
         <div class="field">
-          <label for="kb-toggle">Toggle Extension</label>
-          <button class="keybind-btn" id="kb-toggle" data-key="toggleExtension">
-            <span class="keycaps"></span>
-          </button>
+          <label>Quick Actions</label>
+          <button class="keybind-btn" data-key="quickActions"><span class="keycaps"></span></button>
+        </div>
+      </details>
+
+      <details class="keybind-section">
+        <summary>Scrolling</summary>
+        <div class="field">
+          <label>Scroll Down</label>
+          <button class="keybind-btn" data-key="scrollDown"><span class="keycaps"></span></button>
+        </div>
+        <div class="field">
+          <label>Scroll Up</label>
+          <button class="keybind-btn" data-key="scrollUp"><span class="keycaps"></span></button>
+        </div>
+        <div class="field">
+          <label>Scroll Left</label>
+          <button class="keybind-btn" data-key="scrollLeft"><span class="keycaps"></span></button>
+        </div>
+        <div class="field">
+          <label>Scroll Right</label>
+          <button class="keybind-btn" data-key="scrollRight"><span class="keycaps"></span></button>
+        </div>
+        <div class="field">
+          <label>Scroll Fast Down</label>
+          <button class="keybind-btn" data-key="scrollFastDown"><span class="keycaps"></span></button>
+        </div>
+        <div class="field">
+          <label>Scroll Fast Up</label>
+          <button class="keybind-btn" data-key="scrollFastUp"><span class="keycaps"></span></button>
         </div>
       </details>
 
       <details class="keybind-section">
         <summary>Navigation</summary>
         <div class="field">
-          <label>Directional Keys</label>
-          <span class="info-value">h j k l or Arrow Keys</span>
+          <label>History Back</label>
+          <button class="keybind-btn" data-key="historyBack"><span class="keycaps"></span></button>
         </div>
         <div class="field">
-          <label for="kb-hint">Hint Mode</label>
-          <button class="keybind-btn" id="kb-hint" data-key="hintMode">
-            <span class="keycaps"></span>
-          </button>
+          <label>History Forward</label>
+          <button class="keybind-btn" data-key="historyForward"><span class="keycaps"></span></button>
         </div>
         <div class="field">
-          <label for="kb-goback">Go Back</label>
-          <button class="keybind-btn" id="kb-goback" data-key="goBack">
-            <span class="keycaps"></span>
-          </button>
+          <label>Section Previous</label>
+          <button class="keybind-btn" data-key="sectionPrev"><span class="keycaps"></span></button>
+        </div>
+        <div class="field">
+          <label>Section Next</label>
+          <button class="keybind-btn" data-key="sectionNext"><span class="keycaps"></span></button>
+        </div>
+        <div class="field">
+          <label>URL Up</label>
+          <button class="keybind-btn" data-key="urlUp"><span class="keycaps"></span></button>
+        </div>
+        <div class="field">
+          <label>URL Root</label>
+          <button class="keybind-btn" data-key="urlRoot"><span class="keycaps"></span></button>
+        </div>
+        <div class="field">
+          <label>Focus First Input</label>
+          <button class="keybind-btn" data-key="focusFirstInput"><span class="keycaps"></span></button>
+        </div>
+        <div class="field">
+          <label>Focus History Back</label>
+          <button class="keybind-btn" data-key="focusHistoryBack"><span class="keycaps"></span></button>
+        </div>
+        <div class="field">
+          <label>Focus History Forward</label>
+          <button class="keybind-btn" data-key="focusHistoryForward"><span class="keycaps"></span></button>
         </div>
       </details>
 
       <details class="keybind-section">
-        <summary>Actions</summary>
+        <summary>Clipboard &amp; Selection</summary>
         <div class="field">
-          <label for="kb-activate">Activate Element</label>
-          <button class="keybind-btn" id="kb-activate" data-key="activate">
-            <span class="keycaps"></span>
-          </button>
+          <label>Yank Mode</label>
+          <button class="keybind-btn" data-key="yankMode"><span class="keycaps"></span></button>
         </div>
         <div class="field">
-          <label for="kb-sticky">Sticky Activate</label>
-          <button class="keybind-btn" id="kb-sticky" data-key="stickyActivate">
-            <span class="keycaps"></span>
-          </button>
+          <label>Open Clipboard URL</label>
+          <button class="keybind-btn" data-key="clipboardOpen"><span class="keycaps"></span></button>
         </div>
         <div class="field">
-          <label for="kb-newtab">Open in New Tab</label>
-          <button class="keybind-btn" id="kb-newtab" data-key="openNewTab">
-            <span class="keycaps"></span>
-          </button>
+          <label>Caret/Visual Mode</label>
+          <button class="keybind-btn" data-key="caretMode"><span class="keycaps"></span></button>
+        </div>
+        <div class="field">
+          <label>Set Mark</label>
+          <button class="keybind-btn" data-key="marks"><span class="keycaps"></span></button>
+        </div>
+        <div class="field">
+          <label>Jump to Mark</label>
+          <button class="keybind-btn" data-key="marksJump"><span class="keycaps"></span></button>
+        </div>
+      </details>
+
+      <details class="keybind-section">
+        <summary>System</summary>
+        <div class="field">
+          <label>Toggle Extension</label>
+          <button class="keybind-btn" data-key="toggleExtension"><span class="keycaps"></span></button>
         </div>
       </details>
 
@@ -100,8 +150,8 @@
       <div class="field">
         <label for="anim-duration">Animation Duration</label>
         <div class="slider-group">
-          <input type="range" id="anim-duration" min="0" max="500" step="10" value="250" aria-describedby="anim-duration-val">
-          <span class="slider-value" id="anim-duration-val">250ms</span>
+          <input type="range" id="anim-duration" min="0" max="500" step="10" value="200" aria-describedby="anim-duration-val">
+          <span class="slider-value" id="anim-duration-val">200ms</span>
         </div>
       </div>
       <fieldset class="field radio-field">
@@ -135,14 +185,35 @@
         <input type="checkbox" id="auto-scroll" checked>
       </div>
       <div class="field">
-        <label for="smart-priority">Smart element prioritization</label>
-        <input type="checkbox" id="smart-priority" checked>
+        <label for="show-alt-helper">Show Alt-hold helper bar</label>
+        <input type="checkbox" id="show-alt-helper" checked>
       </div>
       <div class="field">
-        <label for="cone-angle">Navigation Cone Angle</label>
+        <label for="alt-helper-delay">Alt-hold delay</label>
         <div class="slider-group">
-          <input type="range" id="cone-angle" min="60" max="120" step="5" value="90" aria-describedby="cone-angle-val">
-          <span class="slider-value" id="cone-angle-val">90°</span>
+          <input type="range" id="alt-helper-delay" min="100" max="500" step="50" value="200" aria-describedby="alt-helper-delay-val">
+          <span class="slider-value" id="alt-helper-delay-val">200ms</span>
+        </div>
+      </div>
+      <div class="field">
+        <label for="scroll-base-velocity">Scroll Base Velocity</label>
+        <div class="slider-group">
+          <input type="range" id="scroll-base-velocity" min="1" max="15" step="1" value="5" aria-describedby="scroll-base-velocity-val">
+          <span class="slider-value" id="scroll-base-velocity-val">5</span>
+        </div>
+      </div>
+      <div class="field">
+        <label for="scroll-max-velocity">Scroll Max Velocity</label>
+        <div class="slider-group">
+          <input type="range" id="scroll-max-velocity" min="20" max="120" step="5" value="60" aria-describedby="scroll-max-velocity-val">
+          <span class="slider-value" id="scroll-max-velocity-val">60</span>
+        </div>
+      </div>
+      <div class="field">
+        <label for="scroll-decel-factor">Scroll Deceleration</label>
+        <div class="slider-group">
+          <input type="range" id="scroll-decel-factor" min="0.80" max="0.98" step="0.01" value="0.92" aria-describedby="scroll-decel-factor-val">
+          <span class="slider-value" id="scroll-decel-factor-val">0.92</span>
         </div>
       </div>
     </section>
