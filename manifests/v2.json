@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Navigator",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Alt-layer keyboard navigation for the modern web",
   "permissions": [
     "storage",

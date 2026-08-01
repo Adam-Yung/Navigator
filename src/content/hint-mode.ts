@@ -195,7 +195,10 @@ function activatePicker(): void {
   if (!labelsContainer || !modalEl) return;
 
   const scope = getPickerScope();
-  const elements = scanViewportElements(scope);
+  let elements = scanViewportElements(scope);
+  if (elements.length === 0 && scope !== null) {
+    elements = scanViewportElements(null);
+  }
   if (elements.length === 0) return;
 
   active = true;
@@ -282,18 +285,30 @@ function scanViewportElements(scope: HTMLElement | null): IndexedElement[] {
 
 function getPickerScope(): HTMLElement | null {
   const dialog = document.querySelector('dialog[open]') as HTMLElement | null;
-  if (dialog) return dialog;
+  if (dialog && isMeaningfulScope(dialog)) return dialog;
 
   const ariaModal = document.querySelector('[aria-modal="true"]:not([hidden])') as HTMLElement | null;
-  if (ariaModal) return ariaModal;
+  if (ariaModal && isMeaningfulScope(ariaModal)) return ariaModal;
 
   const popover = document.querySelector('[popover]:popover-open') as HTMLElement | null;
-  if (popover) return popover;
+  if (popover && isMeaningfulScope(popover)) return popover;
 
   const centerstage = detectCenterstage();
-  if (centerstage) return centerstage;
+  if (centerstage && isMeaningfulScope(centerstage)) return centerstage;
 
   return null;
+}
+
+function isMeaningfulScope(el: HTMLElement): boolean {
+  const rect = el.getBoundingClientRect();
+  if (rect.width < 100 || rect.height < 100) return false;
+  const style = getComputedStyle(el);
+  if (style.display === 'none' || style.visibility === 'hidden') return false;
+  if (parseFloat(style.opacity) < 0.1) return false;
+  const vpArea = window.innerWidth * window.innerHeight;
+  const area = rect.width * rect.height;
+  if (area < vpArea * 0.05) return false;
+  return true;
 }
 
 function detectCenterstage(): HTMLElement | null {
