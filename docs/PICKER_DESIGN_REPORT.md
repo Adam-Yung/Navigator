@@ -16,6 +16,7 @@ This report evaluates six alternative approaches to redesigning picker mode for 
 ### Current State
 
 The existing picker implementation (`src/content/hint-mode.ts`) supports:
+
 - Full alphabet hint characters (`asdfghjklqwertyuiopzxcvbnm`)
 - Multi-character labels for 26+ elements (up to depth 5)
 - Overlap resolution via vertical displacement
@@ -25,9 +26,12 @@ The existing picker implementation (`src/content/hint-mode.ts`) supports:
 - Quick-pick via Alt+1-9 (by element prominence)
 - Numeric shortcuts for first 10 results
 
+
+
 ### Design Principles
 
 Any redesign must preserve:
+
 1. **Keyboard-first** — zero mouse interaction required
 2. **Speed** — target element reachable in ≤3 keystrokes for common cases
 3. **Zero-dependency visual isolation** — Shadow DOM, no host CSS conflicts
@@ -36,7 +40,11 @@ Any redesign must preserve:
 
 ---
 
+
+
 ## Approach 1: Zone-Based / Sector Picking
+
+
 
 ### Description
 
@@ -56,17 +64,25 @@ graph LR
     D --> H[Backspace: return to zone view]
 ```
 
+
+
+
+
 ### Design Details
 
 **Zone Layout Options:**
+
 - **2×2 grid** (4 zones): Minimum cognitive load, max ~25 elements per zone
 - **3×3 grid** (9 zones): Finer targeting, each zone has ~11 elements on a 100-element page
 - **Adaptive**: 2×2 for <40 elements, 3×3 for 40+
 
 **Visual Treatment:**
+
 - Semi-transparent zone overlays with large centered letter (e.g., `A`, `S`, `D`, `F` for 2×2)
 - Zone borders rendered as subtle dashed lines with purple accent
 - Active zone highlighted with glow; inactive zones fade out on selection
+
+
 
 ### Pros
 
@@ -75,6 +91,8 @@ graph LR
 - Spatially intuitive — zones map to physical screen regions
 - Works consistently regardless of page density
 
+
+
 ### Cons
 
 - Requires users to learn zone positions (though positions are stable)
@@ -82,15 +100,21 @@ graph LR
 - Zone boundaries may split logically related elements (nav bar across two zones)
 - Extra keystroke compared to current approach on sparse pages
 
+
+
 ### UX Trade-offs
 
-| Factor | Rating |
-|--------|--------|
-| Learning curve | Medium — zone positions become muscle memory |
-| Speed (sparse page) | Slower — 2 keystrokes vs. 1 |
-| Speed (dense page) | Faster — cognitive load reduction compensates |
-| Visual clarity | Excellent — max 9 labels visible initially |
-| Spatial context | Preserved — zones map to screen regions |
+
+| Factor              | Rating                                        |
+| ------------------- | --------------------------------------------- |
+| Learning curve      | Medium — zone positions become muscle memory  |
+| Speed (sparse page) | Slower — 2 keystrokes vs. 1                   |
+| Speed (dense page)  | Faster — cognitive load reduction compensates |
+| Visual clarity      | Excellent — max 9 labels visible initially    |
+| Spatial context     | Preserved — zones map to screen regions       |
+
+
+
 
 ### Implementation Complexity: Medium
 
@@ -100,18 +124,26 @@ graph LR
 - Backspace to return to zone view
 - ~150 lines new code, minimal changes to existing `hint-mode.ts`
 
+
+
 ### Page Type Suitability
 
-| Page Type | Fitness |
-|-----------|---------|
-| Simple blog | Overkill — few elements don't need zones |
-| Dense dashboard | Excellent — natural grid aligns with dashboard panels |
-| Social feed | Good — vertical zones capture feed sections |
-| SPA (Gmail, etc.) | Good — sidebar/main/header map to zones naturally |
+
+| Page Type         | Fitness                                               |
+| ----------------- | ----------------------------------------------------- |
+| Simple blog       | Overkill — few elements don't need zones              |
+| Dense dashboard   | Excellent — natural grid aligns with dashboard panels |
+| Social feed       | Good — vertical zones capture feed sections           |
+| SPA (Gmail, etc.) | Good — sidebar/main/header map to zones naturally     |
+
 
 ---
 
+
+
 ## Approach 2: Aura Ring Proximity Model
+
+
 
 ### Description
 
@@ -131,23 +163,32 @@ graph LR
     B --> G[Edge indicators show count in each direction]
 ```
 
+
+
+
+
 ### Design Details
 
 **Visibility Radius:**
+
 - Default: 300px from ring center (captures ~5-15 elements typically)
 - Elements within radius get full labels
 - Elements 300-500px away get dimmed dots (presence indicators)
 - Beyond 500px: counted in edge indicators
 
 **Edge Indicators:**
+
 - Small pills at viewport edges: `← 5` / `12 ↓` / `→ 3` / `↑ 0`
 - Update dynamically as radius shifts
 - Styled as subtle floating badges (match `multi-badge` aesthetic)
 
 **Radius Shifting:**
+
 - `h/j/k/l` moves the center point by 200px in that direction
 - Labels animate in/out as they enter/leave the radius
 - Smooth transition (80ms) maintains spatial continuity
+
+
 
 ### Pros
 
@@ -156,6 +197,8 @@ graph LR
 - Natural extension of existing aura ring concept
 - Feels like exploring with a flashlight — intuitive metaphor
 
+
+
 ### Cons
 
 - Requires extra steps if target is far from current position
@@ -163,16 +206,22 @@ graph LR
 - Users must track their position mentally during shifts
 - Edge indicators add minor but constant UI noise
 
+
+
 ### UX Trade-offs
 
-| Factor | Rating |
-|--------|--------|
-| Learning curve | Low — spatial shifting is intuitive |
-| Speed (sparse page) | Good — all elements likely within initial radius |
-| Speed (dense page) | Medium — may need 1-2 shifts |
-| Speed (cross-page jump) | Poor — multiple shifts needed |
-| Visual clarity | Excellent — never more than ~15 labels |
-| Spatial context | Excellent — continuous, not discrete |
+
+| Factor                  | Rating                                           |
+| ----------------------- | ------------------------------------------------ |
+| Learning curve          | Low — spatial shifting is intuitive              |
+| Speed (sparse page)     | Good — all elements likely within initial radius |
+| Speed (dense page)      | Medium — may need 1-2 shifts                     |
+| Speed (cross-page jump) | Poor — multiple shifts needed                    |
+| Visual clarity          | Excellent — never more than ~15 labels           |
+| Spatial context         | Excellent — continuous, not discrete             |
+
+
+
 
 ### Implementation Complexity: Medium-High
 
@@ -183,18 +232,26 @@ graph LR
 - Center point state management separate from ring position
 - ~250 lines new code, moderate refactor of `activatePicker()`
 
+
+
 ### Page Type Suitability
 
-| Page Type | Fitness |
-|-----------|---------|
-| Simple blog | Good — everything likely in one radius |
-| Dense dashboard | Decent — but many shifts needed for distant panels |
-| Social feed | Excellent — natural vertical scrolling through items |
-| SPA (Gmail, etc.) | Poor — jumping from sidebar to main content is slow |
+
+| Page Type         | Fitness                                              |
+| ----------------- | ---------------------------------------------------- |
+| Simple blog       | Good — everything likely in one radius               |
+| Dense dashboard   | Decent — but many shifts needed for distant panels   |
+| Social feed       | Excellent — natural vertical scrolling through items |
+| SPA (Gmail, etc.) | Poor — jumping from sidebar to main content is slow  |
+
 
 ---
 
+
+
 ## Approach 3: Command Palette / Search-First Model
+
+
 
 ### Description
 
@@ -214,23 +271,32 @@ graph LR
     B --> H[Ctrl+L: switch to spatial labels fallback]
 ```
 
+
+
+
+
 ### Design Details
 
 **Panel Design:**
+
 - Reuses existing `quick-actions` panel architecture (already built)
 - Position: top 20% of viewport, centered, 420px wide
 - Each row shows: number badge + element name + element type tag + URL preview (for links)
 
 **Element Naming:**
+
 - Priority: `aria-label` → visible text content → `title` → `placeholder` → tag+class
 - Links show URL domain as secondary text
 - Buttons show text content
 - Inputs show label or placeholder
 
 **Page Highlight:**
+
 - As user arrows through results, selected element gets a temporary aura ring
 - Highlight provides spatial confirmation without cluttering the page
 - Auto-scrolls to reveal off-screen selected elements
+
+
 
 ### Pros
 
@@ -240,6 +306,8 @@ graph LR
 - Fuzzy matching handles typos and partial recall
 - Accessible — works perfectly with screen readers
 
+
+
 ### Cons
 
 - Requires knowing element names (or at least partial text)
@@ -247,16 +315,22 @@ graph LR
 - Not as fast for visual targets (user sees a button, has to recall its text)
 - Dense pages with similar names (10 "Read more" links) create ambiguous results
 
+
+
 ### UX Trade-offs
 
-| Factor | Rating |
-|--------|--------|
-| Learning curve | Very low — universal pattern |
-| Speed (known target) | Excellent — type 2-3 chars, enter |
-| Speed (visual target) | Poor — requires recalling text |
-| Visual clarity | Perfect — zero page overlays |
-| Spatial context | Poor — text list, no spatial mapping |
-| Accessibility | Excellent — fully screen-reader compatible |
+
+| Factor                | Rating                                     |
+| --------------------- | ------------------------------------------ |
+| Learning curve        | Very low — universal pattern               |
+| Speed (known target)  | Excellent — type 2-3 chars, enter          |
+| Speed (visual target) | Poor — requires recalling text             |
+| Visual clarity        | Perfect — zero page overlays               |
+| Spatial context       | Poor — text list, no spatial mapping       |
+| Accessibility         | Excellent — fully screen-reader compatible |
+
+
+
 
 ### Implementation Complexity: Low-Medium
 
@@ -266,18 +340,26 @@ graph LR
 - Highlight ring on selection (reuse `transitionTo()`)
 - ~120 lines new code, mostly wiring existing infrastructure
 
+
+
 ### Page Type Suitability
 
-| Page Type | Fitness |
-|-----------|---------|
-| Simple blog | Good — links have descriptive text |
-| Dense dashboard | Excellent — most elements have distinct labels |
-| Social feed | Poor — many elements share names ("Like", "Share", "Reply") |
-| SPA (Gmail, etc.) | Good — buttons/actions have unique labels |
+
+| Page Type         | Fitness                                                     |
+| ----------------- | ----------------------------------------------------------- |
+| Simple blog       | Good — links have descriptive text                          |
+| Dense dashboard   | Excellent — most elements have distinct labels              |
+| Social feed       | Poor — many elements share names ("Like", "Share", "Reply") |
+| SPA (Gmail, etc.) | Good — buttons/actions have unique labels                   |
+
 
 ---
 
+
+
 ## Approach 4: Smart Density Adaptation (Current + Refinements)
+
+
 
 ### Description
 
@@ -299,17 +381,23 @@ graph LR
     H --> F
 ```
 
+
+
+
+
 ### Design Details
 
 **Tier 1 (<20 elements):** Current behavior, unchanged.
 
 **Tier 2 (20-50 elements):**
+
 - Distance-based opacity: labels near viewport center are fully opaque, edges fade to 40%
 - Semantic coloring: links get blue-tinted labels, buttons get purple, inputs get green
 - Cap visible labels at 30; remaining get presence dots
 - Top 10 still get numeric badges
 
 **Tier 3 (50+ elements):**
+
 - Opens search-first panel (Approach 3) by default
 - Shows count: "127 elements — type to search"
 - Escape hatch: `Ctrl+L` force-shows all labels (with density tier 2 treatment)
@@ -325,6 +413,8 @@ graph LR
 - Configurable thresholds respect user preference
 - Minimal new UI components needed
 
+
+
 ### Cons
 
 - Behavior changes between pages may confuse users
@@ -332,16 +422,22 @@ graph LR
 - Threshold boundaries feel arbitrary ("why did it switch?")
 - More conditional logic = more edge cases to test
 
+
+
 ### UX Trade-offs
 
-| Factor | Rating |
-|--------|--------|
-| Learning curve | Low for sparse pages, medium for the mode-switching |
-| Speed (sparse page) | Excellent — identical to current |
-| Speed (dense page) | Good — search is fast for known targets |
-| Consistency | Poor — different pages behave differently |
-| Visual clarity | Good-to-excellent depending on tier |
-| Configuration burden | Medium — users may need to tune thresholds |
+
+| Factor               | Rating                                              |
+| -------------------- | --------------------------------------------------- |
+| Learning curve       | Low for sparse pages, medium for the mode-switching |
+| Speed (sparse page)  | Excellent — identical to current                    |
+| Speed (dense page)   | Good — search is fast for known targets             |
+| Consistency          | Poor — different pages behave differently           |
+| Visual clarity       | Good-to-excellent depending on tier                 |
+| Configuration burden | Medium — users may need to tune thresholds          |
+
+
+
 
 ### Implementation Complexity: Low
 
@@ -352,18 +448,26 @@ graph LR
 - Threshold settings: add to `Settings` type + options page
 - ~80 lines new code, mostly threshold logic
 
+
+
 ### Page Type Suitability
 
-| Page Type | Fitness |
-|-----------|---------|
-| Simple blog | Excellent — Tier 1, unchanged |
-| Dense dashboard | Good — Tier 2/3 adapts appropriately |
-| Social feed | Good — Tier 3 search handles repetitive elements |
-| SPA (Gmail, etc.) | Good — adapts per view within the SPA |
+
+| Page Type         | Fitness                                          |
+| ----------------- | ------------------------------------------------ |
+| Simple blog       | Excellent — Tier 1, unchanged                    |
+| Dense dashboard   | Good — Tier 2/3 adapts appropriately             |
+| Social feed       | Good — Tier 3 search handles repetitive elements |
+| SPA (Gmail, etc.) | Good — adapts per view within the SPA            |
+
 
 ---
 
+
+
 ## Approach 5: Hybrid Quick-Pick Strip + Spatial Overlay
+
+
 
 ### Description
 
@@ -385,9 +489,14 @@ graph LR
     B --> G[Strip pills: '1 Sign In' '2 Search' '3 Menu' ...]
 ```
 
+
+
+
+
 ### Design Details
 
 **Bottom Strip:**
+
 - Fixed position bar, 48px height, full width
 - Shows top 5-10 elements by prominence score (area × visibility × landmark weight)
 - Each pill: number badge + truncated element name (max 12 chars)
@@ -395,15 +504,19 @@ graph LR
 - Scrollable horizontally if >10 items
 
 **Spatial Labels (Capped):**
+
 - Only top 20 elements by proximity to viewport center get letter labels
 - Remaining elements shown as subtle dots (presence markers)
 - Labels use the existing hint-label styling
 - Number badges (1-9) on labels that also appear in the strip
 
 **Dual Input:**
+
 - Numbers 1-9: instant pick from strip (no Enter needed)
 - Letters a-z: filter spatial labels (existing behavior)
 - The two pathways coexist without conflict
+
+
 
 ### Pros
 
@@ -413,6 +526,8 @@ graph LR
 - Graceful for dense pages (strip catches the most important elements)
 - Number shortcuts work identically to existing Alt+1-9 quick-pick
 
+
+
 ### Cons
 
 - More UI elements on screen (strip + labels + modal)
@@ -420,16 +535,22 @@ graph LR
 - Strip takes up 48px of viewport space
 - Prominence scoring may not match user intent
 
+
+
 ### UX Trade-offs
 
-| Factor | Rating |
-|--------|--------|
-| Learning curve | Medium — two systems to understand |
-| Speed (known target in strip) | Excellent — single digit press |
-| Speed (spatial target) | Good — capped labels are manageable |
-| Visual clarity | Good — but more total UI elements |
-| Discoverability | Excellent — strip labels are self-documenting |
-| Screen real estate | Costs 48px bottom bar |
+
+| Factor                        | Rating                                        |
+| ----------------------------- | --------------------------------------------- |
+| Learning curve                | Medium — two systems to understand            |
+| Speed (known target in strip) | Excellent — single digit press                |
+| Speed (spatial target)        | Good — capped labels are manageable           |
+| Visual clarity                | Good — but more total UI elements             |
+| Discoverability               | Excellent — strip labels are self-documenting |
+| Screen real estate            | Costs 48px bottom bar                         |
+
+
+
 
 ### Implementation Complexity: Medium
 
@@ -439,18 +560,26 @@ graph LR
 - Dual input routing (numbers → strip, letters → labels)
 - ~200 lines new code, moderate integration work
 
+
+
 ### Page Type Suitability
 
-| Page Type | Fitness |
-|-----------|---------|
-| Simple blog | Good — strip has the key links, labels handle the rest |
-| Dense dashboard | Excellent — strip catches primary actions, labels for secondary |
-| Social feed | Good — strip surfaces key actions (compose, notifications) |
-| SPA (Gmail, etc.) | Excellent — strip maps to primary nav, labels for content |
+
+| Page Type         | Fitness                                                         |
+| ----------------- | --------------------------------------------------------------- |
+| Simple blog       | Good — strip has the key links, labels handle the rest          |
+| Dense dashboard   | Excellent — strip catches primary actions, labels for secondary |
+| Social feed       | Good — strip surfaces key actions (compose, notifications)      |
+| SPA (Gmail, etc.) | Excellent — strip maps to primary nav, labels for content       |
+
 
 ---
 
+
+
 ## Approach 6: Treemap / Hierarchical Grouping
+
+
 
 ### Description
 
@@ -471,9 +600,14 @@ graph LR
     E --> I[Backspace: return to group view]
 ```
 
+
+
+
+
 ### Design Details
 
 **Group Detection (priority order):**
+
 1. `<nav>`, `<main>`, `<aside>`, `<header>`, `<footer>` landmarks
 2. Elements with `role="navigation"`, `role="main"`, `role="complementary"`
 3. `<section>` with `aria-label` or `<h2>`-`<h6>` heading
@@ -481,16 +615,20 @@ graph LR
 5. Fallback: visual quadrant grouping (degrade to zone-based)
 
 **Group Label Display:**
+
 - Large, centered label on each detected container
 - Label shows: key + group name (e.g., `N Navigation`, `M Main Content`, `S Sidebar`)
 - Container gets a subtle border highlight in purple
 - Non-target containers dim to 30% opacity when a group is selected
 
 **Expansion:**
+
 - On group selection, only that container's elements get individual labels
 - Other containers fade out completely
 - Backspace returns to group view
 - If a container has ≤5 elements, skip individual labels — show them directly
+
+
 
 ### Pros
 
@@ -498,6 +636,8 @@ graph LR
 - Very low initial clutter (3-7 group labels typically)
 - Semantically meaningful labels ("N for Nav" vs. arbitrary "A for top-left zone")
 - Progressive: 2 keystrokes for grouped, 1 for small groups that auto-expand
+
+
 
 ### Cons
 
@@ -507,16 +647,22 @@ graph LR
 - Complex implementation with many edge cases
 - Group names may not be intuitive if auto-generated
 
+
+
 ### UX Trade-offs
 
-| Factor | Rating |
-|--------|--------|
-| Learning curve | Medium — groups are discoverable but vary per site |
-| Speed (well-structured pages) | Excellent — semantic groups are predictable |
-| Speed (poorly-structured pages) | Poor — fallback to arbitrary grouping |
-| Consistency across sites | Poor — groups change per site |
-| Visual clarity | Excellent on initial view (few labels) |
-| Semantic alignment | Excellent when landmarks exist |
+
+| Factor                          | Rating                                             |
+| ------------------------------- | -------------------------------------------------- |
+| Learning curve                  | Medium — groups are discoverable but vary per site |
+| Speed (well-structured pages)   | Excellent — semantic groups are predictable        |
+| Speed (poorly-structured pages) | Poor — fallback to arbitrary grouping              |
+| Consistency across sites        | Poor — groups change per site                      |
+| Visual clarity                  | Excellent on initial view (few labels)             |
+| Semantic alignment              | Excellent when landmarks exist                     |
+
+
+
 
 ### Implementation Complexity: High
 
@@ -528,33 +674,45 @@ graph LR
 - Edge cases: overlapping containers, deeply nested landmarks, SPAs with dynamic structure
 - ~400 lines new code, significant algorithm design work
 
+
+
 ### Page Type Suitability
 
-| Page Type | Fitness |
-|-----------|---------|
-| Simple blog | Excellent — clear header/nav/main/footer structure |
-| Dense dashboard | Good — if using semantic markup; poor if all divs |
-| Social feed | Decent — feed is one group, nav is another |
-| SPA (Gmail, etc.) | Good — typically has landmark roles |
+
+| Page Type         | Fitness                                            |
+| ----------------- | -------------------------------------------------- |
+| Simple blog       | Excellent — clear header/nav/main/footer structure |
+| Dense dashboard   | Good — if using semantic markup; poor if all divs  |
+| Social feed       | Decent — feed is one group, nav is another         |
+| SPA (Gmail, etc.) | Good — typically has landmark roles                |
+
 
 ---
+
+
 
 ## Comparative Matrix
 
-| Criterion | Zone-Based | Aura Proximity | Search-First | Smart Density | Hybrid Strip | Treemap |
-|-----------|:---------:|:--------------:|:------------:|:-------------:|:------------:|:-------:|
-| **Max labels visible** | 9 → ~25 | ~15 | 0 (panel) | Adaptive | 20 + strip | 5 → ~20 |
-| **Keystrokes to target** | 2 | 1-3+ | 2-5 | 1-2 | 1-2 | 2 |
-| **Consistency** | High | High | High | Low | High | Low |
-| **Spatial context** | Medium | High | Low | Medium | High | Medium |
-| **Dense page fitness** | Good | Medium | Good | Good | Good | Varies |
-| **Learning curve** | Medium | Low | Low | Low-Med | Medium | Medium |
-| **Implementation effort** | Medium | Med-High | Low-Med | Low | Medium | High |
-| **Accessibility** | Good | Good | Excellent | Good | Good | Good |
+
+| Criterion                 | Zone-Based | Aura Proximity | Search-First | Smart Density | Hybrid Strip | Treemap |
+| ------------------------- | ---------- | -------------- | ------------ | ------------- | ------------ | ------- |
+| **Max labels visible**    | 9 → ~25    | ~15            | 0 (panel)    | Adaptive      | 20 + strip   | 5 → ~20 |
+| **Keystrokes to target**  | 2          | 1-3+           | 2-5          | 1-2           | 1-2          | 2       |
+| **Consistency**           | High       | High           | High         | Low           | High         | Low     |
+| **Spatial context**       | Medium     | High           | Low          | Medium        | High         | Medium  |
+| **Dense page fitness**    | Good       | Medium         | Good         | Good          | Good         | Varies  |
+| **Learning curve**        | Medium     | Low            | Low          | Low-Med       | Medium       | Medium  |
+| **Implementation effort** | Medium     | Med-High       | Low-Med      | Low           | Medium       | High    |
+| **Accessibility**         | Good       | Good           | Excellent    | Good          | Good         | Good    |
+
 
 ---
 
+
+
 ## Recommendation
+
+
 
 ### Proposed Path: Smart Density Adaptation + Search Escape Hatch
 
@@ -567,7 +725,11 @@ After analyzing all six approaches against Navigator's design principles (keyboa
 3. **Progressive disclosure** — complexity only appears when needed
 4. **Matches the project's philosophy** — adaptive behavior that "just works"
 
+
+
 ### Phased Implementation Plan
+
+
 
 #### Phase 1: Density-Aware Opacity (1-2 days)
 
@@ -586,21 +748,29 @@ if (allHints.length > 20) {
 }
 ```
 
+
+
 #### Phase 2: Search Integration (2-3 days)
 
 When 50+ elements detected, open a combined view:
+
 - Search panel appears (reuse quick-actions architecture)
 - Page labels still shown but dimmed
 - Typing filters both the panel AND the page labels
 - `Ctrl+L` toggles between search-focused and labels-focused view
 
+
+
 #### Phase 3: Semantic Color Coding (1 day)
 
 Add CSS classes based on element type for visual grouping:
+
 - Links: cool blue tint on label border
 - Buttons/actions: purple accent (matches brand)
 - Inputs/forms: green tint
 - Navigation elements: subtle gold
+
+
 
 #### Phase 4 (Optional): Zone Fallback for Extreme Density
 
@@ -610,48 +780,12 @@ If a page has 100+ elements AND the user has enabled "zone mode" in settings, of
 
 Add to settings:
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `pickerDensityThreshold` | `20` | Element count that triggers density adaptations |
-| `pickerSearchThreshold` | `50` | Element count that triggers search-first |
-| `pickerMaxLabels` | `30` | Maximum simultaneously visible labels |
-| `pickerMode` | `"adaptive"` | `"adaptive"` / `"always-labels"` / `"always-search"` |
 
-### What We Explicitly Defer
+| Setting                  | Default      | Description                                          |
+| ------------------------ | ------------ | ---------------------------------------------------- |
+| `pickerDensityThreshold` | `20`         | Element count that triggers density adaptations      |
+| `pickerSearchThreshold`  | `50`         | Element count that triggers search-first             |
+| `pickerMaxLabels`        | `30`         | Maximum simultaneously visible labels                |
+| `pickerMode`             | `"adaptive"` | `"adaptive"` / `"always-labels"` / `"always-search"` |
 
-- **Treemap/Hierarchical** (Approach 6): Too much complexity for uncertain payoff. Revisit when/if we add landmark-based navigation as a standalone feature.
-- **Aura Proximity** (Approach 2): Beautiful concept but penalizes "jump across page" too heavily — a core use case for picker mode.
-- **Hybrid Strip** (Approach 5): Interesting but adds too much persistent UI. The existing Alt+1-9 quick-pick already serves the "prominent element" use case without a visible strip.
 
-### Success Metrics
-
-After implementation, measure (via optional telemetry or user feedback):
-- Average keystrokes to target on dense pages (goal: reduce from ~3.5 to ~2.5)
-- Picker abandonment rate (Escape without selection) — should decrease
-- Time-to-activation on 50+ element pages — should decrease by >30%
-
----
-
-## Appendix: Design Language Reference
-
-All new components should follow Navigator's established visual language:
-
-| Token | Value |
-|-------|-------|
-| Background | `rgba(15, 15, 30, 0.92-0.94)` |
-| Border | `rgba(100, 80, 255, 0.15-0.25)` |
-| Accent | `hsla(250, 80%, 65%, 1)` — `#6450ff` area |
-| Text | `#e4e4ef` |
-| Text muted | `#6a6a8a` / `#8888a8` |
-| Font (mono) | `ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace` |
-| Font (UI) | `-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif` |
-| Border radius | `4px` (labels), `6px` (tooltips), `12px` (panels) |
-| Backdrop | `blur(8-20px)` |
-| Shadow | `0 2-8px 8-32px rgba(0, 0, 0, 0.3-0.4)` |
-| Animation ease | `cubic-bezier(0.16, 1, 0.3, 1)` |
-| Entry duration | `150ms` |
-| Z-index | `2147483645` (below browser UI, above all page content) |
-
----
-
-*This document is intended as a living reference. Update it as implementation progresses and user feedback arrives.*

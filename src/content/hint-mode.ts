@@ -1,7 +1,7 @@
 import { AURA_COLOR } from '../shared/constants';
 import { buildComboString } from '../shared/keys';
 import type { IndexedElement, Settings } from '../shared/types';
-import { transitionTo, hide as hideAura } from './aura-ring';
+import { hide as hideAura, transitionTo } from './aura-ring';
 import { pushFocus } from './focus-history';
 import { revealElement } from './hover-manager';
 import { registerKeyHandler } from './key-handler';
@@ -9,13 +9,20 @@ import { scanVisibleElements } from './mutation-observer';
 
 const HINT_CHARS = 'asdfghjklqwertyuiopzxcvbnm'.split('');
 
+type PickerPhase = 'inactive' | 'zone-select' | 'zone-zoomed';
+let phase: PickerPhase = 'inactive';
+let activeZone = -1;
+
+const ZONE_KEYS = ['a', 's', 'd', 'f', 'g', 'h'];
+const ZONE_COLS = 3;
+const ZONE_ROWS = 2;
+
 let host: HTMLElement | null = null;
 let shadow: ShadowRoot | null = null;
 let modalEl: HTMLElement | null = null;
 let labelsContainer: HTMLElement | null = null;
 let tooltipEl: HTMLElement | null = null;
 let tooltipTimer: ReturnType<typeof setTimeout> | null = null;
-let active = false;
 let typedFilter = '';
 let allHints: HintEntry[] = [];
 let filteredHints: HintEntry[] = [];
@@ -23,10 +30,12 @@ let settings: Settings | null = null;
 let unregisterKey: (() => void) | null = null;
 let lastPickedElement: HTMLElement | null = null;
 
-// Multi-select state
 let multiSelected: Set<HintEntry> = new Set();
 let badgeEl: HTMLElement | null = null;
 let dimOverlay: HTMLElement | null = null;
+let zoneMarkersContainer: HTMLElement | null = null;
+let miniMapEl: HTMLElement | null = null;
+let vignetteEl: HTMLElement | null = null;
 
 interface HintEntry {
   label: string;
@@ -48,13 +57,31 @@ export function initHintMode(): void {
   style.textContent = getHintStyles();
   shadow.appendChild(style);
 
+  dimOverlay = document.createElement('div');
+  dimOverlay.className = 'dim-overlay hidden';
+  shadow.appendChild(dimOverlay);
+
+  vignetteEl = document.createElement('div');
+  vignetteEl.className = 'vignette hidden';
+  shadow.appendChild(vignetteEl);
+
+  zoneMarkersContainer = document.createElement('div');
+  zoneMarkersContainer.className = 'zone-markers-container hidden';
+  shadow.appendChild(zoneMarkersContainer);
+
   labelsContainer = document.createElement('div');
   labelsContainer.className = 'labels-container';
   shadow.appendChild(labelsContainer);
 
-  dimOverlay = document.createElement('div');
-  dimOverlay.className = 'dim-overlay hidden';
-  shadow.appendChild(dimOverlay);
+  miniMapEl = document.createElement('div');
+  miniMapEl.className = 'mini-map hidden';
+  for (let i = 0; i < 6; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'mm-cell';
+    cell.dataset.zone = String(i);
+    miniMapEl.appendChild(cell);
+  }
+  shadow.appendChild(miniMapEl);
 
   modalEl = document.createElement('div');
   modalEl.className = 'hint-modal hidden';
@@ -62,6 +89,8 @@ export function initHintMode(): void {
   modalEl.setAttribute('aria-label', 'Element picker');
   modalEl.innerHTML = `
     <div class="hint-input" aria-live="polite"><span class="hint-typed"></span><span class="hint-cursor">|</span></div>
+    <div class="hint-count"></div>
+    <div class="hint-preview"></div>
     <div class="hint-help">Type to filter \u2022 Enter to select \u2022 Shift+Enter new tab \u2022 Esc to cancel</div>
   `;
   shadow.appendChild(modalEl);
@@ -86,123 +115,400 @@ export function updatePickerSettings(newSettings: Settings): void {
   settings = newSettings;
 }
 
+export function activateHintMode(
+  _elements: IndexedElement[],
+  _selectCb: (element: IndexedElement) => void,
+  _cancelCb: () => void,
+): void {
+  startZoneSelection();
+}
+
+export function deactivateHintMode(): void {
+  exitPicker();
+}
+
+export function isHintModeActive(): boolean {
+  return phase !== 'inactive';
+}
+
+export function getFilteredElements(): IndexedElement[] {
+  return filteredHints.map((h) => h.element);
+}
+
+export function getLastPickedElement(): HTMLElement | null {
+  return lastPickedElement;
+}
+
+export function destroyHintMode(): void {
+  exitPicker();
+  if (host) {
+    host.remove();
+    host = null;
+    shadow = null;
+    labelsContainer = null;
+    modalEl = null;
+    badgeEl = null;
+    dimOverlay = null;
+    zoneMarkersContainer = null;
+    miniMapEl = null;
+    vignetteEl = null;
+  }
+  if (unregisterKey) unregisterKey();
+}
+
+// === Key Handler ===
+
 function handlePickerKeydown(e: KeyboardEvent): boolean {
   if (!settings) return false;
 
-  if (!active) {
+  if (phase === 'inactive') {
     const combo = buildComboString(e);
     if (combo === settings.keybindings.picker) {
-      activatePicker();
+      startZoneSelection();
       return true;
     }
-
-    // Alt+1-9 quick-pick when picker is NOT active
     if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && /^Digit[0-9]$/.test(e.code)) {
-      const digit = parseInt(e.code.replace('Digit', ''));
+      const digit = parseInt(e.code.replace('Digit', ''), 10);
       const idx = digit === 0 ? 9 : digit - 1;
       activateQuickPick(idx);
       return true;
     }
-
     return false;
   }
 
-  // Picker is active from here on
-
-  if (e.key === 'Escape') {
-    if (multiSelected.size > 0) {
-      clearMultiSelection();
+  if (phase === 'zone-select') {
+    if (e.key === 'Escape') {
+      exitPicker();
       return true;
     }
-    deactivateHintMode();
-    return true;
-  }
-
-  if (e.key === 'Enter') {
-    if (multiSelected.size > 0) {
-      const targets = [...multiSelected];
-      deactivateHintMode();
-      executeBatchAction(targets.map((h) => h.element));
-    } else if (filteredHints.length > 0) {
-      const target = filteredHints[0];
-      const newTab = e.shiftKey;
-      deactivateHintMode();
-      activateTarget(target.element, newTab);
+    const zoneIdx = ZONE_KEYS.indexOf(e.key.toLowerCase());
+    if (zoneIdx !== -1 && !e.altKey && !e.ctrlKey && !e.metaKey) {
+      zoomIntoZone(zoneIdx);
+      return true;
     }
     return true;
   }
 
-  if (e.key === 'Backspace') {
-    if (typedFilter.length > 0) {
-      typedFilter = typedFilter.slice(0, -1);
-      applyFilter();
+  if (phase === 'zone-zoomed') {
+    if (e.key === 'Escape') {
+      if (multiSelected.size > 0) {
+        clearMultiSelection();
+        return true;
+      }
+      zoomOut();
+      return true;
     }
-    return true;
-  }
 
-  if (!e.altKey && !e.ctrlKey && !e.metaKey && /^[0-9]$/.test(e.key)) {
-    const num = e.key === '0' ? 10 : parseInt(e.key);
-    const idx = num - 1;
-    if (idx < filteredHints.length) {
-      const target = filteredHints[idx];
-      if (e.shiftKey) {
-        toggleMultiSelect(target);
-      } else {
-        const newTab = false;
-        deactivateHintMode();
-        activateTarget(target.element, newTab);
+    if (e.altKey && !e.ctrlKey && !e.metaKey) {
+      const direction = getNavDirection(e);
+      if (direction) {
+        navigateZone(direction);
+        return true;
       }
     }
-    return true;
-  }
 
-  // Shift+letter: toggle multi-select for matching hint
-  if (e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey && e.key.length === 1 && /^[a-zA-Z]$/.test(e.key)) {
-    const letter = e.key.toLowerCase();
-    const matchingHint = filteredHints.find((h) => h.label === typedFilter + letter);
-    if (matchingHint) {
-      toggleMultiSelect(matchingHint);
+    if (ZONE_KEYS[activeZone] === e.key.toLowerCase() && !e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+      zoomOut();
       return true;
     }
-  }
 
-  if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
-    typedFilter += e.key.toLowerCase();
-    applyFilter();
-
-    if (filteredHints.length === 1) {
-      const target = filteredHints[0];
-      deactivateHintMode();
-      activateTarget(target.element, false);
-    } else if (filteredHints.length === 0) {
-      flashNoMatch();
-      typedFilter = '';
-      filteredHints = [...allHints];
-      updateVisuals();
-      updateModal();
-      updateRingPosition();
+    if (e.key === 'Enter') {
+      if (multiSelected.size > 0) {
+        const targets = [...multiSelected];
+        exitPicker();
+        executeBatchAction(targets.map((h) => h.element));
+      } else if (filteredHints.length > 0) {
+        const target = filteredHints[0];
+        const newTab = e.shiftKey;
+        exitPicker();
+        activateTarget(target.element, newTab);
+      }
+      return true;
     }
 
-    return true;
+    if (e.key === 'Backspace') {
+      if (typedFilter.length > 0) {
+        typedFilter = typedFilter.slice(0, -1);
+        applyFilter();
+      }
+      return true;
+    }
+
+    if (!e.altKey && !e.ctrlKey && !e.metaKey && /^[0-9]$/.test(e.key)) {
+      const num = e.key === '0' ? 10 : parseInt(e.key, 10);
+      const idx = num - 1;
+      if (idx < filteredHints.length) {
+        const target = filteredHints[idx];
+        if (e.shiftKey) {
+          toggleMultiSelect(target);
+        } else {
+          exitPicker();
+          activateTarget(target.element, false);
+        }
+      }
+      return true;
+    }
+
+    if (e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey && e.key.length === 1 && /^[a-zA-Z]$/.test(e.key)) {
+      const letter = e.key.toLowerCase();
+      const matchingHint = filteredHints.find((h) => h.label === typedFilter + letter);
+      if (matchingHint) {
+        toggleMultiSelect(matchingHint);
+        return true;
+      }
+    }
+
+    if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
+      typedFilter += e.key.toLowerCase();
+      applyFilter();
+
+      if (filteredHints.length === 1) {
+        const target = filteredHints[0];
+        exitPicker();
+        activateTarget(target.element, false);
+      } else if (filteredHints.length === 0) {
+        flashNoMatch();
+        typedFilter = '';
+        filteredHints = [...allHints];
+        updateVisuals();
+        updateModal();
+        updateRingPosition();
+      }
+
+      return true;
+    }
   }
 
   return true;
 }
 
-function activatePicker(): void {
+// === Zone Selection ===
+
+function startZoneSelection(): void {
   if (!labelsContainer || !modalEl) return;
 
   const scope = getPickerScope();
+  if (scope) {
+    activateDirectLabeling(scope);
+    return;
+  }
+
+  phase = 'zone-select';
+  activeZone = -1;
+
+  if (dimOverlay) dimOverlay.classList.remove('hidden');
+  showZoneMarkers();
+  showMiniMap();
+  updateMiniMap(-1);
+}
+
+function activateDirectLabeling(scope: HTMLElement | null): void {
+  phase = 'zone-zoomed';
+  activeZone = -1;
+  if (dimOverlay) dimOverlay.classList.remove('hidden');
+  showMiniMap();
+  renderLabelsForScope(scope);
+  if (modalEl) modalEl.classList.remove('hidden');
+  updateModal();
+}
+
+// === Zone Markers ===
+
+function showZoneMarkers(): void {
+  if (!zoneMarkersContainer) return;
+  zoneMarkersContainer.innerHTML = '';
+  zoneMarkersContainer.classList.remove('hidden');
+
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const zoneW = vw / ZONE_COLS;
+  const zoneH = vh / ZONE_ROWS;
+
+  for (let i = 0; i < 6; i++) {
+    const col = i % ZONE_COLS;
+    const row = Math.floor(i / ZONE_COLS);
+    const marker = document.createElement('div');
+    marker.className = 'zone-marker';
+    marker.textContent = ZONE_KEYS[i].toUpperCase();
+    marker.style.left = `${col * zoneW + zoneW / 2 - 24}px`;
+    marker.style.top = `${row * zoneH + zoneH / 2 - 24}px`;
+    zoneMarkersContainer.appendChild(marker);
+  }
+}
+
+function hideZoneMarkers(): void {
+  if (zoneMarkersContainer) {
+    zoneMarkersContainer.classList.add('hidden');
+    zoneMarkersContainer.innerHTML = '';
+  }
+}
+
+// === Mini-map ===
+
+function showMiniMap(): void {
+  if (miniMapEl) miniMapEl.classList.remove('hidden');
+}
+
+function hideMiniMap(): void {
+  if (miniMapEl) miniMapEl.classList.add('hidden');
+}
+
+function updateMiniMap(zoneIdx: number): void {
+  if (!miniMapEl) return;
+  const cells = miniMapEl.querySelectorAll('.mm-cell');
+  cells.forEach((cell, i) => {
+    if (i === zoneIdx) {
+      cell.classList.add('active');
+    } else {
+      cell.classList.remove('active');
+    }
+  });
+}
+
+// === Vignette ===
+
+function showVignette(): void {
+  if (vignetteEl) vignetteEl.classList.remove('hidden');
+}
+
+function hideVignette(): void {
+  if (vignetteEl) vignetteEl.classList.add('hidden');
+}
+
+// === Zoom Mechanics ===
+
+function zoomIntoZone(zoneIdx: number): void {
+  activeZone = zoneIdx;
+  phase = 'zone-zoomed';
+
+  const col = zoneIdx % ZONE_COLS;
+  const row = Math.floor(zoneIdx / ZONE_COLS);
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const zoneW = vw / ZONE_COLS;
+  const zoneH = vh / ZONE_ROWS;
+
+  const originX = ((col * zoneW + zoneW / 2) / vw) * 100;
+  const originY = ((row * zoneH + zoneH / 2) / vh) * 100;
+
+  document.documentElement.style.transformOrigin = `${originX}% ${originY}%`;
+  document.documentElement.style.transition = 'transform 250ms cubic-bezier(0.22, 1, 0.36, 1)';
+  document.documentElement.style.transform = 'scale(1.4)';
+  document.documentElement.style.overflow = 'hidden';
+
+  hideZoneMarkers();
+  if (dimOverlay) dimOverlay.classList.add('hidden');
+  showVignette();
+  updateMiniMap(zoneIdx);
+
+  setTimeout(() => {
+    renderZoneLabels();
+    if (modalEl) modalEl.classList.remove('hidden');
+    updateModal();
+  }, 260);
+}
+
+function zoomOut(): void {
+  phase = 'zone-select';
+  activeZone = -1;
+
+  document.documentElement.style.transition = 'transform 200ms cubic-bezier(0.22, 1, 0.36, 1)';
+  document.documentElement.style.transform = '';
+
+  setTimeout(() => {
+    document.documentElement.style.transformOrigin = '';
+    document.documentElement.style.transition = '';
+    document.documentElement.style.overflow = '';
+  }, 210);
+
+  if (labelsContainer) labelsContainer.innerHTML = '';
+  allHints = [];
+  filteredHints = [];
+  typedFilter = '';
+  multiSelected = new Set();
+  hideVignette();
+  if (dimOverlay) dimOverlay.classList.remove('hidden');
+  if (modalEl) modalEl.classList.add('hidden');
+  if (badgeEl) badgeEl.classList.add('hidden');
+  updateMiniMap(-1);
+  showZoneMarkers();
+  hideTooltip();
+  updateModal();
+}
+
+function exitPicker(): void {
+  phase = 'inactive';
+  activeZone = -1;
+
+  document.documentElement.style.transform = '';
+  document.documentElement.style.transformOrigin = '';
+  document.documentElement.style.transition = '';
+  document.documentElement.style.overflow = '';
+
+  if (labelsContainer) labelsContainer.innerHTML = '';
+  if (modalEl) modalEl.classList.add('hidden');
+  if (badgeEl) badgeEl.classList.add('hidden');
+  allHints = [];
+  filteredHints = [];
+  typedFilter = '';
+  multiSelected = new Set();
+  hideZoneMarkers();
+  hideVignette();
+  hideMiniMap();
+  hideAura();
+  hideTooltip();
+  if (dimOverlay) dimOverlay.classList.add('hidden');
+}
+
+// === Zone Navigation ===
+
+function getNavDirection(e: KeyboardEvent): string | null {
+  if (e.key === 'h' || e.key === 'ArrowLeft') return 'left';
+  if (e.key === 'l' || e.key === 'ArrowRight') return 'right';
+  if (e.key === 'k' || e.key === 'ArrowUp') return 'up';
+  if (e.key === 'j' || e.key === 'ArrowDown') return 'down';
+  return null;
+}
+
+function navigateZone(direction: string): void {
+  const col = activeZone % ZONE_COLS;
+  const row = Math.floor(activeZone / ZONE_COLS);
+
+  let newCol = col;
+  let newRow = row;
+  if (direction === 'left') newCol = Math.max(0, col - 1);
+  if (direction === 'right') newCol = Math.min(ZONE_COLS - 1, col + 1);
+  if (direction === 'up') newRow = Math.max(0, row - 1);
+  if (direction === 'down') newRow = Math.min(ZONE_ROWS - 1, row + 1);
+
+  const newZone = newRow * ZONE_COLS + newCol;
+  if (newZone === activeZone) return;
+
+  if (labelsContainer) labelsContainer.innerHTML = '';
+  allHints = [];
+  filteredHints = [];
+  typedFilter = '';
+  multiSelected = new Set();
+
+  zoomIntoZone(newZone);
+}
+
+// === Label Rendering ===
+
+function renderZoneLabels(): void {
+  renderLabelsForScope(null);
+}
+
+function renderLabelsForScope(scope: HTMLElement | null): void {
+  if (!labelsContainer || !modalEl) return;
+
   let elements = scanViewportElements(scope);
   if (elements.length === 0 && scope !== null) {
     elements = scanViewportElements(null);
   }
   if (elements.length === 0) return;
 
-  active = true;
-
   typedFilter = '';
-
   multiSelected = new Set();
 
   const labels = generateLabels(elements.length);
@@ -244,7 +550,6 @@ function activatePicker(): void {
     allHints.push({ label, element: entry, labelEl, index: i });
   }
 
-  // Cap visible labels on dense pages
   const MAX_VISIBLE_LABELS = 30;
   if (allHints.length > MAX_VISIBLE_LABELS) {
     for (let i = MAX_VISIBLE_LABELS; i < allHints.length; i++) {
@@ -269,7 +574,6 @@ function activatePicker(): void {
     hint.labelEl.style.transitionDelay = `${delay}ms`;
     hint.labelEl.classList.add('entering');
 
-    // Distance-based opacity: closer to center = more visible
     const opacity = dist < 300 ? 1 : dist < 600 ? 0.7 : 0.4;
     hint.labelEl.style.setProperty('--hint-opacity', String(opacity));
 
@@ -280,9 +584,6 @@ function activatePicker(): void {
     });
   }
 
-  if (dimOverlay) dimOverlay.classList.remove('hidden');
-  modalEl.classList.remove('hidden');
-  updateModal();
   updateRingPosition();
   updateMultiBadge();
 }
@@ -290,7 +591,6 @@ function activatePicker(): void {
 function scanViewportElements(scope: HTMLElement | null): IndexedElement[] {
   const allElements = scanVisibleElements();
   if (!scope || scope === document.body) return allElements;
-
   return allElements.filter((indexed) => scope.contains(indexed.el));
 }
 
@@ -337,7 +637,7 @@ function detectCenterstage(): HTMLElement | null {
 
     const rect = el.getBoundingClientRect();
     const area = rect.width * rect.height;
-    const zIndex = parseInt(style.zIndex) || 0;
+    const zIndex = parseInt(style.zIndex, 10) || 0;
     if (area > vpArea * 0.1 && area < vpArea * 0.95 && zIndex > 100) {
       return el;
     }
@@ -346,71 +646,7 @@ function detectCenterstage(): HTMLElement | null {
   return null;
 }
 
-export function activateHintMode(
-  _elements: IndexedElement[],
-  _selectCb: (element: IndexedElement) => void,
-  _cancelCb: () => void,
-): void {
-  activatePicker();
-}
-
-export function deactivateHintMode(): void {
-  active = false;
-  typedFilter = '';
-  allHints = [];
-  filteredHints = [];
-  multiSelected = new Set();
-  hideTooltip();
-
-  if (labelsContainer) labelsContainer.innerHTML = '';
-  if (modalEl) modalEl.classList.add('hidden');
-  if (badgeEl) badgeEl.classList.add('hidden');
-  if (dimOverlay) dimOverlay.classList.add('hidden');
-  hideAura();
-}
-
-export function isHintModeActive(): boolean {
-  return active;
-}
-
-export function getFilteredElements(): IndexedElement[] {
-  return filteredHints.map((h) => h.element);
-}
-
-export function getLastPickedElement(): HTMLElement | null {
-  return lastPickedElement;
-}
-
-export function destroyHintMode(): void {
-  deactivateHintMode();
-  if (host) {
-    host.remove();
-    host = null;
-    shadow = null;
-    labelsContainer = null;
-    modalEl = null;
-    badgeEl = null;
-    dimOverlay = null;
-  }
-  if (unregisterKey) unregisterKey();
-}
-
-function getSemanticClass(el: HTMLElement): string {
-  const tag = el.tagName;
-  if (tag === 'A') return 'hint-link';
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return 'hint-input-field';
-  if (el.getAttribute('role') === 'textbox' || el.getAttribute('role') === 'searchbox') return 'hint-input-field';
-  const type = (el as HTMLInputElement).type?.toLowerCase?.();
-  if (
-    type === 'checkbox' ||
-    type === 'radio' ||
-    el.getAttribute('role') === 'checkbox' ||
-    el.getAttribute('role') === 'radio' ||
-    el.getAttribute('role') === 'switch'
-  )
-    return 'hint-toggle';
-  return 'hint-button';
-}
+// === Target Activation ===
 
 function activateTarget(indexed: IndexedElement, newTab: boolean): void {
   lastPickedElement = indexed.el;
@@ -442,7 +678,7 @@ function activateTarget(indexed: IndexedElement, newTab: boolean): void {
   }
 }
 
-// --- Multi-select helpers ---
+// === Multi-select ===
 
 function toggleMultiSelect(hint: HintEntry): void {
   if (multiSelected.has(hint)) {
@@ -504,7 +740,7 @@ function executeBatchAction(elements: IndexedElement[]): void {
   }
 }
 
-// --- Quick-pick (Alt+1-9) ---
+// === Quick-pick ===
 
 function activateQuickPick(idx: number): void {
   const elements = scanVisibleElements();
@@ -528,6 +764,8 @@ function activateQuickPick(idx: number): void {
   const target = scored[idx].el;
   activateTarget(target, false);
 }
+
+// === Utility Functions ===
 
 function isEditableElement(el: HTMLElement): boolean {
   const tag = el.tagName;
@@ -592,7 +830,7 @@ function updateModal(): void {
         const name = getElementName(h.element.el);
         return `<span class="preview-item"><span class="preview-key">${h.label}</span> ${escapeHtml(name)}</span>`;
       });
-      previewEl.innerHTML = previews.join('<span class="preview-sep">·</span>');
+      previewEl.innerHTML = previews.join('<span class="preview-sep">\u00b7</span>');
     } else {
       previewEl.innerHTML = '';
     }
@@ -605,7 +843,6 @@ function updateRingPosition(): void {
     const first = filteredHints[0];
     transitionTo(first.element);
     revealElement(first.element.el);
-    scrollToRevealIfNeeded(first.element.el);
     showTooltipForElement(first.element.el);
   }
 }
@@ -651,32 +888,6 @@ function addLabelsOfLength(len: number, max: number, out: string[]): void {
   generate('', len);
 }
 
-function scrollToRevealIfNeeded(el: HTMLElement): void {
-  const rect = el.getBoundingClientRect();
-  const vh = window.innerHeight;
-  const vw = window.innerWidth;
-  const padding = 20;
-
-  const clipTop = Math.max(0, -rect.top);
-  const clipBottom = Math.max(0, rect.bottom - vh);
-  const clipLeft = Math.max(0, -rect.left);
-  const clipRight = Math.max(0, rect.right - vw);
-
-  const height = rect.height || 1;
-  const width = rect.width || 1;
-  const verticalClip = (clipTop + clipBottom) / height;
-  const horizontalClip = (clipLeft + clipRight) / width;
-
-  if (verticalClip > 0.3) {
-    const scrollY = clipTop > 0 ? -(clipTop + padding) : clipBottom + padding;
-    window.scrollBy({ top: scrollY, behavior: 'smooth' });
-  }
-  if (horizontalClip > 0.3) {
-    const scrollX = clipLeft > 0 ? -(clipLeft + padding) : clipRight + padding;
-    window.scrollBy({ left: scrollX, behavior: 'smooth' });
-  }
-}
-
 function resolveOverlaps(hints: HintEntry[]): void {
   const LABEL_HEIGHT = 20;
   const LABEL_WIDTH = 28;
@@ -712,7 +923,7 @@ function resolveOverlaps(hints: HintEntry[]): void {
 function showTooltipForElement(el: HTMLElement): void {
   if (tooltipTimer) clearTimeout(tooltipTimer);
   tooltipTimer = setTimeout(() => {
-    if (!tooltipEl || !active) return;
+    if (!tooltipEl || phase === 'inactive') return;
     const text = getTooltipText(el);
     if (!text) return;
 
@@ -759,9 +970,28 @@ function getElementName(el: HTMLElement): string {
   return el.tagName.toLowerCase();
 }
 
+function getSemanticClass(el: HTMLElement): string {
+  const tag = el.tagName;
+  if (tag === 'A') return 'hint-link';
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return 'hint-input-field';
+  if (el.getAttribute('role') === 'textbox' || el.getAttribute('role') === 'searchbox') return 'hint-input-field';
+  const type = (el as HTMLInputElement).type?.toLowerCase?.();
+  if (
+    type === 'checkbox' ||
+    type === 'radio' ||
+    el.getAttribute('role') === 'checkbox' ||
+    el.getAttribute('role') === 'radio' ||
+    el.getAttribute('role') === 'switch'
+  )
+    return 'hint-toggle';
+  return 'hint-button';
+}
+
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
+
+// === Styles ===
 
 function getHintStyles(): string {
   return `
@@ -839,6 +1069,7 @@ function getHintStyles(): string {
       backdrop-filter: blur(20px);
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 1px rgba(100, 80, 255, 0.3);
       transition: opacity 150ms cubic-bezier(0.16, 1, 0.3, 1), transform 150ms cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 5;
     }
 
     .hint-modal.hidden {
@@ -939,7 +1170,7 @@ function getHintStyles(): string {
       color: ${AURA_COLOR};
       backdrop-filter: blur(12px);
       box-shadow: 0 0 12px rgba(100, 80, 255, 0.2);
-      z-index: 3;
+      z-index: 6;
       transition: opacity 100ms ease;
     }
 
@@ -1020,6 +1251,99 @@ function getHintStyles(): string {
       margin: 0 2px;
     }
 
+    /* Zone markers */
+    .zone-marker {
+      position: fixed;
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, rgba(50, 45, 80, 0.9) 0%, rgba(30, 28, 55, 0.95) 100%);
+      border: 2px solid rgba(120, 100, 255, 0.35);
+      border-radius: 10px;
+      font: 700 20px ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+      color: #e4e4ef;
+      box-shadow: 0 2px 0 2px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 0 20px rgba(100, 80, 255, 0.1);
+      text-shadow: 0 0 8px rgba(100, 80, 255, 0.4);
+      z-index: 2;
+      animation: zone-marker-in 200ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+      pointer-events: none;
+    }
+
+    @keyframes zone-marker-in {
+      from { transform: scale(0); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .zone-markers-container {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .zone-markers-container.hidden {
+      display: none;
+    }
+
+    /* Mini-map */
+    .mini-map {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      width: 72px;
+      height: 48px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 2px;
+      background: rgba(15, 15, 30, 0.9);
+      border: 1px solid rgba(100, 80, 255, 0.2);
+      border-radius: 6px;
+      padding: 3px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      z-index: 4;
+      transition: opacity 150ms ease;
+    }
+
+    .mini-map.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .mm-cell {
+      border-radius: 2px;
+      background: rgba(100, 80, 255, 0.1);
+      border: 1px solid rgba(100, 80, 255, 0.15);
+      transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+    }
+
+    .mm-cell.active {
+      background: rgba(100, 80, 255, 0.5);
+      border-color: hsl(250, 80%, 65%);
+      box-shadow: 0 0 6px rgba(100, 80, 255, 0.4);
+    }
+
+    /* Vignette */
+    .vignette {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(
+        ellipse 75% 75% at center,
+        transparent 45%,
+        rgba(0, 0, 0, 0.35) 100%
+      );
+      pointer-events: none;
+      z-index: 1;
+      transition: opacity 200ms ease;
+    }
+
+    .vignette.hidden {
+      opacity: 0;
+    }
+
     @media (prefers-reduced-motion: reduce) {
       .hint-label {
         transition: none;
@@ -1030,6 +1354,9 @@ function getHintStyles(): string {
       }
       .hint-modal {
         transition-duration: 50ms;
+      }
+      .zone-marker {
+        animation: none;
       }
     }
   `;
