@@ -1,6 +1,7 @@
 import { AURA_COLOR } from '../shared/constants';
 import { buildComboString } from '../shared/keys';
 import type { IndexedElement, Settings } from '../shared/types';
+import { cancelAltHoldTimer } from './alt-hold-helper';
 import { hide as hideAura, transitionTo } from './aura-ring';
 import { pushFocus } from './focus-history';
 import { revealElement } from './hover-manager';
@@ -286,6 +287,7 @@ function handlePickerKeydown(e: KeyboardEvent): boolean {
 
 function startZoneSelection(): void {
   if (!labelsContainer || !modalEl) return;
+  cancelAltHoldTimer();
 
   const scope = getPickerScope();
   if (scope) {
@@ -410,18 +412,50 @@ function showSpotlight(zoneIdx: number): void {
   const top = row * zoneH;
   const right = left + zoneW;
   const bottom = top + zoneH;
+  const feather = 24;
 
-  // Use clip-path to create a cutout: dim everything except the active zone
-  // polygon draws a frame: outer rect clockwise, then inner rect counter-clockwise
-  spotlightEl.style.clipPath = `polygon(
-    0% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 0%,
-    ${left}px ${top}px, ${left}px ${bottom}px, ${right}px ${bottom}px, ${right}px ${top}px, ${left}px ${top}px
-  )`;
+  spotlightEl.innerHTML = '';
+
+  // Top overlay
+  const topDiv = document.createElement('div');
+  topDiv.className = 'spot-panel spot-top';
+  topDiv.style.cssText = `top:0;left:0;right:0;height:${top + feather}px;`;
+  topDiv.style.maskImage = `linear-gradient(to bottom, black ${Math.max(0, top - feather)}px, transparent ${top + feather}px)`;
+  topDiv.style.webkitMaskImage = topDiv.style.maskImage;
+  spotlightEl.appendChild(topDiv);
+
+  // Bottom overlay
+  const bottomDiv = document.createElement('div');
+  bottomDiv.className = 'spot-panel spot-bottom';
+  bottomDiv.style.cssText = `bottom:0;left:0;right:0;height:${vh - bottom + feather}px;`;
+  bottomDiv.style.maskImage = `linear-gradient(to top, black ${Math.max(0, vh - bottom - feather)}px, transparent ${vh - bottom + feather}px)`;
+  bottomDiv.style.webkitMaskImage = bottomDiv.style.maskImage;
+  spotlightEl.appendChild(bottomDiv);
+
+  // Left overlay
+  const leftDiv = document.createElement('div');
+  leftDiv.className = 'spot-panel spot-left';
+  leftDiv.style.cssText = `top:${top}px;left:0;width:${left + feather}px;height:${zoneH}px;`;
+  leftDiv.style.maskImage = `linear-gradient(to right, black ${Math.max(0, left - feather)}px, transparent ${left + feather}px)`;
+  leftDiv.style.webkitMaskImage = leftDiv.style.maskImage;
+  spotlightEl.appendChild(leftDiv);
+
+  // Right overlay
+  const rightDiv = document.createElement('div');
+  rightDiv.className = 'spot-panel spot-right';
+  rightDiv.style.cssText = `top:${top}px;right:0;width:${vw - right + feather}px;height:${zoneH}px;`;
+  rightDiv.style.maskImage = `linear-gradient(to left, black ${Math.max(0, vw - right - feather)}px, transparent ${vw - right + feather}px)`;
+  rightDiv.style.webkitMaskImage = rightDiv.style.maskImage;
+  spotlightEl.appendChild(rightDiv);
+
   spotlightEl.classList.remove('hidden');
 }
 
 function hideSpotlight(): void {
-  if (spotlightEl) spotlightEl.classList.add('hidden');
+  if (spotlightEl) {
+    spotlightEl.classList.add('hidden');
+    spotlightEl.innerHTML = '';
+  }
 }
 
 // === Zone Spotlight Mechanics ===
@@ -513,6 +547,15 @@ function navigateZone(direction: string): void {
 
 // === Label Rendering ===
 
+function getElementLabelPosition(el: HTMLElement): { x: number; y: number } {
+  const rect = el.getBoundingClientRect();
+  const isLarge = rect.width > 200 || rect.height > 100;
+  if (isLarge) {
+    return { x: rect.left + rect.width / 2 - 14, y: rect.top + rect.height / 2 - 10 };
+  }
+  return { x: rect.left - 2, y: rect.top - 4 };
+}
+
 function renderLabelsForZone(zoneIdx: number): void {
   if (!labelsContainer || !modalEl) return;
 
@@ -530,10 +573,19 @@ function renderLabelsForZone(zoneIdx: number): void {
 
   const all = scanVisibleElements();
   const zoneElements = all.filter((indexed) => {
+    const pos = getElementLabelPosition(indexed.el);
+    if (pos.x >= zoneLeft && pos.x < zoneRight && pos.y >= zoneTop && pos.y < zoneBottom) {
+      return true;
+    }
+    // Fallback: element overlaps zone and label is within 20px of zone boundary
     const rect = indexed.el.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    return cx >= zoneLeft && cx < zoneRight && cy >= zoneTop && cy < zoneBottom;
+    const overlaps = rect.right > zoneLeft && rect.left < zoneRight && rect.bottom > zoneTop && rect.top < zoneBottom;
+    const nearEdge =
+      Math.abs(pos.x - zoneLeft) < 20 ||
+      Math.abs(pos.x - zoneRight) < 20 ||
+      Math.abs(pos.y - zoneTop) < 20 ||
+      Math.abs(pos.y - zoneBottom) < 20;
+    return overlaps && nearEdge;
   });
 
   renderLabelsForElements(zoneElements);
@@ -1386,14 +1438,19 @@ function getHintStyles(): string {
     .zone-spotlight {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.55);
       pointer-events: none;
       z-index: 1;
-      transition: opacity 200ms ease, clip-path 200ms cubic-bezier(0.22, 1, 0.36, 1);
+      transition: opacity 300ms cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     .zone-spotlight.hidden {
       opacity: 0;
+    }
+
+    .spot-panel {
+      position: fixed;
+      background: rgba(0, 0, 0, 0.55);
+      transition: opacity 300ms cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     @media (prefers-reduced-motion: reduce) {

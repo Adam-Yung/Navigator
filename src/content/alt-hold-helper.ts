@@ -26,9 +26,20 @@ export function updateAltHoldSettings(newSettings: Settings): void {
 
 export function destroyAltHoldHelper(): void {
   hideHelper();
-  if (host) { host.remove(); host = null; }
+  if (host) {
+    host.remove();
+    host = null;
+  }
   if (unregisterDown) unregisterDown();
   if (unregisterUp) unregisterUp();
+}
+
+export function cancelAltHoldTimer(): void {
+  if (holdTimer) {
+    clearTimeout(holdTimer);
+    holdTimer = null;
+  }
+  if (visible) hideHelper();
 }
 
 function createDOM(): void {
@@ -121,8 +132,7 @@ function showBadges(): void {
 
   const scored = elements.map((el) => {
     const rect = el.el.getBoundingClientRect();
-    const inViewport =
-      rect.top < vh && rect.bottom > 0 && rect.left < vw && rect.right > 0;
+    const inViewport = rect.top < vh && rect.bottom > 0 && rect.left < vw && rect.right > 0;
     const area = rect.width * rect.height;
     return { el, inViewport, area };
   });
@@ -150,7 +160,10 @@ function removeBadges(): void {
 }
 
 function cancelTimer(): void {
-  if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+  if (holdTimer) {
+    clearTimeout(holdTimer);
+    holdTimer = null;
+  }
 }
 
 function getStyles(): string {
