@@ -27,7 +27,9 @@ export function initIndicator(): void {
   document.documentElement.appendChild(host);
 }
 
-export function showToast(text: string, durationMs = 1500): void {
+export type ToastType = 'info' | 'success' | 'error';
+
+export function showToast(text: string, durationMs = 1500, type: ToastType = 'info'): void {
   if (!chip) return;
   if (animTimer) {
     clearTimeout(animTimer);
@@ -35,7 +37,7 @@ export function showToast(text: string, durationMs = 1500): void {
   }
 
   chip.textContent = text;
-  chip.className = 'indicator state-visible';
+  chip.className = `indicator state-visible type-${type}`;
 
   animTimer = setTimeout(() => {
     hideIndicator();
@@ -105,6 +107,20 @@ function getIndicatorStyles(): string {
     .indicator.state-visible {
       opacity: 1;
       transform: translateX(-50%) scale(1);
+    }
+
+    .indicator.type-info {
+      border-color: rgba(100, 80, 255, 0.2);
+    }
+
+    .indicator.type-error {
+      border-color: rgba(255, 107, 107, 0.5);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 8px rgba(255, 107, 107, 0.15);
+    }
+
+    .indicator.type-success {
+      border-color: rgba(74, 222, 128, 0.5);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 8px rgba(74, 222, 128, 0.15);
     }
   `;
 }

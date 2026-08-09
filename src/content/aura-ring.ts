@@ -282,5 +282,15 @@ function getStyles(): string {
       from { opacity: 0.3; }
       to { opacity: 0; }
     }
+
+    @media (prefers-reduced-motion: reduce) {
+      .aura-ring {
+        animation: none;
+        transition-duration: 50ms;
+      }
+      .aura-ghost {
+        display: none;
+      }
+    }
   `;
 }

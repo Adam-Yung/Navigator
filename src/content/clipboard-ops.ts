@@ -52,7 +52,7 @@ function handleKey(e: KeyboardEvent): boolean {
         const href = (focusedElement as HTMLAnchorElement).href;
         if (href) { copyToClipboard(href, 'Link copied'); return true; }
       }
-      showToast('No link to copy');
+      showToast('No link to copy', 1500, 'error');
       return true;
     }
     return false;
@@ -83,9 +83,9 @@ async function copyToClipboard(text: string, message: string): Promise<void> {
     await navigator.clipboard.writeText(text);
     copyRing.push(text);
     if (copyRing.length > MAX_RING) copyRing.shift();
-    showToast(message);
+    showToast(message, 1500, 'success');
   } catch {
-    showToast('Copy failed');
+    showToast('Copy failed', 1500, 'error');
   }
 }
 
@@ -97,12 +97,12 @@ async function openFromClipboard(): Promise<void> {
     } else if (copyRing.length > 0) {
       const lastUrl = [...copyRing].reverse().find(isUrl);
       if (lastUrl) window.location.href = lastUrl;
-      else showToast('No URL in clipboard');
+      else showToast('No URL in clipboard', 1500, 'error');
     } else {
-      showToast('No URL in clipboard');
+      showToast('No URL in clipboard', 1500, 'error');
     }
   } catch {
-    showToast('Cannot read clipboard');
+    showToast('Cannot read clipboard', 1500, 'error');
   }
 }
 

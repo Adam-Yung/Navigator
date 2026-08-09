@@ -27,12 +27,6 @@ let lastPickedElement: HTMLElement | null = null;
 let multiSelected: Set<HintEntry> = new Set();
 let badgeEl: HTMLElement | null = null;
 
-// Smart re-entry state
-const REENTRY_WINDOW_MS = 5000;
-let lastDeactivateTime = 0;
-let lastFilterText = '';
-let lastScrollX = 0;
-let lastScrollY = 0;
 
 interface HintEntry {
   label: string;
@@ -203,14 +197,7 @@ function activatePicker(): void {
 
   active = true;
 
-  // Smart re-entry: restore filter if within window and page hasn't changed
-  const timeSinceDeactivate = Date.now() - lastDeactivateTime;
-  if (timeSinceDeactivate < REENTRY_WINDOW_MS && lastFilterText.length > 0) {
-    typedFilter = lastFilterText;
-    window.scrollTo(lastScrollX, lastScrollY);
-  } else {
-    typedFilter = '';
-  }
+  typedFilter = '';
 
   multiSelected = new Set();
 
@@ -237,19 +224,22 @@ function activatePicker(): void {
     labelEl.appendChild(textNode);
 
     const rect = entry.el.getBoundingClientRect();
-    labelEl.style.top = `${rect.top - 4}px`;
-    labelEl.style.left = `${rect.left - 2}px`;
+    const isLarge = rect.width > 200 || rect.height > 100;
+    if (isLarge) {
+      labelEl.style.top = `${rect.top + rect.height / 2 - 10}px`;
+      labelEl.style.left = `${rect.left + rect.width / 2 - 14}px`;
+    } else {
+      labelEl.style.top = `${rect.top - 4}px`;
+      labelEl.style.left = `${rect.left - 2}px`;
+    }
 
     labelsContainer.appendChild(labelEl);
     allHints.push({ label, element: entry, labelEl, index: i });
   }
 
-  filteredHints = [...allHints];
+  resolveOverlaps(allHints);
 
-  // Apply re-entry filter if we restored one
-  if (typedFilter.length > 0) {
-    applyFilter();
-  }
+  filteredHints = [...allHints];
 
   const vcx = window.innerWidth / 2;
   const vcy = window.innerHeight / 2;
@@ -346,12 +336,6 @@ export function activateHintMode(
 }
 
 export function deactivateHintMode(): void {
-  // Save state for smart re-entry
-  lastDeactivateTime = Date.now();
-  lastFilterText = typedFilter;
-  lastScrollX = window.scrollX;
-  lastScrollY = window.scrollY;
-
   active = false;
   typedFilter = '';
   allHints = [];
@@ -570,8 +554,14 @@ function updateRingPosition(): void {
 function flashNoMatch(): void {
   if (!modalEl) return;
   modalEl.classList.add('flash-error');
+  const inputEl = modalEl.querySelector('.hint-input');
+  const origContent = inputEl?.innerHTML ?? '';
+  if (inputEl) {
+    inputEl.innerHTML = '<span style="color:#ff6b6b;font-size:13px;">No match</span>';
+  }
   setTimeout(() => {
     if (modalEl) modalEl.classList.remove('flash-error');
+    if (inputEl) inputEl.innerHTML = origContent;
   }, 300);
 }
 
@@ -625,6 +615,38 @@ function scrollToRevealIfNeeded(el: HTMLElement): void {
   if (horizontalClip > 0.3) {
     const scrollX = clipLeft > 0 ? -(clipLeft + padding) : clipRight + padding;
     window.scrollBy({ left: scrollX, behavior: 'smooth' });
+  }
+}
+
+function resolveOverlaps(hints: HintEntry[]): void {
+  const LABEL_HEIGHT = 20;
+  const LABEL_WIDTH = 28;
+  const placed: Array<{ top: number; left: number; bottom: number; right: number }> = [];
+
+  for (const hint of hints) {
+    const top = parseFloat(hint.labelEl.style.top);
+    const left = parseFloat(hint.labelEl.style.left);
+    let finalTop = top;
+    const finalLeft = left;
+
+    for (const box of placed) {
+      const overlapsH = finalLeft < box.right && finalLeft + LABEL_WIDTH > box.left;
+      const overlapsV = finalTop < box.bottom && finalTop + LABEL_HEIGHT > box.top;
+      if (overlapsH && overlapsV) {
+        finalTop = box.bottom + 2;
+      }
+    }
+
+    if (finalTop !== top) {
+      hint.labelEl.style.top = `${finalTop}px`;
+    }
+
+    placed.push({
+      top: finalTop,
+      left: finalLeft,
+      bottom: finalTop + LABEL_HEIGHT,
+      right: finalLeft + LABEL_WIDTH,
+    });
   }
 }
 
@@ -850,6 +872,19 @@ function getHintStyles(): string {
     .multi-badge.hidden {
       opacity: 0;
       pointer-events: none;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .hint-label {
+        transition: none;
+      }
+      .hint-label.entering {
+        opacity: 1;
+        transform: none;
+      }
+      .hint-modal {
+        transition-duration: 50ms;
+      }
     }
   `;
 }

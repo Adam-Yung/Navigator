@@ -8,7 +8,7 @@ actionApi?.onClicked?.addListener(() => {
   api.runtime.openOptionsPage();
 });
 
-api.runtime.onInstalled.addListener(async () => {
+api.runtime.onInstalled.addListener(async (details: any) => {
   try {
     const result = await api.storage.sync.get('settings');
     if (!result.settings) {
@@ -24,15 +24,24 @@ api.runtime.onInstalled.addListener(async () => {
       // Storage unavailable
     }
   }
+
+  if (details.reason === 'install') {
+    try {
+      await api.storage.local.set({ showWelcome: true });
+    } catch {}
+  }
 });
 
 api.runtime.onMessage.addListener((message: any, _sender: any, sendResponse: any) => {
   if (message.type === 'get-tabs') {
-    api.tabs.query({ currentWindow: true }).then((tabs: any[]) => {
-      sendResponse({ tabs: tabs || [] });
-    }).catch(() => {
-      sendResponse({ tabs: [] });
-    });
+    api.tabs
+      .query({ currentWindow: true })
+      .then((tabs: any[]) => {
+        sendResponse({ tabs: tabs || [] });
+      })
+      .catch(() => {
+        sendResponse({ tabs: [] });
+      });
     return true;
   }
 

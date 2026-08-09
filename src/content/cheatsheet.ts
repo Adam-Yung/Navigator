@@ -7,6 +7,8 @@ let shadow: ShadowRoot | null = null;
 let overlay: HTMLElement | null = null;
 let active = false;
 let settings: Settings | null = null;
+let filterQuery = '';
+let searchInputEl: HTMLElement | null = null;
 let unregisterKey: (() => void) | null = null;
 
 export function initCheatsheet(initialSettings: Settings): void {
@@ -21,7 +23,11 @@ export function updateCheatsheetSettings(newSettings: Settings): void {
 
 export function deactivateCheatsheet(): void {
   active = false;
-  if (overlay) overlay.classList.add('hidden');
+  filterQuery = '';
+  if (overlay) {
+    applyCheatsheetFilter();
+    overlay.classList.add('hidden');
+  }
 }
 
 export function isCheatsheetActive(): boolean {
@@ -30,7 +36,10 @@ export function isCheatsheetActive(): boolean {
 
 export function destroyCheatsheet(): void {
   deactivateCheatsheet();
-  if (host) { host.remove(); host = null; }
+  if (host) {
+    host.remove();
+    host = null;
+  }
   if (unregisterKey) unregisterKey();
 }
 
@@ -50,6 +59,7 @@ function createDOM(): void {
   overlay = document.createElement('div');
   overlay.className = 'cheatsheet hidden';
   overlay.innerHTML = getContent();
+  searchInputEl = overlay.querySelector('.cs-search-input');
   shadow.appendChild(overlay);
 
   document.documentElement.appendChild(host);
@@ -57,8 +67,27 @@ function createDOM(): void {
 
 function handleKey(e: KeyboardEvent): boolean {
   if (active) {
-    if (e.key === 'Escape' || e.key === '?') {
+    if (e.key === '?') {
       deactivateCheatsheet();
+      return true;
+    }
+    if (e.key === 'Escape') {
+      if (filterQuery !== '') {
+        filterQuery = '';
+        applyCheatsheetFilter();
+      } else {
+        deactivateCheatsheet();
+      }
+      return true;
+    }
+    if (e.key === 'Backspace') {
+      filterQuery = filterQuery.slice(0, -1);
+      applyCheatsheetFilter();
+      return true;
+    }
+    if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      filterQuery += e.key;
+      applyCheatsheetFilter();
       return true;
     }
     return true;
@@ -80,6 +109,48 @@ function handleKey(e: KeyboardEvent): boolean {
   return false;
 }
 
+function applyCheatsheetFilter(): void {
+  if (!overlay || !searchInputEl) return;
+  searchInputEl.textContent = filterQuery;
+
+  const keyUnits = overlay.querySelectorAll('.key-unit');
+  const keyRows = overlay.querySelectorAll('.key-row');
+  const clusters = overlay.querySelectorAll('.cs-cluster');
+
+  if (filterQuery === '') {
+    keyUnits.forEach((el) => {
+      (el as HTMLElement).style.display = '';
+    });
+    keyRows.forEach((el) => {
+      (el as HTMLElement).style.display = '';
+    });
+    clusters.forEach((el) => {
+      (el as HTMLElement).style.display = '';
+    });
+    return;
+  }
+
+  const q = filterQuery.toLowerCase();
+
+  keyUnits.forEach((unit) => {
+    const text = (unit as HTMLElement).textContent?.toLowerCase() || '';
+    (unit as HTMLElement).style.display = text.includes(q) ? '' : 'none';
+  });
+
+  keyRows.forEach((row) => {
+    const visibleUnits = (row as HTMLElement).querySelectorAll('.key-unit:not([style*="display: none"])');
+    (row as HTMLElement).style.display = visibleUnits.length > 0 ? '' : 'none';
+  });
+
+  clusters.forEach((cluster) => {
+    const el = cluster as HTMLElement;
+    const visibleItems = el.querySelectorAll(
+      '.key-unit:not([style*="display: none"]), .hjkl-grid .key-unit:not([style*="display: none"])',
+    );
+    el.style.display = visibleItems.length > 0 ? '' : 'none';
+  });
+}
+
 function key(label: string, cls = ''): string {
   return `<span class="keycap ${cls}">${label}</span>`;
 }
@@ -94,6 +165,13 @@ function getContent(): string {
       <div class="cs-header">
         <span class="cs-title">Navigator</span>
         <span class="cs-alt-badge">Alt + key</span>
+      </div>
+
+      <div class="cs-search">
+        <span class="cs-search-icon">/</span>
+        <span class="cs-search-input"></span>
+        <span class="cs-search-cursor">|</span>
+        <span class="cs-search-hint">Type to filter shortcuts</span>
       </div>
 
       <div class="cs-layout">
@@ -265,6 +343,42 @@ function getStyles(): string {
       letter-spacing: 0.3px;
     }
 
+
+    .cs-search {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      padding: 8px 12px;
+      background: rgba(100, 80, 255, 0.05);
+      border: 1px solid ${UI.colors.border};
+      border-radius: ${UI.radius.item};
+      font: 13px ${UI.font.mono};
+      color: ${UI.colors.text};
+    }
+    .cs-search-icon {
+      color: ${UI.colors.textMuted};
+      font-weight: 600;
+    }
+    .cs-search-input {
+      color: #fff;
+      min-width: 0;
+      flex: 1;
+      letter-spacing: 1px;
+    }
+    .cs-search-cursor {
+      color: ${UI.colors.accent};
+      animation: blink 1s step-end infinite;
+    }
+    .cs-search-hint {
+      color: ${UI.colors.textDim};
+      font: ${UI.font.sizeSm} ${UI.font.base};
+      margin-left: auto;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
     .cs-layout {
       display: grid;
       grid-template-columns: 1fr 1fr;

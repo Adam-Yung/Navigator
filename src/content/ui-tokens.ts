@@ -5,8 +5,8 @@ export const UI = {
     border: 'rgba(100, 80, 255, 0.2)',
     borderHover: 'rgba(100, 80, 255, 0.4)',
     text: '#e4e4ef',
-    textMuted: '#8888a8',
-    textDim: '#5a5a7a',
+    textMuted: '#9999b8',
+    textDim: '#7a7a9a',
     accent: 'hsl(250, 80%, 65%)',
     accentDim: 'hsla(250, 80%, 65%, 0.2)',
     accentGlow: 'hsla(250, 80%, 65%, 0.4)',
@@ -105,5 +105,18 @@ export function keycapStyles(): string {
     font-weight: 600;
     color: ${UI.colors.text};
     line-height: 1;
+  `;
+}
+
+export function reducedMotionStyles(): string {
+  return `
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 50ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
   `;
 }

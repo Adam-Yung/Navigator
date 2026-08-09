@@ -118,14 +118,14 @@ function setMark(key: string): void {
   const marks = loadMarks();
   marks[key] = entry;
   saveMarks(marks);
-  showToast(`Mark '${key}' set`);
+  showToast(`Mark '${key}' set`, 1500, 'success');
 }
 
 function jumpToMark(key: string): void {
   const marks = loadMarks();
   const entry = marks[key];
   if (!entry) {
-    showToast(`No mark '${key}'`);
+    showToast(`No mark '${key}'`, 1500, 'error');
     return;
   }
   window.scrollTo(entry.scrollX, entry.scrollY);
@@ -133,7 +133,7 @@ function jumpToMark(key: string): void {
     const el = document.querySelector<HTMLElement>(entry.selector);
     if (el) el.focus();
   }
-  showToast(`Jumped to '${key}'`);
+  showToast(`Jumped to '${key}'`, 1500, 'success');
 }
 
 function storageKey(): string {

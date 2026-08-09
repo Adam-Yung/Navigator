@@ -8,6 +8,8 @@ let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 let callback: InvalidationCallback | null = null;
 let disconnectedDuringDebounce = false;
 let lastRescanTime = 0;
+let cachedElements: IndexedElement[] | null = null;
+let cacheValid = false;
 
 const FOCUSABLE_TAGS = new Set(['A', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'SUMMARY']);
 const RESCAN_THROTTLE = 300;
@@ -18,6 +20,11 @@ export function startObserving(onInvalidate: InvalidationCallback): void {
   connectObserver();
   window.addEventListener('scroll', handleScroll, { passive: true });
   window.addEventListener('resize', handleResize, { passive: true });
+}
+
+export function invalidateElementCache(): void {
+  cacheValid = false;
+  cachedElements = null;
 }
 
 export function stopObserving(): void {
@@ -32,9 +39,15 @@ export function stopObserving(): void {
 
   callback = null;
   disconnectedDuringDebounce = false;
+  cachedElements = null;
+  cacheValid = false;
 }
 
 export function scanVisibleElements(): IndexedElement[] {
+  if (cacheValid && cachedElements !== null) {
+    return cachedElements;
+  }
+
   const result: IndexedElement[] = [];
   const elements = document.querySelectorAll<HTMLElement>(NAV_SELECTORS);
   const vw = window.innerWidth;
@@ -55,6 +68,9 @@ export function scanVisibleElements(): IndexedElement[] {
   }
 
   scanIframes(result, vw, vh);
+
+  cachedElements = result;
+  cacheValid = true;
   return result;
 }
 
@@ -143,14 +159,17 @@ function nodeCouldBeFocusable(node: Node): boolean {
 }
 
 function handleScroll(): void {
+  cacheValid = false;
   scheduleRescan(true);
 }
 
 function handleResize(): void {
+  cacheValid = false;
   scheduleRescan(false);
 }
 
 function scheduleRescan(throttle = false): void {
+  cacheValid = false;
   if (debounceTimer !== null) {
     clearTimeout(debounceTimer);
   } else if (observer && !disconnectedDuringDebounce) {

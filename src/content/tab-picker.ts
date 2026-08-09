@@ -1,6 +1,6 @@
+import { getAPI } from '../shared/browser-api';
 import { buildComboString } from '../shared/keys';
 import type { Settings } from '../shared/types';
-import { getAPI } from '../shared/browser-api';
 import { registerKeyHandler } from './key-handler';
 import { UI } from './ui-tokens';
 
@@ -38,7 +38,12 @@ export function updateTabPickerSettings(newSettings: Settings): void {
 }
 
 export function destroyTabPicker(): void {
-  if (host) { host.remove(); host = null; shadow = null; panel = null; }
+  if (host) {
+    host.remove();
+    host = null;
+    shadow = null;
+    panel = null;
+  }
   if (unregisterKey) unregisterKey();
 }
 
@@ -74,7 +79,7 @@ function createDOM(): void {
       <span class="tab-input-text"></span>
       <span class="tab-cursor">|</span>
     </div>
-    <div class="tab-list"></div>
+    <div class="tab-list" role="listbox"></div>
     <div class="tab-footer">Enter to switch \u2022 Shift+Enter new window \u2022 Esc to close</div>
   `;
   shadow.appendChild(panel);
@@ -118,12 +123,16 @@ function handleKeydown(e: KeyboardEvent): boolean {
   if (e.key === 'ArrowDown' || (e.key === 'j' && !e.altKey && !e.ctrlKey)) {
     selectedIndex = Math.min(selectedIndex + 1, filteredTabs.length - 1);
     renderList();
+    const selectedDown = listEl?.querySelector('.tab-item.selected');
+    if (selectedDown) selectedDown.scrollIntoView({ block: 'nearest' });
     return true;
   }
 
   if (e.key === 'ArrowUp' || (e.key === 'k' && !e.altKey && !e.ctrlKey)) {
     selectedIndex = Math.max(selectedIndex - 1, 0);
     renderList();
+    const selectedUp = listEl?.querySelector('.tab-item.selected');
+    if (selectedUp) selectedUp.scrollIntoView({ block: 'nearest' });
     return true;
   }
 
@@ -160,8 +169,21 @@ async function openPicker(): Promise<void> {
   const api = getAPI();
   if (!api?.runtime?.sendMessage) return;
 
+  active = true;
+  typedFilter = '';
+  selectedIndex = 0;
+
+  if (panel) {
+    panel.classList.remove('hidden');
+    panel.style.pointerEvents = 'auto';
+  }
+  if (host) host.style.pointerEvents = 'auto';
+  if (listEl) listEl.innerHTML = '<div class="tab-loading">Loading tabs...</div>';
+  updateInput();
+
   try {
-    const response = await api.runtime.sendMessage({ type: 'get-tabs' });
+    const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000));
+    const response = await Promise.race([api.runtime.sendMessage({ type: 'get-tabs' }), timeout]);
     allTabs = (response?.tabs || []).map((t: any) => ({
       id: t.id,
       title: t.title || '',
@@ -173,21 +195,13 @@ async function openPicker(): Promise<void> {
     }));
   } catch {
     allTabs = [];
+    if (listEl) listEl.innerHTML = '<div class="tab-empty">Failed to load tabs</div>';
+    setTimeout(() => closePicker(), 1500);
+    return;
   }
 
-  active = true;
-  typedFilter = '';
-  selectedIndex = 0;
   filteredTabs = [...allTabs];
-
-  if (panel) {
-    panel.classList.remove('hidden');
-    panel.style.pointerEvents = 'auto';
-  }
-  if (host) host.style.pointerEvents = 'auto';
-
   renderList();
-  updateInput();
 }
 
 function closePicker(): void {
@@ -207,9 +221,7 @@ function applyFilter(): void {
     filteredTabs = [...allTabs];
   } else {
     const q = typedFilter.toLowerCase();
-    filteredTabs = allTabs.filter((t) =>
-      t.title.toLowerCase().includes(q) || t.url.toLowerCase().includes(q)
-    );
+    filteredTabs = allTabs.filter((t) => t.title.toLowerCase().includes(q) || t.url.toLowerCase().includes(q));
   }
   selectedIndex = 0;
   renderList();
@@ -220,19 +232,31 @@ function renderList(): void {
   if (!listEl) return;
   listEl.innerHTML = '';
 
+  if (filteredTabs.length === 0) {
+    listEl.innerHTML = '<div class="tab-empty">No matching tabs</div>';
+    return;
+  }
+
   const visible = filteredTabs.slice(0, 20);
   for (let i = 0; i < visible.length; i++) {
     const tab = visible[i];
     const item = document.createElement('div');
     item.className = `tab-item${i === selectedIndex ? ' selected' : ''}${tab.active ? ' active-tab' : ''}`;
+    item.setAttribute('role', 'option');
+    item.setAttribute('aria-selected', String(i === selectedIndex));
 
     const num = i < 10 ? (i < 9 ? String(i + 1) : '0') : '';
     const pinIcon = tab.pinned ? '<span class="pin-icon">\uD83D\uDCCC</span>' : '';
     const audioIcon = tab.audible ? '<span class="audio-icon">\uD83D\uDD0A</span>' : '';
     const domain = getDomain(tab.url);
 
+    const faviconHtml = tab.favIconUrl
+      ? `<img class="tab-favicon" src="${escapeHtml(tab.favIconUrl)}" width="16" height="16" alt="" />`
+      : `<span class="tab-favicon-placeholder"></span>`;
+
     item.innerHTML = `
       <span class="tab-num">${num}</span>
+      ${faviconHtml}
       <span class="tab-info">
         <span class="tab-item-title">${escapeHtml(tab.title || 'Untitled')}</span>
         <span class="tab-item-url">${escapeHtml(domain)}</span>
@@ -252,14 +276,18 @@ function switchToTab(tabId: number): void {
   const api = getAPI();
   try {
     api?.runtime?.sendMessage?.({ type: 'switch-tab', tabId });
-  } catch { /* tab may not exist */ }
+  } catch {
+    /* tab may not exist */
+  }
 }
 
 function openInNewWindow(tabId: number): void {
   const api = getAPI();
   try {
     api?.runtime?.sendMessage?.({ type: 'move-tab-new-window', tabId });
-  } catch { /* fallback: just switch */ }
+  } catch {
+    /* fallback: just switch */
+  }
 }
 
 function getDomain(url: string): string {
@@ -420,6 +448,29 @@ function getStyles(): string {
       color: ${UI.colors.textDim};
       border-top: 1px solid ${UI.colors.border};
       text-align: center;
+    }
+
+    .tab-loading, .tab-empty {
+      padding: 24px 16px;
+      text-align: center;
+      font: ${UI.font.sizeSm} ${UI.font.base};
+      color: ${UI.colors.textMuted};
+    }
+
+    .tab-favicon {
+      width: 16px;
+      height: 16px;
+      border-radius: 2px;
+      flex-shrink: 0;
+      object-fit: contain;
+    }
+
+    .tab-favicon-placeholder {
+      width: 16px;
+      height: 16px;
+      border-radius: 2px;
+      background: ${UI.colors.accentDim};
+      flex-shrink: 0;
     }
 
     .tab-list::-webkit-scrollbar {

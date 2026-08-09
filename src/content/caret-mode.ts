@@ -161,14 +161,14 @@ async function copySelection(): Promise<void> {
   const sel = window.getSelection();
   const text = sel?.toString() || '';
   if (!text) {
-    showToast('No selection');
+    showToast('No selection', 1500, 'error');
     return;
   }
   try {
     await navigator.clipboard.writeText(text);
-    showToast('Copied');
+    showToast('Copied', 1500, 'success');
   } catch {
-    showToast('Copy failed');
+    showToast('Copy failed', 1500, 'error');
   }
   deactivateCaretMode();
 }

@@ -79,6 +79,8 @@ function createDOM(): void {
 
   inputEl = panel.querySelector('.qa-input')!;
   listEl = panel.querySelector('.qa-list')!;
+  listEl.setAttribute('role', 'listbox');
+  listEl.setAttribute('aria-label', 'Quick actions');
   document.documentElement.appendChild(host);
 }
 
@@ -107,12 +109,16 @@ function handleKey(e: KeyboardEvent): boolean {
   if (e.key === 'ArrowDown' || (e.key === 'j' && e.ctrlKey)) {
     selectedIndex = (selectedIndex + 1) % Math.max(filteredActions.length, 1);
     renderList();
+    const selectedItem = listEl?.querySelector('.qa-item.selected');
+    if (selectedItem) selectedItem.scrollIntoView({ block: 'nearest' });
     return true;
   }
 
   if (e.key === 'ArrowUp' || (e.key === 'k' && e.ctrlKey)) {
     selectedIndex = (selectedIndex - 1 + Math.max(filteredActions.length, 1)) % Math.max(filteredActions.length, 1);
     renderList();
+    const selectedItem = listEl?.querySelector('.qa-item.selected');
+    if (selectedItem) selectedItem.scrollIntoView({ block: 'nearest' });
     return true;
   }
 
@@ -189,9 +195,15 @@ function renderList(): void {
   if (!listEl) return;
   listEl.innerHTML = '';
   const toShow = filteredActions.slice(0, 12);
+  if (toShow.length === 0) {
+    listEl.innerHTML = '<div class="qa-empty">No matching actions</div>';
+    return;
+  }
   toShow.forEach((action, i) => {
     const item = document.createElement('div');
     item.className = `qa-item ${i === selectedIndex ? 'selected' : ''}`;
+    item.setAttribute('role', 'option');
+    item.setAttribute('aria-selected', `${i === selectedIndex}`);
     const numBadge = i < 9 ? `<span class="qa-num">${i + 1}</span>` : '';
     item.innerHTML = `${numBadge}<span class="qa-label">${escapeHtml(action.label)}</span><span class="qa-desc">${escapeHtml(action.description)}</span>`;
     listEl!.appendChild(item);
@@ -221,7 +233,7 @@ function getActions(): Action[] {
         if (el?.tagName === 'A') {
           copyText((el as HTMLAnchorElement).href, 'Link copied');
         } else {
-          showToast('No link focused');
+          showToast('No link focused', 1500, 'error');
         }
       },
     },
@@ -237,7 +249,7 @@ function getActions(): Action[] {
           url.pathname = parts.join('/') || '/';
           window.location.href = url.href;
         } else {
-          showToast('Already at root');
+          showToast('Already at root', 1500, 'info');
         }
       },
     },
@@ -270,10 +282,10 @@ function getActions(): Action[] {
           if (text && /^https?:\/\/.+/.test(text.trim())) {
             window.location.href = text.trim();
           } else {
-            showToast('No URL in clipboard');
+            showToast('No URL in clipboard', 1500, 'error');
           }
         } catch {
-          showToast('Cannot read clipboard');
+          showToast('Cannot read clipboard', 1500, 'error');
         }
       },
     },
@@ -313,9 +325,9 @@ function getActions(): Action[] {
 async function copyText(text: string, msg: string): Promise<void> {
   try {
     await navigator.clipboard.writeText(text);
-    showToast(msg);
+    showToast(msg, 1500, 'success');
   } catch {
-    showToast('Copy failed');
+    showToast('Copy failed', 1500, 'error');
   }
 }
 
@@ -410,6 +422,12 @@ function getStyles(): string {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+    .qa-empty {
+      padding: 20px 12px;
+      text-align: center;
+      font: ${UI.font.sizeSm} ${UI.font.base};
+      color: ${UI.colors.textMuted};
     }
     .qa-list::-webkit-scrollbar {
       width: 4px;

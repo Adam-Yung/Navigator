@@ -1,29 +1,30 @@
 import { getAPI } from '../shared/browser-api';
 import { getSettings, onSettingsChanged } from '../shared/storage';
 import type { Settings } from '../shared/types';
+import { initAltHoldHelper, updateAltHoldSettings } from './alt-hold-helper';
 import { hide as hideAura, initAuraRing, updateAuraSettings } from './aura-ring';
-import { initHintMode, initPickerKeybinding, updatePickerSettings, deactivateHintMode, destroyHintMode } from './hint-mode';
+import { deactivateCaretMode, initCaretMode, updateCaretModeSettings } from './caret-mode';
+import { deactivateCheatsheet, initCheatsheet, updateCheatsheetSettings } from './cheatsheet';
+import { initClipboardOps, updateClipboardSettings } from './clipboard-ops';
+import { initContextualLabel } from './contextual-label';
+import { deactivateElementSearch, initElementSearch, updateElementSearchSettings } from './element-search';
+import { initFocusHistory, updateFocusHistorySettings } from './focus-history';
+import {
+  deactivateHintMode,
+  destroyHintMode,
+  initHintMode,
+  initPickerKeybinding,
+  updatePickerSettings,
+} from './hint-mode';
 import { cleanup as cleanupHover } from './hover-manager';
 import { hideIndicator, initIndicator } from './indicator';
-import {
-  initKeyHandler,
-  setExtensionEnabled,
-  registerKeyHandler,
-  updateKeyHandlerSettings,
-} from './key-handler';
-import { initScrollEngine, updateScrollSettings, destroyScrollEngine } from './scroll-engine';
-import { initFocusHistory, updateFocusHistorySettings } from './focus-history';
-import { initClipboardOps, updateClipboardSettings } from './clipboard-ops';
-import { initTabPicker, updateTabPickerSettings, deactivateTabPicker } from './tab-picker';
-import { initAltHoldHelper, updateAltHoldSettings } from './alt-hold-helper';
-import { initCheatsheet, updateCheatsheetSettings, deactivateCheatsheet } from './cheatsheet';
-import { initUrlNav, updateUrlNavSettings } from './url-nav';
+import { initKeyHandler, registerKeyHandler, setExtensionEnabled, updateKeyHandlerSettings } from './key-handler';
+import { deactivateMarks, initMarks, updateMarksSettings } from './marks';
+import { deactivateQuickActions, initQuickActions, updateQuickActionsSettings } from './quick-actions';
+import { destroyScrollEngine, initScrollEngine, updateScrollSettings } from './scroll-engine';
 import { initSectionNav, updateSectionNavSettings } from './section-nav';
-import { initContextualLabel } from './contextual-label';
-import { initElementSearch, updateElementSearchSettings, deactivateElementSearch } from './element-search';
-import { initCaretMode, updateCaretModeSettings, deactivateCaretMode } from './caret-mode';
-import { initMarks, updateMarksSettings, deactivateMarks } from './marks';
-import { initQuickActions, updateQuickActionsSettings, deactivateQuickActions } from './quick-actions';
+import { deactivateTabPicker, initTabPicker, updateTabPickerSettings } from './tab-picker';
+import { initUrlNav, updateUrlNavSettings } from './url-nav';
 
 let settings: Settings;
 let extensionEnabled = true;
@@ -84,6 +85,8 @@ async function init(): Promise<void> {
   });
 
   listenForBackgroundMessages();
+
+  setTimeout(showWelcomeTooltip, 1000);
 }
 
 export function escapeAll(): void {
@@ -128,6 +131,82 @@ function listenForBackgroundMessages(): void {
       }
     }
   });
+}
+
+async function showWelcomeTooltip(): Promise<void> {
+  const api = getAPI();
+  if (!api?.storage?.local) return;
+
+  try {
+    const result = await api.storage.local.get('showWelcome');
+    if (!result.showWelcome) return;
+  } catch {
+    return;
+  }
+
+  const tip = document.createElement('div');
+  tip.id = 'navigator-welcome';
+  tip.style.cssText = `
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    max-width: 320px;
+    padding: 16px 20px;
+    background: rgba(15, 15, 30, 0.95);
+    border: 1px solid rgba(100, 80, 255, 0.3);
+    border-radius: 12px;
+    backdrop-filter: blur(20px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 12px rgba(100, 80, 255, 0.1);
+    font: 13px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    color: #e4e4ef;
+    z-index: 2147483647;
+    animation: navigator-welcome-in 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    opacity: 0;
+    transform: translateY(8px);
+  `;
+  tip.innerHTML = `
+    <div style="font-weight:600;margin-bottom:8px;color:#fff;">Navigator is ready</div>
+    <div style="color:#9999b8;margin-bottom:12px;">
+      Hold <kbd style="padding:2px 6px;background:rgba(100,80,255,0.2);border-radius:4px;font-family:ui-monospace,monospace;font-size:11px;">Alt</kbd> to see shortcuts, or press
+      <kbd style="padding:2px 6px;background:rgba(100,80,255,0.2);border-radius:4px;font-family:ui-monospace,monospace;font-size:11px;">Alt+F</kbd> to pick elements.
+    </div>
+    <div style="color:#9999b8;font-size:11px;">Press <kbd style="padding:2px 6px;background:rgba(100,80,255,0.2);border-radius:4px;font-family:ui-monospace,monospace;font-size:11px;">?</kbd> anytime for all shortcuts</div>
+    <button id="navigator-welcome-dismiss" style="
+      margin-top:12px;
+      padding:6px 14px;
+      background:rgba(100,80,255,0.2);
+      border:1px solid rgba(100,80,255,0.3);
+      border-radius:6px;
+      color:#e4e4ef;
+      font:12px -apple-system,system-ui,sans-serif;
+      cursor:pointer;
+    ">Got it</button>
+  `;
+
+  const styleEl = document.createElement('style');
+  styleEl.textContent = `
+    @keyframes navigator-welcome-in {
+      to { opacity: 1; transform: translateY(0); }
+    }
+  `;
+  document.head.appendChild(styleEl);
+  document.body.appendChild(tip);
+
+  const dismiss = () => {
+    tip.style.opacity = '0';
+    tip.style.transform = 'translateY(8px)';
+    tip.style.transition = 'opacity 200ms, transform 200ms';
+    setTimeout(() => {
+      tip.remove();
+      styleEl.remove();
+    }, 200);
+    try {
+      api.storage.local.set({ showWelcome: false });
+    } catch {}
+  };
+
+  tip.querySelector('#navigator-welcome-dismiss')?.addEventListener('click', dismiss);
+  setTimeout(dismiss, 15000);
 }
 
 init().catch(() => {});
