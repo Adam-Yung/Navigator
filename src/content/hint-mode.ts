@@ -324,6 +324,36 @@ function showZoneMarkers(): void {
   const zoneW = vw / ZONE_COLS;
   const zoneH = vh / ZONE_ROWS;
 
+  // Draw zone boundary grid lines
+  const gridSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  gridSvg.setAttribute('class', 'zone-grid');
+  gridSvg.setAttribute('width', String(vw));
+  gridSvg.setAttribute('height', String(vh));
+  gridSvg.style.cssText = 'position:fixed;inset:0;pointer-events:none;';
+
+  // Vertical lines (2 inner)
+  for (let c = 1; c < ZONE_COLS; c++) {
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', String(c * zoneW));
+    line.setAttribute('y1', '0');
+    line.setAttribute('x2', String(c * zoneW));
+    line.setAttribute('y2', String(vh));
+    line.setAttribute('class', 'zone-grid-line');
+    gridSvg.appendChild(line);
+  }
+  // Horizontal line (1 inner)
+  for (let r = 1; r < ZONE_ROWS; r++) {
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', '0');
+    line.setAttribute('y1', String(r * zoneH));
+    line.setAttribute('x2', String(vw));
+    line.setAttribute('y2', String(r * zoneH));
+    line.setAttribute('class', 'zone-grid-line');
+    gridSvg.appendChild(line);
+  }
+  zoneMarkersContainer.appendChild(gridSvg);
+
+  // Draw zone keycap markers
   for (let i = 0; i < 6; i++) {
     const col = i % ZONE_COLS;
     const row = Math.floor(i / ZONE_COLS);
@@ -388,12 +418,16 @@ function zoomIntoZone(zoneIdx: number): void {
   const zoneW = vw / ZONE_COLS;
   const zoneH = vh / ZONE_ROWS;
 
-  const originX = ((col * zoneW + zoneW / 2) / vw) * 100;
-  const originY = ((row * zoneH + zoneH / 2) / vh) * 100;
+  // Use pixel values accounting for scroll position so the zoom
+  // centers on the correct viewport zone regardless of page length
+  const originX = window.scrollX + col * zoneW + zoneW / 2;
+  const originY = window.scrollY + row * zoneH + zoneH / 2;
 
-  document.documentElement.style.transformOrigin = `${originX}% ${originY}%`;
-  document.documentElement.style.transition = 'transform 250ms cubic-bezier(0.22, 1, 0.36, 1)';
-  document.documentElement.style.transform = 'scale(1.4)';
+  // Apply to body (not documentElement) so our Shadow DOM host
+  // remains un-transformed and fixed positioning works correctly
+  document.body.style.transformOrigin = `${originX}px ${originY}px`;
+  document.body.style.transition = 'transform 250ms cubic-bezier(0.22, 1, 0.36, 1)';
+  document.body.style.transform = 'scale(1.4)';
   document.documentElement.style.overflow = 'hidden';
 
   hideZoneMarkers();
@@ -412,12 +446,12 @@ function zoomOut(): void {
   phase = 'zone-select';
   activeZone = -1;
 
-  document.documentElement.style.transition = 'transform 200ms cubic-bezier(0.22, 1, 0.36, 1)';
-  document.documentElement.style.transform = '';
+  document.body.style.transition = 'transform 200ms cubic-bezier(0.22, 1, 0.36, 1)';
+  document.body.style.transform = '';
 
   setTimeout(() => {
-    document.documentElement.style.transformOrigin = '';
-    document.documentElement.style.transition = '';
+    document.body.style.transformOrigin = '';
+    document.body.style.transition = '';
     document.documentElement.style.overflow = '';
   }, 210);
 
@@ -440,9 +474,9 @@ function exitPicker(): void {
   phase = 'inactive';
   activeZone = -1;
 
-  document.documentElement.style.transform = '';
-  document.documentElement.style.transformOrigin = '';
-  document.documentElement.style.transition = '';
+  document.body.style.transform = '';
+  document.body.style.transformOrigin = '';
+  document.body.style.transition = '';
   document.documentElement.style.overflow = '';
 
   if (labelsContainer) labelsContainer.innerHTML = '';
@@ -1249,6 +1283,13 @@ function getHintStyles(): string {
     .preview-sep {
       color: #5a5a7a;
       margin: 0 2px;
+    }
+
+    /* Zone grid lines */
+    .zone-grid-line {
+      stroke: rgba(120, 100, 255, 0.3);
+      stroke-width: 1.5;
+      stroke-dasharray: 8 6;
     }
 
     /* Zone markers */
