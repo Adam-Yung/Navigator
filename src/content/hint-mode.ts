@@ -26,7 +26,7 @@ let lastPickedElement: HTMLElement | null = null;
 // Multi-select state
 let multiSelected: Set<HintEntry> = new Set();
 let badgeEl: HTMLElement | null = null;
-
+let dimOverlay: HTMLElement | null = null;
 
 interface HintEntry {
   label: string;
@@ -51,6 +51,10 @@ export function initHintMode(): void {
   labelsContainer = document.createElement('div');
   labelsContainer.className = 'labels-container';
   shadow.appendChild(labelsContainer);
+
+  dimOverlay = document.createElement('div');
+  dimOverlay.className = 'dim-overlay hidden';
+  shadow.appendChild(dimOverlay);
 
   modalEl = document.createElement('div');
   modalEl.className = 'hint-modal hidden';
@@ -233,8 +237,19 @@ function activatePicker(): void {
       labelEl.style.left = `${rect.left - 2}px`;
     }
 
+    const semanticClass = getSemanticClass(entry.el);
+    if (semanticClass) labelEl.classList.add(semanticClass);
+
     labelsContainer.appendChild(labelEl);
     allHints.push({ label, element: entry, labelEl, index: i });
+  }
+
+  // Cap visible labels on dense pages
+  const MAX_VISIBLE_LABELS = 30;
+  if (allHints.length > MAX_VISIBLE_LABELS) {
+    for (let i = MAX_VISIBLE_LABELS; i < allHints.length; i++) {
+      allHints[i].labelEl.classList.add('capped');
+    }
   }
 
   resolveOverlaps(allHints);
@@ -247,12 +262,17 @@ function activatePicker(): void {
 
   for (const hint of allHints) {
     const rect = hint.element.el.getBoundingClientRect();
-    const dx = rect.left - vcx;
-    const dy = rect.top - vcy;
+    const dx = rect.left + rect.width / 2 - vcx;
+    const dy = rect.top + rect.height / 2 - vcy;
     const dist = Math.sqrt(dx * dx + dy * dy);
     const delay = (dist / maxDist) * 120;
     hint.labelEl.style.transitionDelay = `${delay}ms`;
     hint.labelEl.classList.add('entering');
+
+    // Distance-based opacity: closer to center = more visible
+    const opacity = dist < 300 ? 1 : dist < 600 ? 0.7 : 0.4;
+    hint.labelEl.style.setProperty('--hint-opacity', String(opacity));
+
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         hint.labelEl.classList.remove('entering');
@@ -260,6 +280,7 @@ function activatePicker(): void {
     });
   }
 
+  if (dimOverlay) dimOverlay.classList.remove('hidden');
   modalEl.classList.remove('hidden');
   updateModal();
   updateRingPosition();
@@ -306,9 +327,7 @@ function detectCenterstage(): HTMLElement | null {
   const vh = window.innerHeight;
   const vpArea = vw * vh;
 
-  const candidates = document.querySelectorAll<HTMLElement>(
-    '[role="dialog"], [role="alertdialog"]'
-  );
+  const candidates = document.querySelectorAll<HTMLElement>('[role="dialog"], [role="alertdialog"]');
 
   for (const el of candidates) {
     const style = getComputedStyle(el);
@@ -346,6 +365,7 @@ export function deactivateHintMode(): void {
   if (labelsContainer) labelsContainer.innerHTML = '';
   if (modalEl) modalEl.classList.add('hidden');
   if (badgeEl) badgeEl.classList.add('hidden');
+  if (dimOverlay) dimOverlay.classList.add('hidden');
   hideAura();
 }
 
@@ -370,8 +390,26 @@ export function destroyHintMode(): void {
     labelsContainer = null;
     modalEl = null;
     badgeEl = null;
+    dimOverlay = null;
   }
   if (unregisterKey) unregisterKey();
+}
+
+function getSemanticClass(el: HTMLElement): string {
+  const tag = el.tagName;
+  if (tag === 'A') return 'hint-link';
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return 'hint-input-field';
+  if (el.getAttribute('role') === 'textbox' || el.getAttribute('role') === 'searchbox') return 'hint-input-field';
+  const type = (el as HTMLInputElement).type?.toLowerCase?.();
+  if (
+    type === 'checkbox' ||
+    type === 'radio' ||
+    el.getAttribute('role') === 'checkbox' ||
+    el.getAttribute('role') === 'radio' ||
+    el.getAttribute('role') === 'switch'
+  )
+    return 'hint-toggle';
+  return 'hint-button';
 }
 
 function activateTarget(indexed: IndexedElement, newTab: boolean): void {
@@ -475,8 +513,7 @@ function activateQuickPick(idx: number): void {
 
   const scored = elements.map((el) => {
     const rect = el.el.getBoundingClientRect();
-    const inViewport =
-      rect.top < vh && rect.bottom > 0 && rect.left < vw && rect.right > 0;
+    const inViewport = rect.top < vh && rect.bottom > 0 && rect.left < vw && rect.right > 0;
     const area = rect.width * rect.height;
     return { el, inViewport, area };
   });
@@ -518,6 +555,7 @@ function updateVisuals(): void {
 
     if (hint.label.startsWith(typedFilter)) {
       hint.labelEl.classList.remove('dimmed');
+      hint.labelEl.classList.add('filter-visible');
       if (typedFilter.length > 0) {
         const matched = hint.label.slice(0, typedFilter.length);
         const rest = hint.label.slice(typedFilter.length);
@@ -527,6 +565,7 @@ function updateVisuals(): void {
       }
     } else {
       hint.labelEl.classList.add('dimmed');
+      hint.labelEl.classList.remove('filter-visible');
       textEl.textContent = hint.label;
     }
   }
@@ -537,6 +576,26 @@ function updateModal(): void {
   const typedSpan = modalEl.querySelector('.hint-typed');
   if (typedSpan) {
     typedSpan.textContent = typedFilter || '';
+  }
+  const countEl = modalEl.querySelector('.hint-count');
+  if (countEl) {
+    if (allHints.length > 30) {
+      countEl.textContent = `${filteredHints.length} of ${allHints.length} elements`;
+    } else {
+      countEl.textContent = '';
+    }
+  }
+  const previewEl = modalEl.querySelector('.hint-preview');
+  if (previewEl) {
+    if (typedFilter.length > 0 && filteredHints.length > 0) {
+      const previews = filteredHints.slice(0, 3).map((h) => {
+        const name = getElementName(h.element.el);
+        return `<span class="preview-item"><span class="preview-key">${h.label}</span> ${escapeHtml(name)}</span>`;
+      });
+      previewEl.innerHTML = previews.join('<span class="preview-sep">·</span>');
+    } else {
+      previewEl.innerHTML = '';
+    }
   }
 }
 
@@ -676,7 +735,7 @@ function hideTooltip(): void {
 function getTooltipText(el: HTMLElement): string | null {
   if (el.tagName === 'A') {
     const href = (el as HTMLAnchorElement).href;
-    if (href) return href.length > 50 ? href.slice(0, 47) + '...' : href;
+    if (href) return href.length > 50 ? `${href.slice(0, 47)}...` : href;
   }
   const ariaLabel = el.getAttribute('aria-label');
   if (ariaLabel) return ariaLabel;
@@ -688,6 +747,20 @@ function getTooltipText(el: HTMLElement): string | null {
     if (text && text.length < 40) return text;
   }
   return null;
+}
+
+function getElementName(el: HTMLElement): string {
+  const ariaLabel = el.getAttribute('aria-label');
+  if (ariaLabel) return ariaLabel.slice(0, 25);
+  const text = el.textContent?.trim();
+  if (text && text.length <= 25) return text;
+  if (text) return `${text.slice(0, 22)}...`;
+  if (el.tagName === 'INPUT') return (el as HTMLInputElement).placeholder || 'input';
+  return el.tagName.toLowerCase();
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function getHintStyles(): string {
@@ -717,6 +790,7 @@ function getHintStyles(): string {
       white-space: nowrap;
       transition: opacity 80ms ease, transform 80ms ease;
       backdrop-filter: blur(8px);
+      opacity: var(--hint-opacity, 1);
     }
 
     .hint-label.dimmed {
@@ -872,6 +946,78 @@ function getHintStyles(): string {
     .multi-badge.hidden {
       opacity: 0;
       pointer-events: none;
+    }
+
+    .hint-label.capped {
+      display: none;
+    }
+    .hint-label.capped.filter-visible {
+      display: inline-flex;
+    }
+
+    .hint-count {
+      font: 10px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      color: #7a7a9a;
+      margin-top: 4px;
+    }
+
+    .dim-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.15);
+      pointer-events: none;
+      transition: opacity 150ms ease;
+      z-index: 0;
+    }
+    .dim-overlay.hidden {
+      opacity: 0;
+    }
+
+    .hint-label.hint-link {
+      border-color: rgba(96, 165, 250, 0.4);
+    }
+    .hint-label.hint-input-field {
+      border-color: rgba(74, 222, 128, 0.4);
+    }
+    .hint-label.hint-toggle {
+      border-color: rgba(251, 191, 36, 0.4);
+    }
+    .hint-label.hint-button {
+      border-color: rgba(100, 80, 255, 0.35);
+    }
+
+    .hint-preview {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      margin-top: 6px;
+      font: 11px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      color: #9999b8;
+      min-height: 16px;
+      flex-wrap: wrap;
+    }
+    .preview-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 6px;
+      background: rgba(100, 80, 255, 0.08);
+      border-radius: 4px;
+      white-space: nowrap;
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .preview-key {
+      font-family: ui-monospace, 'SF Mono', monospace;
+      font-weight: 700;
+      color: hsl(250, 80%, 65%);
+      font-size: 10px;
+    }
+    .preview-sep {
+      color: #5a5a7a;
+      margin: 0 2px;
     }
 
     @media (prefers-reduced-motion: reduce) {
