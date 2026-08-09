@@ -35,7 +35,7 @@ let badgeEl: HTMLElement | null = null;
 let dimOverlay: HTMLElement | null = null;
 let zoneMarkersContainer: HTMLElement | null = null;
 let miniMapEl: HTMLElement | null = null;
-let vignetteEl: HTMLElement | null = null;
+let spotlightEl: HTMLElement | null = null;
 
 interface HintEntry {
   label: string;
@@ -61,9 +61,9 @@ export function initHintMode(): void {
   dimOverlay.className = 'dim-overlay hidden';
   shadow.appendChild(dimOverlay);
 
-  vignetteEl = document.createElement('div');
-  vignetteEl.className = 'vignette hidden';
-  shadow.appendChild(vignetteEl);
+  spotlightEl = document.createElement('div');
+  spotlightEl.className = 'zone-spotlight hidden';
+  shadow.appendChild(spotlightEl);
 
   zoneMarkersContainer = document.createElement('div');
   zoneMarkersContainer.className = 'zone-markers-container hidden';
@@ -151,7 +151,7 @@ export function destroyHintMode(): void {
     dimOverlay = null;
     zoneMarkersContainer = null;
     miniMapEl = null;
-    vignetteEl = null;
+    spotlightEl = null;
   }
   if (unregisterKey) unregisterKey();
 }
@@ -183,7 +183,7 @@ function handlePickerKeydown(e: KeyboardEvent): boolean {
     }
     const zoneIdx = ZONE_KEYS.indexOf(e.key.toLowerCase());
     if (zoneIdx !== -1 && !e.altKey && !e.ctrlKey && !e.metaKey) {
-      zoomIntoZone(zoneIdx);
+      spotlightZone(zoneIdx);
       return true;
     }
     return true;
@@ -195,7 +195,7 @@ function handlePickerKeydown(e: KeyboardEvent): boolean {
         clearMultiSelection();
         return true;
       }
-      zoomOut();
+      unselectZone();
       return true;
     }
 
@@ -208,7 +208,7 @@ function handlePickerKeydown(e: KeyboardEvent): boolean {
     }
 
     if (ZONE_KEYS[activeZone] === e.key.toLowerCase() && !e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
-      zoomOut();
+      unselectZone();
       return true;
     }
 
@@ -395,72 +395,61 @@ function updateMiniMap(zoneIdx: number): void {
   });
 }
 
-// === Vignette ===
+// === Zone Spotlight ===
 
-function showVignette(): void {
-  if (vignetteEl) vignetteEl.classList.remove('hidden');
-}
-
-function hideVignette(): void {
-  if (vignetteEl) vignetteEl.classList.add('hidden');
-}
-
-// === Zoom Mechanics ===
-
-function zoomIntoZone(zoneIdx: number): void {
-  activeZone = zoneIdx;
-  phase = 'zone-zoomed';
-
-  const col = zoneIdx % ZONE_COLS;
-  const row = Math.floor(zoneIdx / ZONE_COLS);
+function showSpotlight(zoneIdx: number): void {
+  if (!spotlightEl) return;
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   const zoneW = vw / ZONE_COLS;
   const zoneH = vh / ZONE_ROWS;
+  const col = zoneIdx % ZONE_COLS;
+  const row = Math.floor(zoneIdx / ZONE_COLS);
 
-  // Use pixel values accounting for scroll position so the zoom
-  // centers on the correct viewport zone regardless of page length
-  const originX = window.scrollX + col * zoneW + zoneW / 2;
-  const originY = window.scrollY + row * zoneH + zoneH / 2;
+  const left = col * zoneW;
+  const top = row * zoneH;
+  const right = left + zoneW;
+  const bottom = top + zoneH;
 
-  // Apply to body (not documentElement) so our Shadow DOM host
-  // remains un-transformed and fixed positioning works correctly
-  document.body.style.transformOrigin = `${originX}px ${originY}px`;
-  document.body.style.transition = 'transform 250ms cubic-bezier(0.22, 1, 0.36, 1)';
-  document.body.style.transform = 'scale(1.4)';
-  document.documentElement.style.overflow = 'hidden';
+  // Use clip-path to create a cutout: dim everything except the active zone
+  // polygon draws a frame: outer rect clockwise, then inner rect counter-clockwise
+  spotlightEl.style.clipPath = `polygon(
+    0% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 0%,
+    ${left}px ${top}px, ${left}px ${bottom}px, ${right}px ${bottom}px, ${right}px ${top}px, ${left}px ${top}px
+  )`;
+  spotlightEl.classList.remove('hidden');
+}
+
+function hideSpotlight(): void {
+  if (spotlightEl) spotlightEl.classList.add('hidden');
+}
+
+// === Zone Spotlight Mechanics ===
+
+function spotlightZone(zoneIdx: number): void {
+  activeZone = zoneIdx;
+  phase = 'zone-zoomed';
 
   hideZoneMarkers();
   if (dimOverlay) dimOverlay.classList.add('hidden');
-  showVignette();
+  showSpotlight(zoneIdx);
   updateMiniMap(zoneIdx);
 
-  setTimeout(() => {
-    renderZoneLabels();
-    if (modalEl) modalEl.classList.remove('hidden');
-    updateModal();
-  }, 260);
+  renderLabelsForZone(zoneIdx);
+  if (modalEl) modalEl.classList.remove('hidden');
+  updateModal();
 }
 
-function zoomOut(): void {
+function unselectZone(): void {
   phase = 'zone-select';
   activeZone = -1;
-
-  document.body.style.transition = 'transform 200ms cubic-bezier(0.22, 1, 0.36, 1)';
-  document.body.style.transform = '';
-
-  setTimeout(() => {
-    document.body.style.transformOrigin = '';
-    document.body.style.transition = '';
-    document.documentElement.style.overflow = '';
-  }, 210);
 
   if (labelsContainer) labelsContainer.innerHTML = '';
   allHints = [];
   filteredHints = [];
   typedFilter = '';
   multiSelected = new Set();
-  hideVignette();
+  hideSpotlight();
   if (dimOverlay) dimOverlay.classList.remove('hidden');
   if (modalEl) modalEl.classList.add('hidden');
   if (badgeEl) badgeEl.classList.add('hidden');
@@ -474,11 +463,6 @@ function exitPicker(): void {
   phase = 'inactive';
   activeZone = -1;
 
-  document.body.style.transform = '';
-  document.body.style.transformOrigin = '';
-  document.body.style.transition = '';
-  document.documentElement.style.overflow = '';
-
   if (labelsContainer) labelsContainer.innerHTML = '';
   if (modalEl) modalEl.classList.add('hidden');
   if (badgeEl) badgeEl.classList.add('hidden');
@@ -487,7 +471,7 @@ function exitPicker(): void {
   typedFilter = '';
   multiSelected = new Set();
   hideZoneMarkers();
-  hideVignette();
+  hideSpotlight();
   hideMiniMap();
   hideAura();
   hideTooltip();
@@ -524,21 +508,52 @@ function navigateZone(direction: string): void {
   typedFilter = '';
   multiSelected = new Set();
 
-  zoomIntoZone(newZone);
+  spotlightZone(newZone);
 }
 
 // === Label Rendering ===
 
-function renderZoneLabels(): void {
-  renderLabelsForScope(null);
-}
-
-function renderLabelsForScope(scope: HTMLElement | null): void {
+function renderLabelsForZone(zoneIdx: number): void {
   if (!labelsContainer || !modalEl) return;
 
-  let elements = scanViewportElements(scope);
-  if (elements.length === 0 && scope !== null) {
-    elements = scanViewportElements(null);
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const zoneW = vw / ZONE_COLS;
+  const zoneH = vh / ZONE_ROWS;
+  const col = zoneIdx % ZONE_COLS;
+  const row = Math.floor(zoneIdx / ZONE_COLS);
+
+  const zoneLeft = col * zoneW;
+  const zoneTop = row * zoneH;
+  const zoneRight = zoneLeft + zoneW;
+  const zoneBottom = zoneTop + zoneH;
+
+  const all = scanVisibleElements();
+  const zoneElements = all.filter((indexed) => {
+    const rect = indexed.el.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    return cx >= zoneLeft && cx < zoneRight && cy >= zoneTop && cy < zoneBottom;
+  });
+
+  renderLabelsForElements(zoneElements);
+}
+
+function renderLabelsForElements(elements: IndexedElement[]): void {
+  renderLabelsForScope(null, elements);
+}
+
+function renderLabelsForScope(scope: HTMLElement | null, preFiltered?: IndexedElement[]): void {
+  if (!labelsContainer || !modalEl) return;
+
+  let elements: IndexedElement[];
+  if (preFiltered) {
+    elements = preFiltered;
+  } else {
+    elements = scanViewportElements(scope);
+    if (elements.length === 0 && scope !== null) {
+      elements = scanViewportElements(null);
+    }
   }
   if (elements.length === 0) return;
 
@@ -1367,21 +1382,17 @@ function getHintStyles(): string {
       box-shadow: 0 0 6px rgba(100, 80, 255, 0.4);
     }
 
-    /* Vignette */
-    .vignette {
+    /* Zone spotlight */
+    .zone-spotlight {
       position: fixed;
       inset: 0;
-      background: radial-gradient(
-        ellipse 75% 75% at center,
-        transparent 45%,
-        rgba(0, 0, 0, 0.35) 100%
-      );
+      background: rgba(0, 0, 0, 0.55);
       pointer-events: none;
       z-index: 1;
-      transition: opacity 200ms ease;
+      transition: opacity 200ms ease, clip-path 200ms cubic-bezier(0.22, 1, 0.36, 1);
     }
 
-    .vignette.hidden {
+    .zone-spotlight.hidden {
       opacity: 0;
     }
 
