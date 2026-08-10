@@ -18,7 +18,8 @@ let unregisterKey: (() => void) | null = null;
 let query = '';
 let matches: IndexedElement[] = [];
 let selectedIndex = 0;
-let clearHighlight: (() => void) | null = null;
+let clearHighlights: (() => void)[] = [];
+let lastQuery = '';
 
 export function initElementSearch(initialSettings: Settings): void {
   settings = initialSettings;
@@ -34,10 +35,8 @@ export function deactivateElementSearch(): void {
   if (!active) return;
   active = false;
   releaseMode('search');
-  if (clearHighlight) {
-    clearHighlight();
-    clearHighlight = null;
-  }
+  removeAllHighlights();
+  if (query.length > 0) lastQuery = query;
   query = '';
   matches = [];
   selectedIndex = 0;
@@ -45,6 +44,8 @@ export function deactivateElementSearch(): void {
     const countEl = panel.querySelector('.search-count');
     if (countEl) countEl.textContent = '';
     if (inputEl) inputEl.textContent = '';
+    const scopeEl = panel.querySelector('.search-scope');
+    if (scopeEl) scopeEl.textContent = '';
     panel.classList.add('hidden');
   }
 }
@@ -81,10 +82,11 @@ function createDOM(): void {
   panel.className = 'search-panel hidden';
   panel.innerHTML = `
     <div class="search-icon">/</div>
+    <span class="search-scope"></span>
     <span class="search-input"></span>
     <span class="search-cursor">|</span>
     <span class="search-count"></span>
-    <span class="search-hint">Tab/arrows to navigate</span>
+    <span class="search-hint">Tab/arrows navigate \u00b7 @link: @btn: @input: filter</span>
   `;
   shadow.appendChild(panel);
 
@@ -114,20 +116,24 @@ function handleKey(e: KeyboardEvent): boolean {
       const target = matches[selectedIndex];
       deactivateElementSearch();
       pushFocus(target.el);
-      target.el.focus();
+      activateSearchTarget(target.el);
     }
     return true;
   }
 
   if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || (e.key === 'Tab' && !e.shiftKey)) {
-    selectedIndex = (selectedIndex + 1) % Math.max(matches.length, 1);
-    highlightCurrent();
+    if (matches.length > 0) {
+      selectedIndex = (selectedIndex + 1) % matches.length;
+      highlightCurrent();
+    }
     return true;
   }
 
   if (e.key === 'ArrowUp' || e.key === 'ArrowLeft' || (e.key === 'Tab' && e.shiftKey)) {
-    selectedIndex = (selectedIndex - 1 + Math.max(matches.length, 1)) % Math.max(matches.length, 1);
-    highlightCurrent();
+    if (matches.length > 0) {
+      selectedIndex = (selectedIndex - 1 + matches.length) % matches.length;
+      highlightCurrent();
+    }
     return true;
   }
 
@@ -151,63 +157,183 @@ function handleKey(e: KeyboardEvent): boolean {
 function activate(): void {
   requestMode('search', deactivateElementSearch);
   active = true;
-  query = '';
+  query = lastQuery;
   matches = [];
   selectedIndex = 0;
   if (panel) panel.classList.remove('hidden');
   updateInput();
+  if (query.length > 0) {
+    search();
+  }
+}
+
+// === Search Logic ===
+
+interface ScopeFilter {
+  prefix: string;
+  selector: (el: HTMLElement) => boolean;
+}
+
+const SCOPE_FILTERS: ScopeFilter[] = [
+  { prefix: '@link:', selector: (el) => el.tagName === 'A' || el.getAttribute('role') === 'link' },
+  {
+    prefix: '@btn:',
+    selector: (el) =>
+      el.tagName === 'BUTTON' ||
+      el.getAttribute('role') === 'button' ||
+      (el.tagName === 'INPUT' && ['button', 'submit', 'reset'].includes((el as HTMLInputElement).type)),
+  },
+  {
+    prefix: '@input:',
+    selector: (el) =>
+      el.tagName === 'INPUT' ||
+      el.tagName === 'TEXTAREA' ||
+      el.tagName === 'SELECT' ||
+      el.isContentEditable ||
+      el.getAttribute('role') === 'textbox',
+  },
+];
+
+function parseScope(raw: string): { scope: ScopeFilter | null; text: string } {
+  const lower = raw.toLowerCase();
+  for (const sf of SCOPE_FILTERS) {
+    if (lower.startsWith(sf.prefix)) {
+      return { scope: sf, text: raw.slice(sf.prefix.length) };
+    }
+  }
+  return { scope: null, text: raw };
 }
 
 function search(): void {
   updateInput();
+  removeAllHighlights();
+
   if (query.length === 0) {
     matches = [];
     updateCount();
+    updateScopeIndicator(null);
     return;
   }
 
+  const { scope, text } = parseScope(query);
+  updateScopeIndicator(scope);
+
   const elements = scanVisibleElements();
-  const q = query.toLowerCase();
-  matches = elements.filter((el) => {
-    const text = el.el.textContent?.toLowerCase() || '';
-    const ariaLabel = el.el.getAttribute('aria-label')?.toLowerCase() || '';
-    const placeholder = (el.el as HTMLInputElement).placeholder?.toLowerCase() || '';
-    return text.includes(q) || ariaLabel.includes(q) || placeholder.includes(q);
-  });
+  let filtered = elements;
+
+  if (scope) {
+    filtered = filtered.filter((el) => scope.selector(el.el));
+  }
+
+  if (text.length === 0) {
+    matches = filtered;
+  } else {
+    const q = text.toLowerCase();
+    matches = filtered.filter((el) => {
+      const score = fuzzyScore(getSearchableText(el.el), q);
+      return score > 0;
+    });
+    matches.sort((a, b) => {
+      const sa = fuzzyScore(getSearchableText(a.el), q);
+      const sb = fuzzyScore(getSearchableText(b.el), q);
+      return sb - sa;
+    });
+  }
 
   selectedIndex = 0;
   updateCount();
+  highlightAllMatches();
   highlightCurrent();
 }
 
-function highlightCurrent(): void {
-  if (clearHighlight) {
-    clearHighlight();
-    clearHighlight = null;
+function getSearchableText(el: HTMLElement): string {
+  const parts: string[] = [];
+  const text = el.textContent?.trim();
+  if (text) parts.push(text);
+  const ariaLabel = el.getAttribute('aria-label');
+  if (ariaLabel) parts.push(ariaLabel);
+  const placeholder = (el as HTMLInputElement).placeholder;
+  if (placeholder) parts.push(placeholder);
+  const title = el.getAttribute('title');
+  if (title) parts.push(title);
+  return parts.join(' ');
+}
+
+function fuzzyScore(text: string, query: string): number {
+  const lower = text.toLowerCase();
+  const q = query.toLowerCase();
+
+  const exactIdx = lower.indexOf(q);
+  if (exactIdx !== -1) {
+    const atStart = exactIdx === 0 ? 20 : 0;
+    const atWordBoundary = exactIdx > 0 && /\s/.test(lower[exactIdx - 1]) ? 10 : 0;
+    return 100 + atStart + atWordBoundary;
   }
+
+  let qi = 0;
+  let consecutiveBonus = 0;
+  let totalScore = 0;
+  let lastMatchIdx = -2;
+
+  for (let ti = 0; ti < lower.length && qi < q.length; ti++) {
+    if (lower[ti] === q[qi]) {
+      const consecutive = ti === lastMatchIdx + 1;
+      consecutiveBonus = consecutive ? consecutiveBonus + 5 : 0;
+      totalScore += 10 + consecutiveBonus;
+      if (ti === 0 || /[\s_\-./]/.test(lower[ti - 1])) totalScore += 8;
+      lastMatchIdx = ti;
+      qi++;
+    }
+  }
+
+  if (qi < q.length) return 0;
+  const coverage = q.length / Math.max(lower.length, 1);
+  return totalScore * (0.5 + coverage * 0.5);
+}
+
+// === Highlighting ===
+
+function highlightAllMatches(): void {
+  removeAllHighlights();
+  const { text } = parseScope(query);
+  if (text.length < 2) return;
+
+  for (let i = 0; i < matches.length; i++) {
+    if (i === selectedIndex) continue;
+    const cleanup = highlightMatchInElement(matches[i].el, text, false);
+    if (cleanup) clearHighlights.push(cleanup);
+  }
+}
+
+function highlightCurrent(): void {
+  // Remove only the active highlight marker class, re-add for current
+  removeActiveHighlight();
   if (matches.length > 0 && matches[selectedIndex]) {
     const target = matches[selectedIndex];
     transitionTo(target);
     revealElement(target.el);
-    clearHighlight = highlightMatchInElement(target.el, query);
+    const { text } = parseScope(query);
+    const cleanup = highlightMatchInElement(target.el, text, true);
+    if (cleanup) clearHighlights.push(cleanup);
   }
   updateCount();
 }
 
-function updateInput(): void {
-  if (inputEl) inputEl.textContent = query;
+function removeActiveHighlight(): void {
+  // Remove highlights on the previously active element and re-highlight as inactive
+  // Simplification: remove all and re-highlight
+  removeAllHighlights();
+  highlightAllMatches();
 }
 
-function updateCount(): void {
-  if (!panel) return;
-  const countEl = panel.querySelector('.search-count');
-  if (countEl) {
-    countEl.textContent =
-      matches.length > 0 ? `${selectedIndex + 1}/${matches.length}` : query.length > 0 ? 'No matches' : '';
+function removeAllHighlights(): void {
+  for (const fn of clearHighlights) {
+    fn();
   }
+  clearHighlights = [];
 }
 
-function highlightMatchInElement(el: HTMLElement, q: string): (() => void) | null {
+function highlightMatchInElement(el: HTMLElement, q: string, isActive: boolean): (() => void) | null {
   if (!q || q.length < 2) return null;
 
   const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
@@ -226,7 +352,10 @@ function highlightMatchInElement(el: HTMLElement, q: string): (() => void) | nul
     range.setEnd(node, idx + q.length);
 
     const mark = document.createElement('mark');
-    mark.style.cssText = 'background: rgba(100, 80, 255, 0.3); color: inherit; border-radius: 2px; padding: 0 1px;';
+    mark.setAttribute('data-navigator-search', isActive ? 'active' : 'dim');
+    mark.style.cssText = isActive
+      ? 'background: rgba(100, 80, 255, 0.4); color: inherit; border-radius: 2px; padding: 0 1px; outline: 1px solid rgba(100, 80, 255, 0.6);'
+      : 'background: rgba(100, 80, 255, 0.15); color: inherit; border-radius: 2px; padding: 0 1px;';
     range.surroundContents(mark);
 
     return () => {
@@ -238,6 +367,53 @@ function highlightMatchInElement(el: HTMLElement, q: string): (() => void) | nul
     };
   }
   return null;
+}
+
+// === Target Activation ===
+
+function activateSearchTarget(el: HTMLElement): void {
+  if (el.tagName === 'A' && (el as HTMLAnchorElement).href) {
+    el.click();
+  } else if (el.tagName === 'BUTTON' || el.getAttribute('role') === 'button') {
+    el.click();
+  } else if (
+    el.tagName === 'INPUT' &&
+    ['checkbox', 'radio', 'button', 'submit', 'reset'].includes((el as HTMLInputElement).type)
+  ) {
+    el.click();
+  } else {
+    el.focus();
+  }
+}
+
+// === UI Updates ===
+
+function updateInput(): void {
+  if (!inputEl) return;
+  const { scope, text } = parseScope(query);
+  if (scope) {
+    inputEl.textContent = text;
+  } else {
+    inputEl.textContent = query;
+  }
+}
+
+function updateScopeIndicator(scope: ScopeFilter | null): void {
+  if (!panel) return;
+  const scopeEl = panel.querySelector('.search-scope');
+  if (scopeEl) {
+    scopeEl.textContent = scope ? scope.prefix : '';
+  }
+}
+
+function updateCount(): void {
+  if (!panel) return;
+  const countEl = panel.querySelector('.search-count');
+  if (countEl) {
+    const { text } = parseScope(query);
+    countEl.textContent =
+      matches.length > 0 ? `${selectedIndex + 1}/${matches.length}` : text.length > 0 ? 'No matches' : '';
+  }
 }
 
 function getStyles(): string {
@@ -268,6 +444,11 @@ function getStyles(): string {
     .search-icon {
       color: ${UI.colors.accent};
       font: bold 16px ${UI.font.mono};
+    }
+    .search-scope {
+      color: ${UI.colors.accent};
+      font: 600 13px ${UI.font.mono};
+      opacity: 0.9;
     }
     .search-input {
       color: ${UI.colors.text};
