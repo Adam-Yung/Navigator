@@ -40,7 +40,13 @@ export function deactivateElementSearch(): void {
   }
   query = '';
   matches = [];
-  if (panel) panel.classList.add('hidden');
+  selectedIndex = 0;
+  if (panel) {
+    const countEl = panel.querySelector('.search-count');
+    if (countEl) countEl.textContent = '';
+    if (inputEl) inputEl.textContent = '';
+    panel.classList.add('hidden');
+  }
 }
 
 export function isElementSearchActive(): boolean {
@@ -78,6 +84,7 @@ function createDOM(): void {
     <span class="search-input"></span>
     <span class="search-cursor">|</span>
     <span class="search-count"></span>
+    <span class="search-hint">Tab/arrows to navigate</span>
   `;
   shadow.appendChild(panel);
 
@@ -112,13 +119,13 @@ function handleKey(e: KeyboardEvent): boolean {
     return true;
   }
 
-  if (e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || (e.key === 'Tab' && !e.shiftKey)) {
     selectedIndex = (selectedIndex + 1) % Math.max(matches.length, 1);
     highlightCurrent();
     return true;
   }
 
-  if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
+  if (e.key === 'ArrowUp' || e.key === 'ArrowLeft' || (e.key === 'Tab' && e.shiftKey)) {
     selectedIndex = (selectedIndex - 1 + Math.max(matches.length, 1)) % Math.max(matches.length, 1);
     highlightCurrent();
     return true;
@@ -184,6 +191,7 @@ function highlightCurrent(): void {
     revealElement(target.el);
     clearHighlight = highlightMatchInElement(target.el, query);
   }
+  updateCount();
 }
 
 function updateInput(): void {
@@ -274,6 +282,12 @@ function getStyles(): string {
       color: ${UI.colors.textMuted};
       font: ${UI.font.sizeSm} ${UI.font.base};
       margin-left: 8px;
+    }
+    .search-hint {
+      color: ${UI.colors.textDim};
+      font: ${UI.font.sizeXs} ${UI.font.base};
+      margin-left: 8px;
+      opacity: 0.7;
     }
     @keyframes blink {
       0%, 100% { opacity: 1; }
