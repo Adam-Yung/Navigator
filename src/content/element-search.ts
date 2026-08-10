@@ -18,6 +18,7 @@ let unregisterKey: (() => void) | null = null;
 let query = '';
 let matches: IndexedElement[] = [];
 let selectedIndex = 0;
+let clearHighlight: (() => void) | null = null;
 
 export function initElementSearch(initialSettings: Settings): void {
   settings = initialSettings;
@@ -33,6 +34,10 @@ export function deactivateElementSearch(): void {
   if (!active) return;
   active = false;
   releaseMode('search');
+  if (clearHighlight) {
+    clearHighlight();
+    clearHighlight = null;
+  }
   query = '';
   matches = [];
   if (panel) panel.classList.add('hidden');
@@ -169,10 +174,15 @@ function search(): void {
 }
 
 function highlightCurrent(): void {
+  if (clearHighlight) {
+    clearHighlight();
+    clearHighlight = null;
+  }
   if (matches.length > 0 && matches[selectedIndex]) {
     const target = matches[selectedIndex];
     transitionTo(target);
     revealElement(target.el);
+    clearHighlight = highlightMatchInElement(target.el, query);
   }
 }
 
@@ -187,6 +197,39 @@ function updateCount(): void {
     countEl.textContent =
       matches.length > 0 ? `${selectedIndex + 1}/${matches.length}` : query.length > 0 ? 'No matches' : '';
   }
+}
+
+function highlightMatchInElement(el: HTMLElement, q: string): (() => void) | null {
+  if (!q || q.length < 2) return null;
+
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  const lowerQuery = q.toLowerCase();
+  let node = walker.nextNode() as Text | null;
+
+  while (node) {
+    const idx = node.textContent?.toLowerCase().indexOf(lowerQuery) ?? -1;
+    if (idx === -1) {
+      node = walker.nextNode() as Text | null;
+      continue;
+    }
+
+    const range = document.createRange();
+    range.setStart(node, idx);
+    range.setEnd(node, idx + q.length);
+
+    const mark = document.createElement('mark');
+    mark.style.cssText = 'background: rgba(100, 80, 255, 0.3); color: inherit; border-radius: 2px; padding: 0 1px;';
+    range.surroundContents(mark);
+
+    return () => {
+      const parent = mark.parentNode;
+      if (parent) {
+        parent.replaceChild(document.createTextNode(mark.textContent || ''), mark);
+        parent.normalize();
+      }
+    };
+  }
+  return null;
 }
 
 function getStyles(): string {

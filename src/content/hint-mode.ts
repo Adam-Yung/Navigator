@@ -458,7 +458,7 @@ function showSpotlight(zoneIdx: number): void {
   const top = row * zoneH;
   const right = left + zoneW;
   const bottom = top + zoneH;
-  const feather = 24;
+  const feather = window.devicePixelRatio > 1 ? 24 : 48;
 
   spotlightEl.innerHTML = '';
 
@@ -721,17 +721,18 @@ function renderLabelsForScope(scope: HTMLElement | null, preFiltered?: IndexedEl
     const dy = rect.top + rect.height / 2 - vcy;
     const dist = Math.sqrt(dx * dx + dy * dy);
     const delay = (dist / maxDist) * 120;
-    hint.labelEl.style.transitionDelay = `${delay}ms`;
-    hint.labelEl.classList.add('entering');
 
     const opacity = dist < 300 ? 1 : dist < 600 ? 0.7 : 0.4;
     hint.labelEl.style.setProperty('--hint-opacity', String(opacity));
 
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        hint.labelEl.classList.remove('entering');
-      });
-    });
+    hint.labelEl.animate(
+      [
+        { opacity: '0', transform: 'scale(0.8)' },
+        { opacity: String(opacity), transform: 'scale(1)' },
+      ],
+      { duration: 150, delay, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)', fill: 'forwards' },
+    );
+    hint.labelEl.style.opacity = '0';
   }
 
   updateRingPosition();
@@ -1065,25 +1066,31 @@ function addLabelsOfLength(len: number, max: number, out: string[]): void {
 function resolveOverlaps(hints: HintEntry[]): void {
   const LABEL_HEIGHT = 20;
   const LABEL_WIDTH = 28;
+  const MAX_DOWN_OFFSET = 40;
   const placed: Array<{ top: number; left: number; bottom: number; right: number }> = [];
 
   for (const hint of hints) {
     const top = parseFloat(hint.labelEl.style.top);
     const left = parseFloat(hint.labelEl.style.left);
     let finalTop = top;
-    const finalLeft = left;
+    let finalLeft = left;
 
     for (const box of placed) {
       const overlapsH = finalLeft < box.right && finalLeft + LABEL_WIDTH > box.left;
       const overlapsV = finalTop < box.bottom && finalTop + LABEL_HEIGHT > box.top;
       if (overlapsH && overlapsV) {
-        finalTop = box.bottom + 2;
+        const downCandidate = box.bottom + 2;
+        if (downCandidate - top > MAX_DOWN_OFFSET) {
+          finalLeft = box.right + 4;
+          finalTop = top;
+        } else {
+          finalTop = downCandidate;
+        }
       }
     }
 
-    if (finalTop !== top) {
-      hint.labelEl.style.top = `${finalTop}px`;
-    }
+    if (finalTop !== top) hint.labelEl.style.top = `${finalTop}px`;
+    if (finalLeft !== left) hint.labelEl.style.left = `${finalLeft}px`;
 
     placed.push({
       top: finalTop,
@@ -1196,11 +1203,6 @@ function getHintStyles(): string {
     .hint-label.dimmed {
       opacity: 0.15;
       transform: scale(0.9);
-    }
-
-    .hint-label.entering {
-      opacity: 0;
-      transform: scale(0.8);
     }
 
     .matched {
@@ -1527,10 +1529,7 @@ function getHintStyles(): string {
       .hint-label {
         transition: none;
       }
-      .hint-label.entering {
-        opacity: 1;
-        transform: none;
-      }
+
       .hint-modal {
         transition-duration: 50ms;
       }
