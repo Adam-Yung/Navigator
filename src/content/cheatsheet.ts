@@ -67,7 +67,7 @@ function createDOM(): void {
 
 function handleKey(e: KeyboardEvent): boolean {
   if (active) {
-    if (e.key === '?') {
+    if (e.key === '?' && e.altKey) {
       deactivateCheatsheet();
       return true;
     }
@@ -93,7 +93,7 @@ function handleKey(e: KeyboardEvent): boolean {
     return true;
   }
 
-  if (e.key === '?' && !e.altKey && !e.ctrlKey && !e.metaKey) {
+  if (e.key === '?' && e.altKey && !e.ctrlKey && !e.metaKey) {
     const el = document.activeElement;
     if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || (el as HTMLElement).isContentEditable)) {
       return false;
@@ -275,7 +275,7 @@ function getContent(): string {
 
       </div>
 
-      <div class="cs-footer">Press ${key('?')} or ${key('Esc', 'sm')} to close</div>
+      <div class="cs-footer">Press ${key('Alt+?', 'med')} or ${key('Esc', 'sm')} to close</div>
     </div>
   `;
 }

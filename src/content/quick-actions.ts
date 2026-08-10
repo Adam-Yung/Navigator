@@ -1,7 +1,8 @@
 import { buildComboString } from '../shared/keys';
 import type { Settings } from '../shared/types';
-import { registerKeyHandler } from './key-handler';
+import { escapeHtml } from '../shared/utils';
 import { showToast } from './indicator';
+import { registerKeyHandler } from './key-handler';
 import { UI } from './ui-tokens';
 
 interface Action {
@@ -48,7 +49,14 @@ export function isQuickActionsActive(): boolean {
 
 export function destroyQuickActions(): void {
   deactivateQuickActions();
-  if (host) { host.remove(); host = null; shadow = null; panel = null; inputEl = null; listEl = null; }
+  if (host) {
+    host.remove();
+    host = null;
+    shadow = null;
+    panel = null;
+    inputEl = null;
+    listEl = null;
+  }
   if (unregisterKey) unregisterKey();
 }
 
@@ -170,7 +178,7 @@ function filterActions(): void {
   if (query.length === 0) {
     filteredActions = all;
   } else {
-    filteredActions = all.filter(a => fuzzyMatch(query, a.label));
+    filteredActions = all.filter((a) => fuzzyMatch(query, a.label));
   }
   selectedIndex = 0;
   updateInput();
@@ -329,10 +337,6 @@ async function copyText(text: string, msg: string): Promise<void> {
   } catch {
     showToast('Copy failed', 1500, 'error');
   }
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function getStyles(): string {

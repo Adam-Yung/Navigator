@@ -1,6 +1,7 @@
 import { AURA_COLOR } from '../shared/constants';
 import { buildComboString } from '../shared/keys';
 import type { IndexedElement, Settings } from '../shared/types';
+import { escapeHtml } from '../shared/utils';
 import { cancelAltHoldTimer } from './alt-hold-helper';
 import { hide as hideAura, transitionTo } from './aura-ring';
 import { pushFocus } from './focus-history';
@@ -182,6 +183,17 @@ function handlePickerKeydown(e: KeyboardEvent): boolean {
       exitPicker();
       return true;
     }
+    if (e.key === 'Enter') {
+      phase = 'zone-zoomed';
+      activeZone = -1;
+      hideZoneMarkers();
+      if (dimOverlay) dimOverlay.classList.add('hidden');
+      updateMiniMap(-1);
+      renderLabelsForScope(null);
+      if (modalEl) modalEl.classList.remove('hidden');
+      updateModal();
+      return true;
+    }
     const zoneIdx = ZONE_KEYS.indexOf(e.key.toLowerCase());
     if (zoneIdx !== -1 && !e.altKey && !e.ctrlKey && !e.metaKey) {
       spotlightZone(zoneIdx);
@@ -302,6 +314,7 @@ function startZoneSelection(): void {
   showZoneMarkers();
   showMiniMap();
   updateMiniMap(-1);
+  updateMiniMapDensity();
 }
 
 function activateDirectLabeling(scope: HTMLElement | null): void {
@@ -321,8 +334,8 @@ function showZoneMarkers(): void {
   zoneMarkersContainer.innerHTML = '';
   zoneMarkersContainer.classList.remove('hidden');
 
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
+  const vw = document.documentElement.clientWidth;
+  const vh = document.documentElement.clientHeight;
   const zoneW = vw / ZONE_COLS;
   const zoneH = vh / ZONE_ROWS;
 
@@ -397,12 +410,40 @@ function updateMiniMap(zoneIdx: number): void {
   });
 }
 
+function updateMiniMapDensity(): void {
+  if (!miniMapEl) return;
+  const vw = document.documentElement.clientWidth;
+  const vh = document.documentElement.clientHeight;
+  const zoneW = vw / ZONE_COLS;
+  const zoneH = vh / ZONE_ROWS;
+
+  const all = scanVisibleElements();
+  const cells = miniMapEl.querySelectorAll('.mm-cell');
+
+  cells.forEach((cell, i) => {
+    const col = i % ZONE_COLS;
+    const row = Math.floor(i / ZONE_COLS);
+    const zoneLeft = col * zoneW;
+    const zoneTop = row * zoneH;
+    const zoneRight = zoneLeft + zoneW;
+    const zoneBottom = zoneTop + zoneH;
+
+    const count = all.filter((indexed) => {
+      const pos = getElementLabelPosition(indexed.el);
+      return pos.x >= zoneLeft && pos.x < zoneRight && pos.y >= zoneTop && pos.y < zoneBottom;
+    }).length;
+
+    const density = Math.min(count / 20, 1);
+    (cell as HTMLElement).style.opacity = String(0.3 + density * 0.7);
+  });
+}
+
 // === Zone Spotlight ===
 
 function showSpotlight(zoneIdx: number): void {
   if (!spotlightEl) return;
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
+  const vw = document.documentElement.clientWidth;
+  const vh = document.documentElement.clientHeight;
   const zoneW = vw / ZONE_COLS;
   const zoneH = vh / ZONE_ROWS;
   const col = zoneIdx % ZONE_COLS;
@@ -559,8 +600,8 @@ function getElementLabelPosition(el: HTMLElement): { x: number; y: number } {
 function renderLabelsForZone(zoneIdx: number): void {
   if (!labelsContainer || !modalEl) return;
 
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
+  const vw = document.documentElement.clientWidth;
+  const vh = document.documentElement.clientHeight;
   const zoneW = vw / ZONE_COLS;
   const zoneH = vh / ZONE_ROWS;
   const col = zoneIdx % ZONE_COLS;
@@ -662,8 +703,8 @@ function renderLabelsForScope(scope: HTMLElement | null, preFiltered?: IndexedEl
 
   filteredHints = [...allHints];
 
-  const vcx = window.innerWidth / 2;
-  const vcy = window.innerHeight / 2;
+  const vcx = document.documentElement.clientWidth / 2;
+  const vcy = document.documentElement.clientHeight / 2;
   const maxDist = Math.sqrt(vcx * vcx + vcy * vcy);
 
   for (const hint of allHints) {
@@ -717,15 +758,15 @@ function isMeaningfulScope(el: HTMLElement): boolean {
   const style = getComputedStyle(el);
   if (style.display === 'none' || style.visibility === 'hidden') return false;
   if (parseFloat(style.opacity) < 0.1) return false;
-  const vpArea = window.innerWidth * window.innerHeight;
+  const vpArea = document.documentElement.clientWidth * document.documentElement.clientHeight;
   const area = rect.width * rect.height;
   if (area < vpArea * 0.05) return false;
   return true;
 }
 
 function detectCenterstage(): HTMLElement | null {
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
+  const vw = document.documentElement.clientWidth;
+  const vh = document.documentElement.clientHeight;
   const vpArea = vw * vh;
 
   const candidates = document.querySelectorAll<HTMLElement>('[role="dialog"], [role="alertdialog"]');
@@ -770,6 +811,11 @@ function activateTarget(indexed: IndexedElement, newTab: boolean): void {
     });
     indexed.el.dispatchEvent(clickEvent);
   } else {
+    if (indexed.el.tagName === 'SELECT') {
+      indexed.el.focus();
+      (indexed.el as any).showPicker?.();
+      return;
+    }
     const isEditable = isEditableElement(indexed.el);
     if (isEditable) {
       indexed.el.focus();
@@ -845,8 +891,8 @@ function executeBatchAction(elements: IndexedElement[]): void {
 
 function activateQuickPick(idx: number): void {
   const elements = scanVisibleElements();
-  const vh = window.innerHeight;
-  const vw = window.innerWidth;
+  const vh = document.documentElement.clientHeight;
+  const vw = document.documentElement.clientWidth;
 
   const scored = elements.map((el) => {
     const rect = el.el.getBoundingClientRect();
@@ -871,6 +917,7 @@ function activateQuickPick(idx: number): void {
 function isEditableElement(el: HTMLElement): boolean {
   const tag = el.tagName;
   if (tag === 'TEXTAREA') return true;
+  if (tag === 'SELECT') return true;
   if (tag === 'INPUT') {
     const type = (el as HTMLInputElement).type.toLowerCase();
     return !['hidden', 'button', 'submit', 'reset', 'checkbox', 'radio'].includes(type);
@@ -919,7 +966,7 @@ function updateModal(): void {
   const countEl = modalEl.querySelector('.hint-count');
   if (countEl) {
     if (allHints.length > 30) {
-      countEl.textContent = `${filteredHints.length} of ${allHints.length} elements`;
+      countEl.textContent = `${filteredHints.length} of ${allHints.length} • type to reveal more`;
     } else {
       countEl.textContent = '';
     }
@@ -1086,10 +1133,6 @@ function getSemanticClass(el: HTMLElement): string {
   )
     return 'hint-toggle';
   return 'hint-button';
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 // === Styles ===
@@ -1426,6 +1469,7 @@ function getHintStyles(): string {
       background: rgba(100, 80, 255, 0.1);
       border: 1px solid rgba(100, 80, 255, 0.15);
       transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+      will-change: opacity;
     }
 
     .mm-cell.active {

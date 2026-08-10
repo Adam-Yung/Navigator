@@ -12,7 +12,7 @@ let cachedElements: IndexedElement[] | null = null;
 let cacheValid = false;
 
 const FOCUSABLE_TAGS = new Set(['A', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'SUMMARY']);
-const RESCAN_THROTTLE = 300;
+const RESCAN_THROTTLE = 500;
 
 export function startObserving(onInvalidate: InvalidationCallback): void {
   callback = onInvalidate;
@@ -43,6 +43,18 @@ export function stopObserving(): void {
   cacheValid = false;
 }
 
+function queryShadowRoots(root: Document | ShadowRoot, selector: string): HTMLElement[] {
+  const results: HTMLElement[] = [];
+  const elements = root.querySelectorAll('*');
+  for (const el of elements) {
+    if (el.shadowRoot) {
+      results.push(...el.shadowRoot.querySelectorAll<HTMLElement>(selector));
+      results.push(...queryShadowRoots(el.shadowRoot, selector));
+    }
+  }
+  return results;
+}
+
 export function scanVisibleElements(): IndexedElement[] {
   if (cacheValid && cachedElements !== null) {
     return cachedElements;
@@ -50,10 +62,25 @@ export function scanVisibleElements(): IndexedElement[] {
 
   const result: IndexedElement[] = [];
   const elements = document.querySelectorAll<HTMLElement>(NAV_SELECTORS);
+  const shadowElements = queryShadowRoots(document, NAV_SELECTORS);
   const vw = window.innerWidth;
   const vh = window.innerHeight;
 
   for (const el of elements) {
+    if (!isVisible(el)) continue;
+    const rect = el.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) continue;
+    if (rect.bottom <= 0 || rect.right <= 0 || rect.top >= vh || rect.left >= vw) continue;
+
+    result.push({
+      el,
+      cx: rect.left + rect.width / 2,
+      cy: rect.top + rect.height / 2,
+      rect,
+    });
+  }
+
+  for (const el of shadowElements) {
     if (!isVisible(el)) continue;
     const rect = el.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) continue;
@@ -204,6 +231,10 @@ function rescan(): void {
 function isVisible(el: HTMLElement): boolean {
   if ((el as HTMLInputElement).disabled) return false;
   if (el.getAttribute('aria-hidden') === 'true') return false;
+
+  if (el.checkVisibility) {
+    return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+  }
 
   const style = getComputedStyle(el);
   if (style.display === 'none' || style.visibility === 'hidden') return false;

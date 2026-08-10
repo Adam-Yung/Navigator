@@ -1,7 +1,8 @@
 import { buildComboString } from '../shared/keys';
 import type { Settings } from '../shared/types';
-import { registerKeyHandler } from './key-handler';
+import { getLastPickedElement } from './hint-mode';
 import { showToast } from './indicator';
+import { registerKeyHandler } from './key-handler';
 import { UI } from './ui-tokens';
 
 type CaretState = 'inactive' | 'caret' | 'visual';
@@ -40,7 +41,12 @@ export function isCaretModeActive(): boolean {
 
 export function destroyCaretMode(): void {
   deactivateCaretMode();
-  if (host) { host.remove(); host = null; shadow = null; badge = null; }
+  if (host) {
+    host.remove();
+    host = null;
+    shadow = null;
+    badge = null;
+  }
   if (unregisterKey) unregisterKey();
 }
 
@@ -112,9 +118,11 @@ function activate(): void {
   const sel = window.getSelection();
   if (!sel) return;
 
-  targetElement = document.activeElement as HTMLElement | null;
-  if (!targetElement || targetElement === document.body) {
-    targetElement = document.documentElement;
+  const lastPicked = getLastPickedElement();
+  if (lastPicked && lastPicked.isConnected) {
+    targetElement = lastPicked;
+  } else {
+    targetElement = findElementNearViewportCenter();
   }
 
   sel.removeAllRanges();
@@ -137,11 +145,29 @@ function activate(): void {
   updateBadge();
 }
 
-function moveCaret(
-  granularity: 'character' | 'line',
-  direction: 'forward' | 'backward',
-  extend: boolean,
-): void {
+function findElementNearViewportCenter(): HTMLElement {
+  const cx = window.innerWidth / 2;
+  const cy = window.innerHeight / 2;
+  const candidates = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, td, th, span, a, div');
+  let best: HTMLElement = document.documentElement;
+  let bestDist = Number.POSITIVE_INFINITY;
+
+  for (const el of candidates) {
+    const rect = el.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) continue;
+    if (!el.textContent?.trim()) continue;
+    const ex = rect.left + rect.width / 2;
+    const ey = rect.top + rect.height / 2;
+    const dist = Math.hypot(ex - cx, ey - cy);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = el as HTMLElement;
+    }
+  }
+  return best;
+}
+
+function moveCaret(granularity: 'character' | 'line', direction: 'forward' | 'backward', extend: boolean): void {
   const sel = window.getSelection();
   if (!sel) return;
 

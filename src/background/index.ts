@@ -55,5 +55,17 @@ api.runtime.onMessage.addListener((message: any, _sender: any, sendResponse: any
     return false;
   }
 
+  if (message.type === 'close-tab' && message.tabId) {
+    api.tabs
+      .remove(message.tabId)
+      .then(() => {
+        sendResponse({ success: true });
+      })
+      .catch(() => {
+        sendResponse({ success: false });
+      });
+    return true;
+  }
+
   return false;
 });

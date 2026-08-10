@@ -1,6 +1,7 @@
 import { getAPI } from '../shared/browser-api';
 import { buildComboString } from '../shared/keys';
 import type { Settings } from '../shared/types';
+import { escapeHtml } from '../shared/utils';
 import { registerKeyHandler } from './key-handler';
 import { UI } from './ui-tokens';
 
@@ -80,7 +81,7 @@ function createDOM(): void {
       <span class="tab-cursor">|</span>
     </div>
     <div class="tab-list" role="listbox"></div>
-    <div class="tab-footer">Enter to switch \u2022 Shift+Enter new window \u2022 Esc to close</div>
+    <div class="tab-footer">Enter to switch \u2022 d to close tab \u2022 Esc to cancel</div>
   `;
   shadow.appendChild(panel);
 
@@ -120,7 +121,7 @@ function handleKeydown(e: KeyboardEvent): boolean {
     return true;
   }
 
-  if (e.key === 'ArrowDown' || (e.key === 'j' && !e.altKey && !e.ctrlKey)) {
+  if (e.key === 'ArrowDown' || (e.key === 'j' && e.ctrlKey)) {
     selectedIndex = Math.min(selectedIndex + 1, filteredTabs.length - 1);
     renderList();
     const selectedDown = listEl?.querySelector('.tab-item.selected');
@@ -128,11 +129,27 @@ function handleKeydown(e: KeyboardEvent): boolean {
     return true;
   }
 
-  if (e.key === 'ArrowUp' || (e.key === 'k' && !e.altKey && !e.ctrlKey)) {
+  if (e.key === 'ArrowUp' || (e.key === 'k' && e.ctrlKey)) {
     selectedIndex = Math.max(selectedIndex - 1, 0);
     renderList();
     const selectedUp = listEl?.querySelector('.tab-item.selected');
     if (selectedUp) selectedUp.scrollIntoView({ block: 'nearest' });
+    return true;
+  }
+
+  if (e.key === 'd' || ((e.key === 'Delete' || e.key === 'Backspace') && typedFilter === '')) {
+    if (filteredTabs.length > 0) {
+      const tab = filteredTabs[selectedIndex];
+      if (tab && !tab.active) {
+        const api = getAPI();
+        api?.runtime?.sendMessage?.({ type: 'close-tab', tabId: tab.id });
+        allTabs = allTabs.filter((t) => t.id !== tab.id);
+        filteredTabs = filteredTabs.filter((t) => t.id !== tab.id);
+        if (selectedIndex >= filteredTabs.length) selectedIndex = Math.max(0, filteredTabs.length - 1);
+        renderList();
+        showClosedIndicator();
+      }
+    }
     return true;
   }
 
@@ -290,16 +307,23 @@ function openInNewWindow(tabId: number): void {
   }
 }
 
+function showClosedIndicator(): void {
+  if (!panel) return;
+  const indicator = document.createElement('div');
+  indicator.style.cssText =
+    'position:absolute;top:8px;right:16px;padding:4px 10px;background:rgba(255,80,80,0.15);border-radius:6px;font:bold 11px/1 sans-serif;color:#ff6b6b;pointer-events:none;';
+  indicator.textContent = 'Tab closed';
+  panel.style.position = 'relative';
+  panel.appendChild(indicator);
+  setTimeout(() => indicator.remove(), 1200);
+}
+
 function getDomain(url: string): string {
   try {
     return new URL(url).hostname;
   } catch {
     return url.slice(0, 30);
   }
-}
-
-function escapeHtml(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function getStyles(): string {

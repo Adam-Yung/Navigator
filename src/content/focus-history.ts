@@ -1,8 +1,9 @@
 import { buildComboString } from '../shared/keys';
 import type { IndexedElement, Settings } from '../shared/types';
-import { registerKeyHandler } from './key-handler';
 import { transitionTo } from './aura-ring';
 import { revealElement } from './hover-manager';
+import { showToast } from './indicator';
+import { registerKeyHandler } from './key-handler';
 
 const MAX_HISTORY = 30;
 let history: HTMLElement[] = [];
@@ -49,20 +50,40 @@ function handleKey(e: KeyboardEvent): boolean {
   return false;
 }
 
+function pruneDisconnected(): void {
+  const before = history.length;
+  history = history.filter((el) => el.isConnected);
+  if (history.length !== before) {
+    cursor = Math.min(cursor, history.length - 1);
+    if (cursor < 0) cursor = -1;
+  }
+}
+
 function goBack(): void {
-  if (cursor <= 0) return;
+  pruneDisconnected();
+  if (cursor <= 0) {
+    showToast('Element removed from page', 1500, 'info');
+    return;
+  }
   cursor--;
   jumpTo(history[cursor]);
 }
 
 function goForward(): void {
-  if (cursor >= history.length - 1) return;
+  pruneDisconnected();
+  if (cursor >= history.length - 1) {
+    showToast('Element removed from page', 1500, 'info');
+    return;
+  }
   cursor++;
   jumpTo(history[cursor]);
 }
 
 function jumpTo(el: HTMLElement): void {
-  if (!el.isConnected) return;
+  if (!el?.isConnected) {
+    showToast('Element removed from page', 1500, 'info');
+    return;
+  }
   const rect = el.getBoundingClientRect();
   const indexed: IndexedElement = { el, cx: rect.left + rect.width / 2, cy: rect.top + rect.height / 2, rect };
 

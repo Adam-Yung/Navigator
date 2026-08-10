@@ -49,8 +49,20 @@ export function registerKeyupHandler(handler: (e: KeyboardEvent) => void): () =>
   };
 }
 
+function isEditableActive(): boolean {
+  const el = document.activeElement;
+  if (!el) return false;
+  const tag = el.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  if ((el as HTMLElement).isContentEditable) return true;
+  const role = el.getAttribute('role');
+  return role === 'textbox' || role === 'searchbox' || role === 'combobox';
+}
+
 function handleKeydown(e: KeyboardEvent): void {
   if (!settings || !extensionEnabled) return;
+
+  if (!e.altKey && isEditableActive()) return;
 
   const combo = buildComboString(e);
 
