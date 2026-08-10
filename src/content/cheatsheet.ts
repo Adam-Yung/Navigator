@@ -67,7 +67,7 @@ function createDOM(): void {
 
 function handleKey(e: KeyboardEvent): boolean {
   if (active) {
-    if (e.key === '?' && e.altKey) {
+    if ((e.key === '?' || (e.code === 'Slash' && e.shiftKey)) && e.altKey) {
       deactivateCheatsheet();
       return true;
     }
@@ -93,7 +93,7 @@ function handleKey(e: KeyboardEvent): boolean {
     return true;
   }
 
-  if (e.key === '?' && e.altKey && !e.ctrlKey && !e.metaKey) {
+  if ((e.key === '?' || (e.code === 'Slash' && e.shiftKey)) && e.altKey && !e.ctrlKey && !e.metaKey) {
     const el = document.activeElement;
     if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || (el as HTMLElement).isContentEditable)) {
       return false;
