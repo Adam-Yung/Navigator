@@ -1,3 +1,4 @@
+import { comboToDisplayKey } from '../shared/keys';
 import type { Settings } from '../shared/types';
 import { registerKeyHandler, registerKeyupHandler } from './key-handler';
 import { scanVisibleElements } from './mutation-observer';
@@ -22,6 +23,7 @@ export function initAltHoldHelper(initialSettings: Settings): void {
 
 export function updateAltHoldSettings(newSettings: Settings): void {
   settings = newSettings;
+  if (bar) bar.innerHTML = buildBarHTML();
 }
 
 export function destroyAltHoldHelper(): void {
@@ -40,6 +42,23 @@ export function cancelAltHoldTimer(): void {
     holdTimer = null;
   }
   if (visible) hideHelper();
+}
+
+function buildBarHTML(): string {
+  if (!settings) return '';
+  const k = settings.keybindings;
+  const d = comboToDisplayKey;
+  return `
+    <div class="helper-row">
+      <span class="helper-item"><kbd>${d(k.picker)}</kbd> Picker</span>
+      <span class="helper-item"><kbd>${d(k.tabPicker)}</kbd> Tabs</span>
+      <span class="helper-item"><kbd>${d(k.search)}</kbd> Search</span>
+      <span class="helper-item"><kbd>${d(k.quickActions)}</kbd> Actions</span>
+      <span class="helper-item"><kbd>${d(k.caretMode)}</kbd> Select</span>
+      <span class="helper-item"><kbd>?</kbd> Help</span>
+      <span class="helper-item"><kbd>1-9</kbd> Quick Pick</span>
+    </div>
+  `;
 }
 
 function createDOM(): void {
@@ -61,17 +80,7 @@ function createDOM(): void {
 
   bar = document.createElement('div');
   bar.className = 'helper-bar hidden';
-  bar.innerHTML = `
-    <div class="helper-row">
-      <span class="helper-item"><kbd>F</kbd> Picker</span>
-      <span class="helper-item"><kbd>T</kbd> Tabs</span>
-      <span class="helper-item"><kbd>/</kbd> Search</span>
-      <span class="helper-item"><kbd>Space</kbd> Actions</span>
-      <span class="helper-item"><kbd>V</kbd> Select</span>
-      <span class="helper-item"><kbd>?</kbd> Help</span>
-      <span class="helper-item"><kbd>1-9</kbd> Quick Pick</span>
-    </div>
-  `;
+  bar.innerHTML = buildBarHTML();
   shadow.appendChild(bar);
   document.documentElement.appendChild(host);
 }

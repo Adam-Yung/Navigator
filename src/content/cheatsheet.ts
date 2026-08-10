@@ -1,3 +1,4 @@
+import { comboToDisplayKey } from '../shared/keys';
 import type { Settings } from '../shared/types';
 import { registerKeyHandler } from './key-handler';
 import { UI } from './ui-tokens';
@@ -19,6 +20,10 @@ export function initCheatsheet(initialSettings: Settings): void {
 
 export function updateCheatsheetSettings(newSettings: Settings): void {
   settings = newSettings;
+  if (overlay) {
+    overlay.innerHTML = getContent(settings);
+    searchInputEl = overlay.querySelector('.cs-search-input');
+  }
 }
 
 export function deactivateCheatsheet(): void {
@@ -58,7 +63,7 @@ function createDOM(): void {
 
   overlay = document.createElement('div');
   overlay.className = 'cheatsheet hidden';
-  overlay.innerHTML = getContent();
+  overlay.innerHTML = getContent(settings!);
   searchInputEl = overlay.querySelector('.cs-search-input');
   shadow.appendChild(overlay);
 
@@ -159,7 +164,7 @@ function keyWithHint(label: string, hint: string, cls = ''): string {
   return `<span class="key-unit"><span class="keycap ${cls}">${label}</span><span class="key-hint">${hint}</span></span>`;
 }
 
-function getContent(): string {
+function getContent(s: Settings): string {
   return `
     <div class="cs-card">
       <div class="cs-header">
@@ -181,19 +186,19 @@ function getContent(): string {
           <span class="cluster-label">Navigation</span>
           <div class="cluster-keys">
             <div class="key-row">
-              ${keyWithHint('[', 'Back')}
-              ${keyWithHint(']', 'Fwd')}
+              ${keyWithHint(comboToDisplayKey(s.keybindings.historyBack), 'Back')}
+              ${keyWithHint(comboToDisplayKey(s.keybindings.historyForward), 'Fwd')}
             </div>
             <div class="key-row">
-              ${keyWithHint('U', 'URL up')}
-              ${keyWithHint('⇧U', 'Root')}
+              ${keyWithHint(comboToDisplayKey(s.keybindings.urlUp), 'URL up')}
+              ${keyWithHint(comboToDisplayKey(s.keybindings.urlRoot), 'Root')}
             </div>
             <div class="key-row">
-              ${keyWithHint('G', '1st input')}
+              ${keyWithHint(comboToDisplayKey(s.keybindings.focusFirstInput), '1st input')}
             </div>
             <div class="key-row">
-              ${keyWithHint('I', '◁ focus')}
-              ${keyWithHint('O', 'focus ▷')}
+              ${keyWithHint(comboToDisplayKey(s.keybindings.focusHistoryForward), '◁ focus')}
+              ${keyWithHint(comboToDisplayKey(s.keybindings.focusHistoryBack), 'focus ▷')}
             </div>
           </div>
         </div>
@@ -203,14 +208,14 @@ function getContent(): string {
           <span class="cluster-label">Pickers</span>
           <div class="cluster-keys">
             <div class="key-row">
-              ${keyWithHint('F', 'Elements')}
-              ${keyWithHint('T', 'Tabs')}
+              ${keyWithHint(comboToDisplayKey(s.keybindings.picker), 'Elements')}
+              ${keyWithHint(comboToDisplayKey(s.keybindings.tabPicker), 'Tabs')}
             </div>
             <div class="key-row">
-              ${keyWithHint('/', 'Search')}
+              ${keyWithHint(comboToDisplayKey(s.keybindings.search), 'Search')}
             </div>
             <div class="key-row">
-              ${keyWithHint('Space', 'Quick actions', 'wide')}
+              ${keyWithHint(comboToDisplayKey(s.keybindings.quickActions), 'Quick actions', 'wide')}
             </div>
           </div>
         </div>
@@ -221,21 +226,21 @@ function getContent(): string {
           <div class="hjkl-grid">
             <span class="hjkl-spacer"></span>
             <span class="key-unit hjkl-k">
-              <span class="keycap">K</span>
+              <span class="keycap">${comboToDisplayKey(s.keybindings.scrollUp)}</span>
               <span class="key-hint">↑</span>
             </span>
             <span class="hjkl-spacer"></span>
 
             <span class="key-unit hjkl-h">
-              <span class="keycap">H</span>
+              <span class="keycap">${comboToDisplayKey(s.keybindings.scrollLeft)}</span>
               <span class="key-hint">←</span>
             </span>
             <span class="key-unit hjkl-j">
-              <span class="keycap">J</span>
+              <span class="keycap">${comboToDisplayKey(s.keybindings.scrollDown)}</span>
               <span class="key-hint">↓</span>
             </span>
             <span class="key-unit hjkl-l">
-              <span class="keycap">L</span>
+              <span class="keycap">${comboToDisplayKey(s.keybindings.scrollRight)}</span>
               <span class="key-hint">→</span>
             </span>
           </div>
@@ -247,15 +252,15 @@ function getContent(): string {
           <span class="cluster-label">Clipboard & Selection</span>
           <div class="cluster-keys">
             <div class="key-row">
-              ${keyWithHint('Y', 'Yank')}
-              ${keyWithHint('P', 'Paste URL')}
+              ${keyWithHint(comboToDisplayKey(s.keybindings.yankMode), 'Yank')}
+              ${keyWithHint(comboToDisplayKey(s.keybindings.clipboardOpen), 'Paste URL')}
             </div>
             <div class="key-row">
-              ${keyWithHint('V', 'Visual')}
+              ${keyWithHint(comboToDisplayKey(s.keybindings.caretMode), 'Visual')}
             </div>
             <div class="key-row">
-              ${keyWithHint('M', 'Mark')}
-              ${keyWithHint("'", 'Jump')}
+              ${keyWithHint(comboToDisplayKey(s.keybindings.marks), 'Mark')}
+              ${keyWithHint(comboToDisplayKey(s.keybindings.marksJump), 'Jump')}
             </div>
           </div>
         </div>

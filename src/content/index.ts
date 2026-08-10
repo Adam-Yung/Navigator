@@ -1,4 +1,5 @@
 import { getAPI } from '../shared/browser-api';
+import { comboToFullDisplay } from '../shared/keys';
 import { getSettings, onSettingsChanged } from '../shared/storage';
 import type { Settings } from '../shared/types';
 import { initAltHoldHelper, updateAltHoldSettings } from './alt-hold-helper';
@@ -173,7 +174,7 @@ async function showWelcomeTooltip(): Promise<void> {
     <div style="font-weight:600;margin-bottom:8px;color:#fff;">Navigator is ready</div>
     <div style="color:#9999b8;margin-bottom:12px;">
       Hold <kbd style="padding:2px 6px;background:rgba(100,80,255,0.2);border-radius:4px;font-family:ui-monospace,monospace;font-size:11px;">Alt</kbd> to see shortcuts, or press
-      <kbd style="padding:2px 6px;background:rgba(100,80,255,0.2);border-radius:4px;font-family:ui-monospace,monospace;font-size:11px;">Alt+F</kbd> to pick elements.
+      <kbd style="padding:2px 6px;background:rgba(100,80,255,0.2);border-radius:4px;font-family:ui-monospace,monospace;font-size:11px;">${comboToFullDisplay(settings.keybindings.picker)}</kbd> to pick elements.
     </div>
     <div style="color:#9999b8;font-size:11px;">Press <kbd style="padding:2px 6px;background:rgba(100,80,255,0.2);border-radius:4px;font-family:ui-monospace,monospace;font-size:11px;">Alt+?</kbd> anytime for all shortcuts</div>
     <button id="navigator-welcome-dismiss" style="
