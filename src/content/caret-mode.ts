@@ -11,11 +11,13 @@ type CaretState = 'inactive' | 'caret' | 'visual';
 let host: HTMLElement | null = null;
 let shadow: ShadowRoot | null = null;
 let badge: HTMLElement | null = null;
+let caretEl: HTMLElement | null = null;
 let active = false;
 let state: CaretState = 'inactive';
 let settings: Settings | null = null;
 let unregisterKey: (() => void) | null = null;
 let targetElement: HTMLElement | null = null;
+let caretRaf: number | null = null;
 
 export function initCaretMode(initialSettings: Settings): void {
   settings = initialSettings;
@@ -35,6 +37,7 @@ export function deactivateCaretMode(): void {
   targetElement = null;
   window.getSelection()?.removeAllRanges();
   updateBadge();
+  hideCaretIndicator();
 }
 
 export function isCaretModeActive(): boolean {
@@ -48,6 +51,7 @@ export function destroyCaretMode(): void {
     host = null;
     shadow = null;
     badge = null;
+    caretEl = null;
   }
   if (unregisterKey) unregisterKey();
 }
@@ -68,6 +72,10 @@ function createDOM(): void {
   badge = document.createElement('div');
   badge.className = 'caret-badge hidden';
   shadow.appendChild(badge);
+
+  caretEl = document.createElement('div');
+  caretEl.className = 'caret-indicator hidden';
+  shadow.appendChild(caretEl);
 
   document.documentElement.appendChild(host);
 }
@@ -94,22 +102,65 @@ function handleKey(e: KeyboardEvent): boolean {
     return true;
   }
 
-  const extend = e.shiftKey;
+  if (e.key === 'v' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    if (state === 'caret') {
+      state = 'visual';
+      updateBadge();
+      announce('Visual selection mode');
+    } else if (state === 'visual') {
+      state = 'caret';
+      const sel = window.getSelection();
+      if (sel && !sel.isCollapsed) {
+        sel.collapseToEnd();
+      }
+      updateBadge();
+      announce('Caret mode');
+    }
+    return true;
+  }
 
-  if (e.key === 'h' || e.key === 'H') {
+  if (e.key === 'w' || e.key === 'W') {
+    moveCaret('word', 'forward', state === 'visual');
+    updateCaretPosition();
+    return true;
+  }
+  if (e.key === 'b' || e.key === 'B') {
+    moveCaret('word', 'backward', state === 'visual');
+    updateCaretPosition();
+    return true;
+  }
+
+  if (e.key === '0') {
+    moveCaret('lineboundary', 'backward', state === 'visual');
+    updateCaretPosition();
+    return true;
+  }
+  if (e.key === '$') {
+    moveCaret('lineboundary', 'forward', state === 'visual');
+    updateCaretPosition();
+    return true;
+  }
+
+  const extend = state === 'visual';
+
+  if (e.key === 'h' || e.key === 'ArrowLeft') {
     moveCaret('character', 'backward', extend);
+    updateCaretPosition();
     return true;
   }
-  if (e.key === 'l' || e.key === 'L') {
+  if (e.key === 'l' || e.key === 'ArrowRight') {
     moveCaret('character', 'forward', extend);
+    updateCaretPosition();
     return true;
   }
-  if (e.key === 'k' || e.key === 'K') {
+  if (e.key === 'k' || e.key === 'ArrowUp') {
     moveCaret('line', 'backward', extend);
+    updateCaretPosition();
     return true;
   }
-  if (e.key === 'j' || e.key === 'J') {
+  if (e.key === 'j' || e.key === 'ArrowDown') {
     moveCaret('line', 'forward', extend);
+    updateCaretPosition();
     return true;
   }
 
@@ -146,7 +197,9 @@ function activate(): void {
   active = true;
   state = 'caret';
   updateBadge();
-  announce('Caret mode active');
+  showCaretIndicator();
+  updateCaretPosition();
+  announce('Caret mode: h/j/k/l move, v toggles visual, w/b words, y copies');
 }
 
 function findElementNearViewportCenter(): HTMLElement {
@@ -171,20 +224,15 @@ function findElementNearViewportCenter(): HTMLElement {
   return best;
 }
 
-function moveCaret(granularity: 'character' | 'line', direction: 'forward' | 'backward', extend: boolean): void {
+function moveCaret(
+  granularity: 'character' | 'word' | 'line' | 'lineboundary',
+  direction: 'forward' | 'backward',
+  extend: boolean,
+): void {
   const sel = window.getSelection();
   if (!sel) return;
 
-  if (extend && state === 'caret') {
-    state = 'visual';
-    updateBadge();
-  }
-
-  sel.modify(
-    extend ? 'extend' : 'move',
-    direction === 'forward' ? 'forward' : 'backward',
-    granularity === 'line' ? 'line' : 'character',
-  );
+  sel.modify(extend ? 'extend' : 'move', direction === 'forward' ? 'forward' : 'backward', granularity);
 }
 
 async function copySelection(): Promise<void> {
@@ -213,6 +261,83 @@ function findFirstTextNode(el: Node): Text | null {
   }
   return null;
 }
+
+// === Visual Caret Indicator ===
+
+function showCaretIndicator(): void {
+  if (caretEl) caretEl.classList.remove('hidden');
+}
+
+function hideCaretIndicator(): void {
+  if (caretEl) caretEl.classList.add('hidden');
+  if (caretRaf) {
+    cancelAnimationFrame(caretRaf);
+    caretRaf = null;
+  }
+}
+
+function updateCaretPosition(): void {
+  if (!caretEl || !active) return;
+
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return;
+
+  const range = sel.getRangeAt(0);
+  const isCollapsed = range.collapsed;
+
+  if (isCollapsed) {
+    const rect = getCaretRect(range);
+    if (!rect) return;
+    caretEl.style.top = `${rect.top}px`;
+    caretEl.style.left = `${rect.left}px`;
+    caretEl.style.width = '2px';
+    caretEl.style.height = `${rect.height || 18}px`;
+    caretEl.classList.remove('selection-mode');
+  } else {
+    const rects = range.getClientRects();
+    if (rects.length === 0) return;
+    const last = rects[rects.length - 1];
+    caretEl.style.top = `${last.top}px`;
+    caretEl.style.left = `${last.right}px`;
+    caretEl.style.width = '2px';
+    caretEl.style.height = `${last.height || 18}px`;
+    caretEl.classList.add('selection-mode');
+  }
+
+  scrollCaretIntoView();
+}
+
+function getCaretRect(range: Range): DOMRect | null {
+  const rects = range.getClientRects();
+  if (rects.length > 0) return rects[0];
+
+  const span = document.createElement('span');
+  span.textContent = '\u200b';
+  range.insertNode(span);
+  const rect = span.getBoundingClientRect();
+  const parent = span.parentNode;
+  if (parent) {
+    parent.removeChild(span);
+    parent.normalize();
+  }
+  return rect;
+}
+
+function scrollCaretIntoView(): void {
+  if (!caretEl) return;
+  const top = parseFloat(caretEl.style.top);
+  const height = parseFloat(caretEl.style.height) || 18;
+  const vh = window.innerHeight;
+  const margin = 60;
+
+  if (top < margin) {
+    window.scrollBy(0, top - margin);
+  } else if (top + height > vh - margin) {
+    window.scrollBy(0, top + height - (vh - margin));
+  }
+}
+
+// === UI ===
 
 function updateBadge(): void {
   if (!badge) return;
@@ -255,6 +380,27 @@ function getStyles(): string {
     .caret-badge.visual {
       border-color: ${UI.colors.accentGlow};
       color: ${UI.colors.accent};
+    }
+
+    .caret-indicator {
+      position: fixed;
+      background: ${UI.colors.accent};
+      border-radius: 1px;
+      pointer-events: none;
+      animation: caret-blink 1s step-end infinite;
+      box-shadow: 0 0 4px ${UI.colors.accentGlow}, 0 0 8px rgba(100, 80, 255, 0.2);
+      transition: top 50ms ease-out, left 50ms ease-out;
+    }
+    .caret-indicator.hidden {
+      opacity: 0;
+    }
+    .caret-indicator.selection-mode {
+      background: ${UI.colors.accent};
+      box-shadow: 0 0 6px ${UI.colors.accentGlow}, 0 0 12px rgba(100, 80, 255, 0.3);
+    }
+    @keyframes caret-blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
     }
   `;
 }
