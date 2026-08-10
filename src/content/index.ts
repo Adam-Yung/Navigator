@@ -175,7 +175,7 @@ async function showWelcomeTooltip(): Promise<void> {
       Hold <kbd style="padding:2px 6px;background:rgba(100,80,255,0.2);border-radius:4px;font-family:ui-monospace,monospace;font-size:11px;">Alt</kbd> to see shortcuts, or press
       <kbd style="padding:2px 6px;background:rgba(100,80,255,0.2);border-radius:4px;font-family:ui-monospace,monospace;font-size:11px;">Alt+F</kbd> to pick elements.
     </div>
-    <div style="color:#9999b8;font-size:11px;">Press <kbd style="padding:2px 6px;background:rgba(100,80,255,0.2);border-radius:4px;font-family:ui-monospace,monospace;font-size:11px;">?</kbd> anytime for all shortcuts</div>
+    <div style="color:#9999b8;font-size:11px;">Press <kbd style="padding:2px 6px;background:rgba(100,80,255,0.2);border-radius:4px;font-family:ui-monospace,monospace;font-size:11px;">Alt+?</kbd> anytime for all shortcuts</div>
     <button id="navigator-welcome-dismiss" style="
       margin-top:12px;
       padding:6px 14px;

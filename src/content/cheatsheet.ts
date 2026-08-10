@@ -363,7 +363,6 @@ function getStyles(): string {
     .cs-search-input {
       color: #fff;
       min-width: 0;
-      flex: 1;
       letter-spacing: 1px;
     }
     .cs-search-cursor {
