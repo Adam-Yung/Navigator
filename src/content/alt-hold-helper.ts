@@ -67,21 +67,9 @@ function createDOM(): void {
       <span class="helper-item"><kbd>T</kbd> Tabs</span>
       <span class="helper-item"><kbd>/</kbd> Search</span>
       <span class="helper-item"><kbd>Space</kbd> Actions</span>
-      <span class="helper-item"><kbd>V</kbd> Select Text</span>
-    </div>
-    <div class="helper-row">
-      <span class="helper-item"><kbd>H</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> Scroll</span>
-      <span class="helper-item"><kbd>[</kbd> Back</span>
-      <span class="helper-item"><kbd>]</kbd> Forward</span>
-      <span class="helper-item"><kbd>U</kbd> URL Up</span>
-      <span class="helper-item"><kbd>G</kbd> First Input</span>
-    </div>
-    <div class="helper-row">
-      <span class="helper-item"><kbd>O</kbd> Prev Focus</span>
-      <span class="helper-item"><kbd>I</kbd> Next Focus</span>
-      <span class="helper-item"><kbd>M</kbd> Set Mark</span>
-      <span class="helper-item"><kbd>Y</kbd> Copy</span>
-      <span class="helper-item"><kbd>P</kbd> Paste URL</span>
+      <span class="helper-item"><kbd>V</kbd> Select</span>
+      <span class="helper-item"><kbd>?</kbd> Help</span>
+      <span class="helper-item"><kbd>1-9</kbd> Quick Pick</span>
     </div>
   `;
   shadow.appendChild(bar);
@@ -127,15 +115,18 @@ function showBadges(): void {
   if (!badgesContainer) return;
 
   const elements = scanVisibleElements();
-  const vh = window.innerHeight;
-  const vw = window.innerWidth;
+  const vh = document.documentElement.clientHeight;
+  const vw = document.documentElement.clientWidth;
+  const vpArea = vh * vw;
 
-  const scored = elements.map((el) => {
-    const rect = el.el.getBoundingClientRect();
-    const inViewport = rect.top < vh && rect.bottom > 0 && rect.left < vw && rect.right > 0;
-    const area = rect.width * rect.height;
-    return { el, inViewport, area };
-  });
+  const scored = elements
+    .map((el) => {
+      const rect = el.el.getBoundingClientRect();
+      const inViewport = rect.top < vh && rect.bottom > 0 && rect.left < vw && rect.right > 0;
+      const area = rect.width * rect.height;
+      return { el, inViewport, area };
+    })
+    .filter((s) => s.area < vpArea * 0.5);
 
   scored.sort((a, b) => {
     if (a.inViewport !== b.inViewport) return a.inViewport ? -1 : 1;
@@ -200,15 +191,18 @@ function getStyles(): string {
       bottom: 0;
       left: 0;
       right: 0;
-      padding: 10px 20px;
+      padding: 8px 24px;
       background: ${UI.colors.bg};
       border-top: 1px solid ${UI.colors.border};
       border-radius: 12px 12px 0 0;
       backdrop-filter: ${UI.backdrop};
       box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
       display: flex;
-      flex-direction: column;
-      gap: 6px;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      overflow-x: auto;
       transition: opacity 120ms ${UI.anim.easeFastOut}, transform 120ms ${UI.anim.easeFastOut};
       pointer-events: none;
     }
@@ -218,9 +212,9 @@ function getStyles(): string {
     }
     .helper-row {
       display: flex;
-      gap: 16px;
-      justify-content: center;
-      flex-wrap: wrap;
+      gap: 24px;
+      align-items: center;
+      flex-wrap: nowrap;
     }
     .helper-item {
       display: inline-flex;
