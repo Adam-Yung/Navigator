@@ -6,7 +6,9 @@ import { cancelAltHoldTimer } from './alt-hold-helper';
 import { hide as hideAura, transitionTo } from './aura-ring';
 import { pushFocus } from './focus-history';
 import { revealElement } from './hover-manager';
+import { announce } from './indicator';
 import { registerKeyHandler } from './key-handler';
+import { releaseMode, requestMode } from './mode-manager';
 import { scanVisibleElements } from './mutation-observer';
 
 const HINT_CHARS = 'asdfghjklqwertyuiopzxcvbnm'.split('');
@@ -31,6 +33,7 @@ let filteredHints: HintEntry[] = [];
 let settings: Settings | null = null;
 let unregisterKey: (() => void) | null = null;
 let lastPickedElement: HTMLElement | null = null;
+let lastAction: { selector: string; newTab: boolean } | null = null;
 
 let multiSelected: Set<HintEntry> = new Set();
 let badgeEl: HTMLElement | null = null;
@@ -300,6 +303,8 @@ function handlePickerKeydown(e: KeyboardEvent): boolean {
 function startZoneSelection(): void {
   if (!labelsContainer || !modalEl) return;
   cancelAltHoldTimer();
+  requestMode('picker', exitPicker);
+  announce('Element picker: press A through H to select a zone, or Enter for all');
 
   const scope = getPickerScope();
   if (scope) {
@@ -504,6 +509,7 @@ function hideSpotlight(): void {
 function spotlightZone(zoneIdx: number): void {
   activeZone = zoneIdx;
   phase = 'zone-zoomed';
+  announce(`Zone ${ZONE_KEYS[zoneIdx].toUpperCase()} selected`);
 
   hideZoneMarkers();
   if (dimOverlay) dimOverlay.classList.add('hidden');
@@ -551,6 +557,8 @@ function exitPicker(): void {
   hideAura();
   hideTooltip();
   if (dimOverlay) dimOverlay.classList.add('hidden');
+  announce('Picker closed');
+  releaseMode('picker');
 }
 
 // === Zone Navigation ===
@@ -790,8 +798,16 @@ function detectCenterstage(): HTMLElement | null {
 
 // === Target Activation ===
 
+function buildSelector(el: HTMLElement): string {
+  if (el.id) return `#${el.id}`;
+  const tag = el.tagName.toLowerCase();
+  const classes = el.className ? `.${el.className.trim().split(/\s+/).join('.')}` : '';
+  return tag + classes;
+}
+
 function activateTarget(indexed: IndexedElement, newTab: boolean): void {
   lastPickedElement = indexed.el;
+  lastAction = { selector: buildSelector(indexed.el), newTab };
   pushFocus(indexed.el);
   revealElement(indexed.el);
 
@@ -822,6 +838,16 @@ function activateTarget(indexed: IndexedElement, newTab: boolean): void {
     } else {
       indexed.el.click();
     }
+  }
+}
+
+export function repeatLastAction(): void {
+  if (!lastAction) return;
+  const el = document.querySelector<HTMLElement>(lastAction.selector);
+  if (el) {
+    const rect = el.getBoundingClientRect();
+    const indexed: IndexedElement = { el, cx: rect.left + rect.width / 2, cy: rect.top + rect.height / 2, rect };
+    activateTarget(indexed, lastAction.newTab);
   }
 }
 

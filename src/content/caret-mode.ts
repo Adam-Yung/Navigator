@@ -1,8 +1,9 @@
 import { buildComboString } from '../shared/keys';
 import type { Settings } from '../shared/types';
 import { getLastPickedElement } from './hint-mode';
-import { showToast } from './indicator';
+import { announce, showToast } from './indicator';
 import { registerKeyHandler } from './key-handler';
+import { releaseMode, requestMode } from './mode-manager';
 import { UI } from './ui-tokens';
 
 type CaretState = 'inactive' | 'caret' | 'visual';
@@ -29,6 +30,7 @@ export function updateCaretModeSettings(newSettings: Settings): void {
 export function deactivateCaretMode(): void {
   if (!active) return;
   active = false;
+  releaseMode('caret');
   state = 'inactive';
   targetElement = null;
   window.getSelection()?.removeAllRanges();
@@ -140,9 +142,11 @@ function activate(): void {
     sel.addRange(range);
   }
 
+  requestMode('caret', deactivateCaretMode);
   active = true;
   state = 'caret';
   updateBadge();
+  announce('Caret mode active');
 }
 
 function findElementNearViewportCenter(): HTMLElement {

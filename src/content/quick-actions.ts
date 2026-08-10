@@ -3,6 +3,7 @@ import type { Settings } from '../shared/types';
 import { escapeHtml } from '../shared/utils';
 import { showToast } from './indicator';
 import { registerKeyHandler } from './key-handler';
+import { releaseMode, requestMode } from './mode-manager';
 import { UI } from './ui-tokens';
 
 interface Action {
@@ -37,6 +38,7 @@ export function updateQuickActionsSettings(newSettings: Settings): void {
 export function deactivateQuickActions(): void {
   if (!active) return;
   active = false;
+  releaseMode('actions');
   query = '';
   filteredActions = [];
   selectedIndex = 0;
@@ -156,6 +158,7 @@ function handleKey(e: KeyboardEvent): boolean {
 }
 
 function activate(): void {
+  requestMode('actions', deactivateQuickActions);
   active = true;
   query = '';
   selectedIndex = 0;

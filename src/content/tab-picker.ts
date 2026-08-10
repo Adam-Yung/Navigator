@@ -2,7 +2,9 @@ import { getAPI } from '../shared/browser-api';
 import { buildComboString } from '../shared/keys';
 import type { Settings } from '../shared/types';
 import { escapeHtml } from '../shared/utils';
+import { announce } from './indicator';
 import { registerKeyHandler } from './key-handler';
+import { releaseMode, requestMode } from './mode-manager';
 import { UI } from './ui-tokens';
 
 interface TabInfo {
@@ -186,6 +188,8 @@ async function openPicker(): Promise<void> {
   const api = getAPI();
   if (!api?.runtime?.sendMessage) return;
 
+  requestMode('tabs', closePicker);
+  announce('Tab picker open');
   active = true;
   typedFilter = '';
   selectedIndex = 0;
@@ -223,6 +227,7 @@ async function openPicker(): Promise<void> {
 
 function closePicker(): void {
   active = false;
+  releaseMode('tabs');
   typedFilter = '';
   allTabs = [];
   filteredTabs = [];

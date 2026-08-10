@@ -1,10 +1,11 @@
 import { buildComboString } from '../shared/keys';
 import type { IndexedElement, Settings } from '../shared/types';
-import { registerKeyHandler } from './key-handler';
 import { transitionTo } from './aura-ring';
-import { revealElement } from './hover-manager';
-import { scanVisibleElements } from './mutation-observer';
 import { pushFocus } from './focus-history';
+import { revealElement } from './hover-manager';
+import { registerKeyHandler } from './key-handler';
+import { releaseMode, requestMode } from './mode-manager';
+import { scanVisibleElements } from './mutation-observer';
 import { UI } from './ui-tokens';
 
 let host: HTMLElement | null = null;
@@ -31,6 +32,7 @@ export function updateElementSearchSettings(newSettings: Settings): void {
 export function deactivateElementSearch(): void {
   if (!active) return;
   active = false;
+  releaseMode('search');
   query = '';
   matches = [];
   if (panel) panel.classList.add('hidden');
@@ -42,7 +44,12 @@ export function isElementSearchActive(): boolean {
 
 export function destroyElementSearch(): void {
   deactivateElementSearch();
-  if (host) { host.remove(); host = null; shadow = null; panel = null; }
+  if (host) {
+    host.remove();
+    host = null;
+    shadow = null;
+    panel = null;
+  }
   if (unregisterKey) unregisterKey();
 }
 
@@ -130,6 +137,7 @@ function handleKey(e: KeyboardEvent): boolean {
 }
 
 function activate(): void {
+  requestMode('search', deactivateElementSearch);
   active = true;
   query = '';
   matches = [];
@@ -176,7 +184,8 @@ function updateCount(): void {
   if (!panel) return;
   const countEl = panel.querySelector('.search-count');
   if (countEl) {
-    countEl.textContent = matches.length > 0 ? `${selectedIndex + 1}/${matches.length}` : query.length > 0 ? 'No matches' : '';
+    countEl.textContent =
+      matches.length > 0 ? `${selectedIndex + 1}/${matches.length}` : query.length > 0 ? 'No matches' : '';
   }
 }
 

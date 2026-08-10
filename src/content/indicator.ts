@@ -70,6 +70,24 @@ export function destroyIndicator(): void {
   }
 }
 
+let liveRegion: HTMLElement | null = null;
+
+export function announce(message: string): void {
+  if (!liveRegion) {
+    liveRegion = document.createElement('div');
+    liveRegion.setAttribute('role', 'status');
+    liveRegion.setAttribute('aria-live', 'assertive');
+    liveRegion.setAttribute('aria-atomic', 'true');
+    liveRegion.style.cssText =
+      'position:fixed;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;';
+    document.body.appendChild(liveRegion);
+  }
+  liveRegion.textContent = '';
+  requestAnimationFrame(() => {
+    if (liveRegion) liveRegion.textContent = message;
+  });
+}
+
 function getIndicatorStyles(): string {
   return `
     .indicator {

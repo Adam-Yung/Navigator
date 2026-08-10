@@ -14,6 +14,7 @@ import {
   destroyHintMode,
   initHintMode,
   initPickerKeybinding,
+  repeatLastAction,
   updatePickerSettings,
 } from './hint-mode';
 import { cleanup as cleanupHover } from './hover-manager';
@@ -79,6 +80,10 @@ async function init(): Promise<void> {
   registerKeyHandler((e) => {
     if (e.key === 'Escape' && !e.altKey && !e.ctrlKey && !e.metaKey) {
       escapeAll();
+      return true;
+    }
+    if (e.altKey && e.key === '.' && !e.ctrlKey && !e.metaKey) {
+      repeatLastAction();
       return true;
     }
     return false;
