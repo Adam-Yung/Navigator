@@ -42,6 +42,8 @@ let zoneMarkersContainer: HTMLElement | null = null;
 let miniMapEl: HTMLElement | null = null;
 let spotlightEl: HTMLElement | null = null;
 
+let ringSupressed = false;
+
 interface HintEntry {
   label: string;
   element: IndexedElement;
@@ -231,12 +233,12 @@ function handlePickerKeydown(e: KeyboardEvent): boolean {
     if (e.key === 'Enter') {
       if (multiSelected.size > 0) {
         const targets = [...multiSelected];
-        exitPicker();
+        exitPickerWithSelection(targets[targets.length - 1].element);
         executeBatchAction(targets.map((h) => h.element));
       } else if (filteredHints.length > 0) {
         const target = filteredHints[0];
         const newTab = e.shiftKey;
-        exitPicker();
+        exitPickerWithSelection(target.element);
         activateTarget(target.element, newTab);
       }
       return true;
@@ -258,7 +260,7 @@ function handlePickerKeydown(e: KeyboardEvent): boolean {
         if (e.shiftKey) {
           toggleMultiSelect(target);
         } else {
-          exitPicker();
+          exitPickerWithSelection(target.element);
           activateTarget(target.element, false);
         }
       }
@@ -280,7 +282,7 @@ function handlePickerKeydown(e: KeyboardEvent): boolean {
 
       if (filteredHints.length === 1) {
         const target = filteredHints[0];
-        exitPicker();
+        exitPickerWithSelection(target.element);
         activateTarget(target.element, false);
       } else if (filteredHints.length === 0) {
         flashNoMatch();
@@ -302,8 +304,13 @@ function handlePickerKeydown(e: KeyboardEvent): boolean {
 
 function startZoneSelection(): void {
   if (!labelsContainer || !modalEl) return;
+  const active = document.activeElement as HTMLElement | null;
+  if (active && active !== document.body && active !== document.documentElement) {
+    active.blur();
+  }
   cancelAltHoldTimer();
   requestMode('picker', exitPicker);
+  ringSupressed = true;
   announce('Element picker: press A through H to select a zone, or Enter for all');
 
   const scope = getPickerScope();
@@ -325,6 +332,7 @@ function startZoneSelection(): void {
 function activateDirectLabeling(scope: HTMLElement | null): void {
   phase = 'zone-zoomed';
   activeZone = -1;
+  ringSupressed = true;
   if (dimOverlay) dimOverlay.classList.remove('hidden');
   showMiniMap();
   renderLabelsForScope(scope);
@@ -540,9 +548,41 @@ function unselectZone(): void {
   updateModal();
 }
 
+let ringLingerTimer: ReturnType<typeof setTimeout> | null = null;
+
+function exitPickerWithSelection(target: IndexedElement): void {
+  phase = 'inactive';
+  activeZone = -1;
+  ringSupressed = false;
+
+  if (labelsContainer) labelsContainer.innerHTML = '';
+  if (modalEl) modalEl.classList.add('hidden');
+  if (badgeEl) badgeEl.classList.add('hidden');
+  allHints = [];
+  filteredHints = [];
+  typedFilter = '';
+  multiSelected = new Set();
+  hideZoneMarkers();
+  hideSpotlight();
+  hideMiniMap();
+  hideTooltip();
+  if (dimOverlay) dimOverlay.classList.add('hidden');
+
+  transitionTo(target);
+  if (ringLingerTimer) clearTimeout(ringLingerTimer);
+  ringLingerTimer = setTimeout(() => {
+    hideAura();
+    ringLingerTimer = null;
+  }, 500);
+
+  announce('Picker closed');
+  releaseMode('picker');
+}
+
 function exitPicker(): void {
   phase = 'inactive';
   activeZone = -1;
+  ringSupressed = false;
 
   if (labelsContainer) labelsContainer.innerHTML = '';
   if (modalEl) modalEl.classList.add('hidden');
@@ -920,13 +960,16 @@ function activateQuickPick(idx: number): void {
   const elements = scanVisibleElements();
   const vh = document.documentElement.clientHeight;
   const vw = document.documentElement.clientWidth;
+  const vpArea = vh * vw;
 
-  const scored = elements.map((el) => {
-    const rect = el.el.getBoundingClientRect();
-    const inViewport = rect.top < vh && rect.bottom > 0 && rect.left < vw && rect.right > 0;
-    const area = rect.width * rect.height;
-    return { el, inViewport, area };
-  });
+  const scored = elements
+    .map((el) => {
+      const rect = el.el.getBoundingClientRect();
+      const inViewport = rect.top < vh && rect.bottom > 0 && rect.left < vw && rect.right > 0;
+      const area = rect.width * rect.height;
+      return { el, inViewport, area };
+    })
+    .filter((s) => s.area < vpArea * 0.5);
 
   scored.sort((a, b) => {
     if (a.inViewport !== b.inViewport) return a.inViewport ? -1 : 1;
@@ -1016,7 +1059,9 @@ function updateRingPosition(): void {
   hideTooltip();
   if (filteredHints.length > 0) {
     const first = filteredHints[0];
-    transitionTo(first.element);
+    if (!ringSupressed) {
+      transitionTo(first.element);
+    }
     revealElement(first.element.el);
     showTooltipForElement(first.element.el);
   }
