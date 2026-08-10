@@ -27,8 +27,22 @@ export function findMagnetTarget(): HTMLElement | null {
 export function applyMagnetism(target: HTMLElement): void {
   const rect = target.getBoundingClientRect();
   const vcy = window.innerHeight / 2;
-  const offset = (rect.top + rect.height / 2) - vcy;
+  const offset = rect.top + rect.height / 2 - vcy;
   if (Math.abs(offset) > 5) {
-    window.scrollBy({ top: offset, behavior: 'smooth' });
+    const scroller = findScrollableAncestor(target);
+    scroller.scrollBy({ top: offset, behavior: 'smooth' });
   }
+}
+
+function findScrollableAncestor(el: Element): Element | Window {
+  let node: Element | null = el.parentElement;
+  while (node && node !== document.documentElement) {
+    const style = getComputedStyle(node);
+    const overflowY = style.overflowY;
+    if (overflowY !== 'hidden' && overflowY !== 'visible' && node.scrollHeight > node.clientHeight) {
+      return node;
+    }
+    node = node.parentElement;
+  }
+  return window;
 }

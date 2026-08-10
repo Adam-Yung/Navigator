@@ -1,7 +1,7 @@
-import type { Settings } from '../shared/types';
 import { buildComboString } from '../shared/keys';
+import type { Settings } from '../shared/types';
 import { registerKeyHandler, registerKeyupHandler } from './key-handler';
-import { findMagnetTarget, applyMagnetism } from './magnetic-scroll';
+import { applyMagnetism, findMagnetTarget } from './magnetic-scroll';
 
 type ScrollDirection = 'up' | 'down' | 'left' | 'right';
 
@@ -43,12 +43,21 @@ function handleScrollKeydown(e: KeyboardEvent): boolean {
   let direction: ScrollDirection | null = null;
   let fast = false;
 
-  if (combo === settings.keybindings.scrollDown) { direction = 'down'; }
-  else if (combo === settings.keybindings.scrollUp) { direction = 'up'; }
-  else if (combo === settings.keybindings.scrollLeft) { direction = 'left'; }
-  else if (combo === settings.keybindings.scrollRight) { direction = 'right'; }
-  else if (combo === settings.keybindings.scrollFastDown) { direction = 'down'; fast = true; }
-  else if (combo === settings.keybindings.scrollFastUp) { direction = 'up'; fast = true; }
+  if (combo === settings.keybindings.scrollDown) {
+    direction = 'down';
+  } else if (combo === settings.keybindings.scrollUp) {
+    direction = 'up';
+  } else if (combo === settings.keybindings.scrollLeft) {
+    direction = 'left';
+  } else if (combo === settings.keybindings.scrollRight) {
+    direction = 'right';
+  } else if (combo === settings.keybindings.scrollFastDown) {
+    direction = 'down';
+    fast = true;
+  } else if (combo === settings.keybindings.scrollFastUp) {
+    direction = 'up';
+    fast = true;
+  }
 
   if (!direction) return false;
 
@@ -80,9 +89,7 @@ function handleScrollKeyup(e: KeyboardEvent): void {
   if (!state) return;
 
   const isAlt = e.key === 'Alt' || e.code === 'AltLeft' || e.code === 'AltRight';
-  const isDirection =
-    e.code === 'KeyJ' || e.code === 'KeyK' ||
-    e.code === 'KeyH' || e.code === 'KeyL';
+  const isDirection = e.code === 'KeyJ' || e.code === 'KeyK' || e.code === 'KeyH' || e.code === 'KeyL';
 
   if (isAlt || isDirection) {
     if (state) {
@@ -112,14 +119,50 @@ function scrollTick(): void {
   }
 
   const v = state.velocity;
+  const target = getScrollTarget(direction);
   switch (direction) {
-    case 'down': window.scrollBy(0, v); break;
-    case 'up': window.scrollBy(0, -v); break;
-    case 'right': window.scrollBy(v, 0); break;
-    case 'left': window.scrollBy(-v, 0); break;
+    case 'down':
+      target.scrollBy(0, v);
+      break;
+    case 'up':
+      target.scrollBy(0, -v);
+      break;
+    case 'right':
+      target.scrollBy(v, 0);
+      break;
+    case 'left':
+      target.scrollBy(-v, 0);
+      break;
   }
 
   rafId = requestAnimationFrame(scrollTick);
+}
+
+function getScrollTarget(direction: ScrollDirection): Element | Window {
+  const el = document.activeElement;
+  if (el && el !== document.body && el !== document.documentElement) {
+    if (isScrollable(el, direction)) return el;
+  }
+
+  let node: Element | null = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2);
+  while (node && node !== document.documentElement) {
+    if (isScrollable(node, direction)) return node;
+    node = node.parentElement;
+  }
+
+  return window;
+}
+
+function isScrollable(el: Element, direction: ScrollDirection): boolean {
+  const style = getComputedStyle(el);
+  if (direction === 'up' || direction === 'down') {
+    const overflowY = style.overflowY;
+    if (overflowY === 'hidden' || overflowY === 'visible') return false;
+    return el.scrollHeight > el.clientHeight;
+  }
+  const overflowX = style.overflowX;
+  if (overflowX === 'hidden' || overflowX === 'visible') return false;
+  return el.scrollWidth > el.clientWidth;
 }
 
 function stopScrolling(): void {
