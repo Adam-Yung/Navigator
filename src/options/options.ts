@@ -4,7 +4,7 @@ import { buildComboString } from '../shared/keys';
 import { getSettings, saveSettings } from '../shared/storage';
 import type { Keybindings, Settings } from '../shared/types';
 
-const api = getAPI();
+const _api = getAPI();
 
 let settings: Settings = { ...DEFAULT_SETTINGS };
 let recordingButton: HTMLButtonElement | null = null;
@@ -90,7 +90,7 @@ function setupListeners(): void {
     btn.addEventListener('click', () => startRecording(btn));
   }
 
-  document.getElementById('anim-duration')!.addEventListener('input', (e) => {
+  document.getElementById('anim-duration')?.addEventListener('input', (e) => {
     const val = (e.target as HTMLInputElement).value;
     settings.animDuration = parseInt(val, 10);
     document.getElementById('anim-duration-val')!.textContent = `${val}ms`;
@@ -106,45 +106,45 @@ function setupListeners(): void {
     });
   }
 
-  document.getElementById('auto-scroll')!.addEventListener('change', (e) => {
+  document.getElementById('auto-scroll')?.addEventListener('change', (e) => {
     settings.autoScroll = (e.target as HTMLInputElement).checked;
     save().catch(() => {});
   });
 
-  document.getElementById('show-alt-helper')!.addEventListener('change', (e) => {
+  document.getElementById('show-alt-helper')?.addEventListener('change', (e) => {
     settings.showAltHelper = (e.target as HTMLInputElement).checked;
     save().catch(() => {});
   });
 
-  document.getElementById('alt-helper-delay')!.addEventListener('input', (e) => {
+  document.getElementById('alt-helper-delay')?.addEventListener('input', (e) => {
     const val = (e.target as HTMLInputElement).value;
     settings.altHelperDelay = parseInt(val, 10);
     document.getElementById('alt-helper-delay-val')!.textContent = `${val}ms`;
     debouncedSave();
   });
 
-  document.getElementById('scroll-base-velocity')!.addEventListener('input', (e) => {
+  document.getElementById('scroll-base-velocity')?.addEventListener('input', (e) => {
     const val = (e.target as HTMLInputElement).value;
     settings.scrollBaseVelocity = parseInt(val, 10);
     document.getElementById('scroll-base-velocity-val')!.textContent = val;
     debouncedSave();
   });
 
-  document.getElementById('scroll-max-velocity')!.addEventListener('input', (e) => {
+  document.getElementById('scroll-max-velocity')?.addEventListener('input', (e) => {
     const val = (e.target as HTMLInputElement).value;
     settings.scrollMaxVelocity = parseInt(val, 10);
     document.getElementById('scroll-max-velocity-val')!.textContent = val;
     debouncedSave();
   });
 
-  document.getElementById('scroll-decel-factor')!.addEventListener('input', (e) => {
+  document.getElementById('scroll-decel-factor')?.addEventListener('input', (e) => {
     const val = (e.target as HTMLInputElement).value;
     settings.scrollDecelFactor = parseFloat(val);
     document.getElementById('scroll-decel-factor-val')!.textContent = val;
     debouncedSave();
   });
 
-  document.getElementById('disabled-sites')!.addEventListener('change', (e) => {
+  document.getElementById('disabled-sites')?.addEventListener('change', (e) => {
     const text = (e.target as HTMLTextAreaElement).value;
     settings.disabledSites = text
       .split('\n')
@@ -153,7 +153,7 @@ function setupListeners(): void {
     save().catch(() => {});
   });
 
-  document.getElementById('btn-reset')!.addEventListener('click', () => {
+  document.getElementById('btn-reset')?.addEventListener('click', () => {
     if (confirm('Reset all settings to defaults?')) {
       settings = { ...DEFAULT_SETTINGS };
       renderKeybindings();

@@ -217,7 +217,7 @@ function renderList(): void {
     item.setAttribute('aria-selected', `${i === selectedIndex}`);
     const numBadge = i < 9 ? `<span class="qa-num">${i + 1}</span>` : '';
     item.innerHTML = `${numBadge}<span class="qa-label">${escapeHtml(action.label)}</span><span class="qa-desc">${escapeHtml(action.description)}</span>`;
-    listEl!.appendChild(item);
+    listEl?.appendChild(item);
   });
 }
 

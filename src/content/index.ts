@@ -12,7 +12,6 @@ import { deactivateElementSearch, initElementSearch, updateElementSearchSettings
 import { initFocusHistory, updateFocusHistorySettings } from './focus-history';
 import {
   deactivateHintMode,
-  destroyHintMode,
   initHintMode,
   initPickerKeybinding,
   repeatLastAction,
@@ -23,7 +22,7 @@ import { hideIndicator, initIndicator } from './indicator';
 import { initKeyHandler, registerKeyHandler, setExtensionEnabled, updateKeyHandlerSettings } from './key-handler';
 import { deactivateMarks, initMarks, updateMarksSettings } from './marks';
 import { deactivateQuickActions, initQuickActions, updateQuickActionsSettings } from './quick-actions';
-import { destroyScrollEngine, initScrollEngine, updateScrollSettings } from './scroll-engine';
+import { initScrollEngine, updateScrollSettings } from './scroll-engine';
 import { initSectionNav, updateSectionNavSettings } from './section-nav';
 import { deactivateTabPicker, initTabPicker, updateTabPickerSettings } from './tab-picker';
 import { initUrlNav, updateUrlNavSettings } from './url-nav';

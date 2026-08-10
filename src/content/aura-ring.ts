@@ -58,7 +58,7 @@ export function transitionTo(target: IndexedElement): void {
   if (!ring || !ghost) return;
 
   const now = Date.now();
-  isRapidMovement = (now - lastTransitionTime) < RAPID_THRESHOLD_MS;
+  isRapidMovement = now - lastTransitionTime < RAPID_THRESHOLD_MS;
   lastTransitionTime = now;
 
   if (visible && trackedElement && !isRapidMovement) {
@@ -209,7 +209,7 @@ function getTargetBorderRadius(el: HTMLElement, padding: number): string {
 
   const values = raw.split(' ').map((v) => {
     const px = parseFloat(v);
-    return isNaN(px) ? padding + 4 : px + padding;
+    return Number.isNaN(px) ? padding + 4 : px + padding;
   });
 
   return values.map((v) => `${v}px`).join(' ');

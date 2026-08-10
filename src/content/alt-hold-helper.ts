@@ -86,7 +86,7 @@ function createDOM(): void {
 }
 
 function handleKeydown(e: KeyboardEvent): boolean {
-  if (!settings || !settings.showAltHelper) return false;
+  if (!settings?.showAltHelper) return false;
 
   if (e.key === 'Alt' || e.code === 'AltLeft' || e.code === 'AltRight') {
     if (!holdTimer && !visible) {

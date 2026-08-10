@@ -165,7 +165,7 @@ function handleKeydown(e: KeyboardEvent): boolean {
 
   // Number shortcuts 1-9, 0 (only when no filter text typed)
   if (!e.altKey && !e.ctrlKey && !e.metaKey && /^[0-9]$/.test(e.key) && typedFilter === '') {
-    const num = e.key === '0' ? 10 : parseInt(e.key);
+    const num = e.key === '0' ? 10 : parseInt(e.key, 10);
     const idx = num - 1;
     if (idx < filteredTabs.length) {
       const tab = filteredTabs[idx];

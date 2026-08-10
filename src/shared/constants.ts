@@ -23,7 +23,7 @@ export const DEFAULT_KEYBINDINGS: Keybindings = {
   clipboardOpen: 'Alt+KeyP',
   caretMode: 'Alt+KeyV',
   marks: 'Alt+KeyM',
-  marksJump: "Alt+Quote",
+  marksJump: 'Alt+Quote',
   quickActions: 'Alt+Space',
   toggleExtension: 'Ctrl+Alt+KeyA',
 };

@@ -1,10 +1,10 @@
 import { buildComboString } from '../shared/keys';
 import type { Settings } from '../shared/types';
-import { registerKeyHandler } from './key-handler';
 import { showToast } from './indicator';
+import { registerKeyHandler } from './key-handler';
 
 const MAX_RING = 20;
-let copyRing: string[] = [];
+const copyRing: string[] = [];
 let yankMode = false;
 let settings: Settings | null = null;
 let unregisterKey: (() => void) | null = null;
@@ -50,7 +50,10 @@ function handleKey(e: KeyboardEvent): boolean {
     if (e.key === 'f' || e.key === 'F') {
       if (focusedElement?.tagName === 'A') {
         const href = (focusedElement as HTMLAnchorElement).href;
-        if (href) { copyToClipboard(href, 'Link copied'); return true; }
+        if (href) {
+          copyToClipboard(href, 'Link copied');
+          return true;
+        }
       }
       showToast('No link to copy', 1500, 'error');
       return true;
@@ -62,7 +65,10 @@ function handleKey(e: KeyboardEvent): boolean {
   if (combo === settings.keybindings.yankMode) {
     if (focusedElement?.tagName === 'A') {
       const href = (focusedElement as HTMLAnchorElement).href;
-      if (href) { copyToClipboard(href, 'Link copied'); return true; }
+      if (href) {
+        copyToClipboard(href, 'Link copied');
+        return true;
+      }
     }
     yankMode = true;
     showToast('Yank: y=URL  t=title  f=link');

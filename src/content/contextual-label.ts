@@ -1,5 +1,3 @@
-import { AURA_COLOR } from '../shared/constants';
-
 let labelEl: HTMLElement | null = null;
 let shadow: ShadowRoot | null = null;
 let host: HTMLElement | null = null;
@@ -59,14 +57,22 @@ export function showLabelForElement(el: HTMLElement): void {
 }
 
 export function hideLabel(): void {
-  if (showTimer) { clearTimeout(showTimer); showTimer = null; }
+  if (showTimer) {
+    clearTimeout(showTimer);
+    showTimer = null;
+  }
   if (labelEl) labelEl.classList.remove('visible');
   currentElement = null;
 }
 
 export function destroyContextualLabel(): void {
   hideLabel();
-  if (host) { host.remove(); host = null; shadow = null; labelEl = null; }
+  if (host) {
+    host.remove();
+    host = null;
+    shadow = null;
+    labelEl = null;
+  }
 }
 
 function getActionText(el: HTMLElement): string | null {

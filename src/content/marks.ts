@@ -1,7 +1,7 @@
 import { buildComboString } from '../shared/keys';
 import type { Settings } from '../shared/types';
-import { registerKeyHandler } from './key-handler';
 import { showToast } from './indicator';
+import { registerKeyHandler } from './key-handler';
 import { UI } from './ui-tokens';
 
 interface MarkEntry {
@@ -43,7 +43,12 @@ export function isMarksActive(): boolean {
 
 export function destroyMarks(): void {
   deactivateMarks();
-  if (host) { host.remove(); host = null; shadow = null; prompt = null; }
+  if (host) {
+    host.remove();
+    host = null;
+    shadow = null;
+    prompt = null;
+  }
   if (unregisterKey) unregisterKey();
 }
 
@@ -152,7 +157,9 @@ function loadMarks(): Record<string, MarkEntry> {
 function saveMarks(marks: Record<string, MarkEntry>): void {
   try {
     sessionStorage.setItem(storageKey(), JSON.stringify(marks));
-  } catch { /* quota exceeded or private mode */ }
+  } catch {
+    /* quota exceeded or private mode */
+  }
 }
 
 function getUniqueSelector(el: HTMLElement): string | null {

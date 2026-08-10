@@ -172,7 +172,7 @@ function activate(): void {
   if (!sel) return;
 
   const lastPicked = getLastPickedElement();
-  if (lastPicked && lastPicked.isConnected) {
+  if (lastPicked?.isConnected) {
     targetElement = lastPicked;
   } else {
     targetElement = findElementNearViewportCenter();

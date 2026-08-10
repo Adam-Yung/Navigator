@@ -8,7 +8,6 @@ export function buildComboString(e: KeyboardEvent): string {
   return parts.join('+');
 }
 
-
 const CODE_TO_DISPLAY: Record<string, string> = {
   Space: 'Space',
   Slash: '/',
@@ -50,17 +49,19 @@ export function comboToDisplayKey(combo: string): string {
   }
 
   if (modifiers.length > 0) {
-    return modifiers.join('+') + '+' + key;
+    return `${modifiers.join('+')}+${key}`;
   }
   return key;
 }
 
 export function comboToFullDisplay(combo: string): string {
   const parts = combo.split('+');
-  return parts.map((part) => {
-    if (part === 'Ctrl' || part === 'Alt' || part === 'Meta' || part === 'Shift') return part;
-    if (part.startsWith('Key')) return part.slice(3);
-    if (part.startsWith('Digit')) return part.slice(5);
-    return CODE_TO_DISPLAY[part] || part;
-  }).join('+');
+  return parts
+    .map((part) => {
+      if (part === 'Ctrl' || part === 'Alt' || part === 'Meta' || part === 'Shift') return part;
+      if (part.startsWith('Key')) return part.slice(3);
+      if (part.startsWith('Digit')) return part.slice(5);
+      return CODE_TO_DISPLAY[part] || part;
+    })
+    .join('+');
 }

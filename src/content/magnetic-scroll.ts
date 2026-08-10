@@ -3,7 +3,7 @@ import { NAV_SELECTORS } from '../shared/constants';
 const MAGNET_RANGE_PX = 60;
 
 export function findMagnetTarget(): HTMLElement | null {
-  const vcx = window.innerWidth / 2;
+  const _vcx = window.innerWidth / 2;
   const vcy = window.innerHeight / 2;
 
   const elements = document.querySelectorAll<HTMLElement>(NAV_SELECTORS);

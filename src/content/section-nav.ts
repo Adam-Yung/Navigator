@@ -60,7 +60,8 @@ function jumpToSection(direction: 'next' | 'prev'): void {
 }
 
 function getLandmarkElements(): HTMLElement[] {
-  const selectors = 'h1, h2, h3, h4, h5, h6, main, [role="main"], nav, [role="navigation"], section, article, aside, footer';
+  const selectors =
+    'h1, h2, h3, h4, h5, h6, main, [role="main"], nav, [role="navigation"], section, article, aside, footer';
   const elements = document.querySelectorAll<HTMLElement>(selectors);
   return Array.from(elements).filter((el) => {
     const rect = el.getBoundingClientRect();

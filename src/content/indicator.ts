@@ -1,5 +1,3 @@
-import { AURA_COLOR } from '../shared/constants';
-
 let host: HTMLElement | null = null;
 let shadow: ShadowRoot | null = null;
 let chip: HTMLElement | null = null;
