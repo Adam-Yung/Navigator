@@ -236,8 +236,8 @@ function activate(): void {
 }
 
 function findElementNearViewportCenter(): HTMLElement {
-  const cx = window.innerWidth / 2;
-  const cy = window.innerHeight / 2;
+  const cx = document.documentElement.clientWidth / 2;
+  const cy = document.documentElement.clientHeight / 2;
   const candidates = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, td, th, span, a, div');
   let best: HTMLElement = document.documentElement;
   let bestDist = Number.POSITIVE_INFINITY;
@@ -360,7 +360,7 @@ function scrollCaretIntoView(): void {
   if (!caretEl) return;
   const top = parseFloat(caretEl.style.top);
   const height = parseFloat(caretEl.style.height) || 18;
-  const vh = window.innerHeight;
+  const vh = document.documentElement.clientHeight;
   const margin = 60;
 
   if (top < margin) {
