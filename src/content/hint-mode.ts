@@ -635,12 +635,17 @@ function navigateZone(direction: string): void {
 
 function getElementLabelPosition(el: HTMLElement): { x: number; y: number } {
   const rect = el.getBoundingClientRect();
-  const labelWidth = 28;
   const labelHeight = 20;
-  if (rect.width > 120) {
-    return { x: rect.left + rect.width / 2 - labelWidth / 2, y: rect.top + rect.height / 2 - labelHeight / 2 };
+
+  let x = rect.left;
+  let y = rect.top - labelHeight - 2;
+
+  if (y < 0) {
+    y = rect.top + 2;
+    x = rect.left + 2;
   }
-  return { x: rect.left, y: rect.top - labelHeight - 2 };
+
+  return { x, y };
 }
 
 function renderLabelsForZone(zoneIdx: number): void {
@@ -724,13 +729,22 @@ function renderLabelsForScope(scope: HTMLElement | null, preFiltered?: IndexedEl
     const rect = entry.el.getBoundingClientRect();
     const labelWidth = 28;
     const labelHeight = 20;
-    if (rect.width > 120) {
-      labelEl.style.left = `${rect.left + rect.width / 2 - labelWidth / 2}px`;
-      labelEl.style.top = `${rect.top + rect.height / 2 - labelHeight / 2}px`;
-    } else {
-      labelEl.style.left = `${rect.left}px`;
-      labelEl.style.top = `${rect.top - labelHeight - 2}px`;
+    const vpW = document.documentElement.clientWidth;
+    const vpH = document.documentElement.clientHeight;
+
+    let lLeft = rect.left;
+    let lTop = rect.top - labelHeight - 2;
+
+    if (lTop < 0) {
+      lTop = rect.top + 2;
+      lLeft = rect.left + 2;
     }
+
+    lLeft = Math.max(0, Math.min(lLeft, vpW - labelWidth));
+    lTop = Math.max(0, Math.min(lTop, vpH - labelHeight));
+
+    labelEl.style.left = `${lLeft}px`;
+    labelEl.style.top = `${lTop}px`;
 
     const semanticClass = getSemanticClass(entry.el);
     if (semanticClass) labelEl.classList.add(semanticClass);
@@ -1049,7 +1063,9 @@ function updateRingPosition(): void {
       transitionTo(first.element);
     }
     revealElement(first.element.el);
-    showTooltipForElement(first.element.el);
+    if (filteredHints.length === 1) {
+      showTooltipForElement(first.element.el);
+    }
   }
 }
 
@@ -1100,6 +1116,8 @@ function resolveOverlaps(hints: HintEntry[]): void {
   const LABEL_HEIGHT = 20;
   const LABEL_WIDTH = 28;
   const MAX_DOWN_OFFSET = 40;
+  const vw = document.documentElement.clientWidth;
+  const vh = document.documentElement.clientHeight;
   const placed: Array<{ top: number; left: number; bottom: number; right: number }> = [];
 
   for (const hint of hints) {
@@ -1121,6 +1139,9 @@ function resolveOverlaps(hints: HintEntry[]): void {
         }
       }
     }
+
+    finalLeft = Math.max(0, Math.min(finalLeft, vw - LABEL_WIDTH));
+    finalTop = Math.max(0, Math.min(finalTop, vh - LABEL_HEIGHT));
 
     if (finalTop !== top) hint.labelEl.style.top = `${finalTop}px`;
     if (finalLeft !== left) hint.labelEl.style.left = `${finalLeft}px`;
