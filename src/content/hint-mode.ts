@@ -227,18 +227,6 @@ function handlePickerKeydown(e: KeyboardEvent): boolean {
       }
     }
 
-    if (
-      ZONE_KEYS[activeZone] === e.key.toLowerCase() &&
-      !e.altKey &&
-      !e.ctrlKey &&
-      !e.metaKey &&
-      !e.shiftKey &&
-      typedFilter === ''
-    ) {
-      unselectZone();
-      return true;
-    }
-
     if (e.key === 'Enter') {
       if (multiSelected.size > 0) {
         const targets = [...multiSelected];
