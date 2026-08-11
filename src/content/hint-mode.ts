@@ -227,7 +227,14 @@ function handlePickerKeydown(e: KeyboardEvent): boolean {
       }
     }
 
-    if (ZONE_KEYS[activeZone] === e.key.toLowerCase() && !e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+    if (
+      ZONE_KEYS[activeZone] === e.key.toLowerCase() &&
+      !e.altKey &&
+      !e.ctrlKey &&
+      !e.metaKey &&
+      !e.shiftKey &&
+      typedFilter === ''
+    ) {
       unselectZone();
       return true;
     }
@@ -696,7 +703,7 @@ function renderLabelsForScope(scope: HTMLElement | null, preFiltered?: IndexedEl
   } else {
     elements = scanViewportElements(scope);
     if (elements.length === 0 && scope !== null) {
-      elements = scanViewportElements(null);
+      elements = scanVisibleElements('document');
     }
   }
   if (elements.length === 0) return;
@@ -784,9 +791,10 @@ function renderLabelsForScope(scope: HTMLElement | null, preFiltered?: IndexedEl
 }
 
 function scanViewportElements(scope: HTMLElement | null): IndexedElement[] {
-  const allElements = scanVisibleElements();
-  if (!scope || scope === document.body) return allElements;
-  return allElements.filter((indexed) => scope.contains(indexed.el));
+  if (!scope || scope === document.body) {
+    return scanVisibleElements();
+  }
+  return scanVisibleElements(scope);
 }
 
 function getPickerScope(): HTMLElement | null {

@@ -56,43 +56,70 @@ function queryShadowRoots(root: Document | ShadowRoot, selector: string): HTMLEl
 }
 
 export function detectActiveModal(): HTMLElement | null {
+  const vw = document.documentElement.clientWidth;
+  const vh = document.documentElement.clientHeight;
+  const vpArea = vw * vh;
+
   const dialog = document.querySelector('dialog[open]') as HTMLElement | null;
-  if (dialog) return dialog;
+  if (dialog && isSubstantialModal(dialog, vpArea)) return dialog;
 
   const ariaModal = document.querySelector('[aria-modal="true"]') as HTMLElement | null;
   if (ariaModal) {
     const style = getComputedStyle(ariaModal);
-    if (style.display !== 'none' && style.visibility !== 'hidden') return ariaModal;
+    if (style.display !== 'none' && style.visibility !== 'hidden') {
+      if (isSubstantialModal(ariaModal, vpArea)) return ariaModal;
+    }
   }
 
-  const vw = document.documentElement.clientWidth;
-  const vh = document.documentElement.clientHeight;
-  const vpArea = vw * vh;
   const candidates = document.querySelectorAll('[role="dialog"], [role="alertdialog"]');
   for (const el of candidates) {
     const style = getComputedStyle(el);
     if (style.display === 'none' || style.visibility === 'hidden') continue;
+    if (parseFloat(style.opacity) < 0.1) continue;
     if (style.position !== 'fixed' && style.position !== 'absolute') continue;
+    const zIndex = parseInt(style.zIndex, 10) || 0;
+    if (zIndex <= 100) continue;
     const rect = (el as HTMLElement).getBoundingClientRect();
-    if (rect.width * rect.height > vpArea * 0.15) return el as HTMLElement;
+    const area = rect.width * rect.height;
+    if (area > vpArea * 0.1 && area < vpArea * 0.95) return el as HTMLElement;
   }
 
   return null;
 }
 
-export function scanVisibleElements(): IndexedElement[] {
-  if (cacheValid && cachedElements !== null) {
+function isSubstantialModal(el: HTMLElement, vpArea: number): boolean {
+  const rect = el.getBoundingClientRect();
+  const area = rect.width * rect.height;
+  if (area < vpArea * 0.05 || area > vpArea * 0.98) return false;
+  if (rect.width < 100 || rect.height < 100) return false;
+  const style = getComputedStyle(el);
+  if (style.display === 'none' || style.visibility === 'hidden') return false;
+  if (parseFloat(style.opacity) < 0.1) return false;
+  return true;
+}
+
+export function scanVisibleElements(scopeOverride?: HTMLElement | null | 'document'): IndexedElement[] {
+  const hasOverride = scopeOverride !== undefined;
+  if (!hasOverride && cacheValid && cachedElements !== null) {
     return cachedElements;
   }
 
-  const modalScope = detectActiveModal();
-  const root = modalScope || document;
+  let root: HTMLElement | Document;
+  let isScoped: boolean;
+  if (hasOverride) {
+    root = scopeOverride === 'document' || scopeOverride === null ? document : scopeOverride;
+    isScoped = root !== document;
+  } else {
+    const modalScope = detectActiveModal();
+    root = modalScope || document;
+    isScoped = !!modalScope;
+  }
 
   const result: IndexedElement[] = [];
   const elements = root.querySelectorAll<HTMLElement>(NAV_SELECTORS);
-  const shadowElements = modalScope ? [] : queryShadowRoots(document, NAV_SELECTORS);
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
+  const shadowElements = isScoped ? [] : queryShadowRoots(document, NAV_SELECTORS);
+  const vw = document.documentElement.clientWidth;
+  const vh = document.documentElement.clientHeight;
 
   for (const el of elements) {
     if (!isVisible(el)) continue;
@@ -124,8 +151,10 @@ export function scanVisibleElements(): IndexedElement[] {
 
   scanIframes(result, vw, vh);
 
-  cachedElements = result;
-  cacheValid = true;
+  if (!hasOverride) {
+    cachedElements = result;
+    cacheValid = true;
+  }
   return result;
 }
 
