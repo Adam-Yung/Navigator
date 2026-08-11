@@ -216,6 +216,15 @@
           <span class="slider-value" id="scroll-decel-factor-val">0.92</span>
         </div>
       </div>
+      <div class="field">
+        <label for="use-physical-keys">Use physical key positions (for Dvorak/Colemak)</label>
+        <input type="checkbox" id="use-physical-keys">
+      </div>
+      <div class="field">
+        <label for="hint-chars">Hint Characters</label>
+        <input type="text" id="hint-chars" class="text-input" placeholder="asdfghjklqwertyuiopzxcvbnm" spellcheck="false">
+        <p class="field-desc">Characters used for picker hint labels, in priority order. Min 6 characters.</p>
+      </div>
     </section>
 
     <section class="card">
@@ -225,6 +234,9 @@
     </section>
 
     <div class="actions">
+      <button class="btn" id="btn-export">Export Settings</button>
+      <button class="btn" id="btn-import">Import Settings</button>
+      <input type="file" id="import-file" accept=".json" hidden>
       <button class="btn btn-danger" id="btn-reset">Reset to Defaults</button>
     </div>
   </div>

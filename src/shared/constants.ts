@@ -39,6 +39,8 @@ export const DEFAULT_SETTINGS: Settings = {
   scrollBaseVelocity: 5,
   scrollMaxVelocity: 60,
   scrollDecelFactor: 0.92,
+  usePhysicalKeys: false,
+  hintChars: 'asdfghjklqwertyuiopzxcvbnm',
 };
 
 export const NAV_SELECTORS = [

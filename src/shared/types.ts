@@ -44,4 +44,6 @@ export interface Settings {
   scrollBaseVelocity: number;
   scrollMaxVelocity: number;
   scrollDecelFactor: number;
+  usePhysicalKeys: boolean;
+  hintChars: string;
 }

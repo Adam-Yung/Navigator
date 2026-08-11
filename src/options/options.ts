@@ -77,6 +77,9 @@ function renderBehavior(): void {
   const decel = document.getElementById('scroll-decel-factor') as HTMLInputElement;
   decel.value = String(settings.scrollDecelFactor);
   document.getElementById('scroll-decel-factor-val')!.textContent = String(settings.scrollDecelFactor);
+
+  (document.getElementById('use-physical-keys') as HTMLInputElement).checked = settings.usePhysicalKeys;
+  (document.getElementById('hint-chars') as HTMLInputElement).value = settings.hintChars;
 }
 
 function renderDisabledSites(): void {
@@ -144,6 +147,21 @@ function setupListeners(): void {
     debouncedSave();
   });
 
+  document.getElementById('use-physical-keys')?.addEventListener('change', (e) => {
+    settings.usePhysicalKeys = (e.target as HTMLInputElement).checked;
+    save().catch(() => {});
+  });
+
+  document.getElementById('hint-chars')?.addEventListener('change', (e) => {
+    const val = (e.target as HTMLInputElement).value.trim();
+    if (val.length >= 6 && new Set(val.split('')).size === val.length) {
+      settings.hintChars = val;
+      save().catch(() => {});
+    } else {
+      alert('Hint characters must be at least 6 unique characters');
+      (e.target as HTMLInputElement).value = settings.hintChars;
+    }
+  });
   document.getElementById('disabled-sites')?.addEventListener('change', (e) => {
     const text = (e.target as HTMLTextAreaElement).value;
     settings.disabledSites = text
@@ -151,6 +169,43 @@ function setupListeners(): void {
       .map((s) => s.trim())
       .filter(Boolean);
     save().catch(() => {});
+  });
+
+  document.getElementById('btn-export')!.addEventListener('click', () => {
+    const json = JSON.stringify(settings, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'navigator-settings.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  document.getElementById('btn-import')!.addEventListener('click', () => {
+    (document.getElementById('import-file') as HTMLInputElement).click();
+  });
+
+  document.getElementById('import-file')!.addEventListener('change', async (e) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const imported = JSON.parse(text);
+      if (!imported.keybindings || typeof imported.animDuration !== 'number') {
+        alert('Invalid settings file');
+        return;
+      }
+      settings = { ...DEFAULT_SETTINGS, ...imported };
+      await save();
+      renderKeybindings();
+      renderAppearance();
+      renderBehavior();
+      renderDisabledSites();
+    } catch {
+      alert('Failed to parse settings file');
+    }
+    (e.target as HTMLInputElement).value = '';
   });
 
   document.getElementById('btn-reset')?.addEventListener('click', () => {
