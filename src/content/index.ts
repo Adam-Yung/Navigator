@@ -30,7 +30,62 @@ import { initUrlNav, updateUrlNavSettings } from './url-nav';
 let settings: Settings;
 let extensionEnabled = true;
 
+function showToggleFeedback(enabled: boolean): void {
+  const existing = document.getElementById('navigator-toggle-feedback');
+  if (existing) existing.remove();
+
+  const el = document.createElement('div');
+  el.id = 'navigator-toggle-feedback';
+  el.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.9);
+    padding: 16px 32px;
+    background: rgba(15, 15, 30, 0.95);
+    border: 1px solid rgba(100, 80, 255, 0.3);
+    border-radius: 12px;
+    backdrop-filter: blur(12px);
+    font: 600 14px -apple-system, system-ui, sans-serif;
+    color: ${enabled ? '#a0f0a0' : '#f0a0a0'};
+    z-index: 2147483647;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 150ms ease, transform 150ms ease;
+  `;
+  el.textContent = enabled ? 'Navigator ON' : 'Navigator OFF';
+  document.body.appendChild(el);
+
+  requestAnimationFrame(() => {
+    el.style.opacity = '1';
+    el.style.transform = 'translate(-50%, -50%) scale(1)';
+  });
+
+  setTimeout(() => {
+    el.style.opacity = '0';
+    el.style.transform = 'translate(-50%, -50%) scale(0.95)';
+    setTimeout(() => el.remove(), 200);
+  }, 700);
+}
+
 async function init(): Promise<void> {
+  if ((window as any).__navigatorInjected) return;
+  (window as any).__navigatorInjected = true;
+
+  // Clean up stale hosts from previous injection
+  for (const id of [
+    'navigator-aura-host',
+    'navigator-hints-host',
+    'navigator-search-host',
+    'navigator-alt-helper-host',
+    'navigator-cheatsheet-host',
+    'navigator-caret-host',
+    'navigator-quickactions-host',
+    'navigator-welcome',
+  ]) {
+    document.getElementById(id)?.remove();
+  }
+
   settings = await getSettings();
 
   if (isSiteDisabled(settings.disabledSites)) {
@@ -124,15 +179,21 @@ function listenForBackgroundMessages(): void {
   const api = getAPI();
   if (!api?.runtime?.onMessage) return;
 
-  api.runtime.onMessage.addListener((message: any) => {
+  api.runtime.onMessage.addListener((message: any, _sender: any, sendResponse: any) => {
+    if (message.type === 'ping') {
+      sendResponse({ alive: true });
+      return true;
+    }
     if (message.type === 'toggle-extension') {
       if (extensionEnabled) {
         extensionEnabled = false;
         setExtensionEnabled(false);
         escapeAll();
+        showToggleFeedback(false);
       } else {
         extensionEnabled = true;
         setExtensionEnabled(true);
+        showToggleFeedback(true);
       }
     }
   });
