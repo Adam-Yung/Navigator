@@ -1,6 +1,7 @@
 import { buildComboString } from '../shared/keys';
 import type { IndexedElement, Settings } from '../shared/types';
 import { transitionTo } from './aura-ring';
+import { jumpCaretToElement } from './caret-mode';
 import { pushFocus } from './focus-history';
 import { revealElement } from './hover-manager';
 import { registerKeyHandler } from './key-handler';
@@ -20,6 +21,8 @@ let matches: IndexedElement[] = [];
 let selectedIndex = 0;
 let clearHighlights: (() => void)[] = [];
 let lastQuery = '';
+let selectCallback: ((el: HTMLElement) => void) | null = null;
+let useRegex = false;
 
 export function initElementSearch(initialSettings: Settings): void {
   settings = initialSettings;
@@ -34,6 +37,7 @@ export function updateElementSearchSettings(newSettings: Settings): void {
 export function deactivateElementSearch(): void {
   if (!active) return;
   active = false;
+  selectCallback = null;
   releaseMode('search');
   removeAllHighlights();
   if (query.length > 0) lastQuery = query;
@@ -48,6 +52,11 @@ export function deactivateElementSearch(): void {
     if (scopeEl) scopeEl.textContent = '';
     panel.classList.add('hidden');
   }
+}
+
+export function activateSearchWithCallback(cb: (el: HTMLElement) => void): void {
+  selectCallback = cb;
+  activate();
 }
 
 export function isElementSearchActive(): boolean {
@@ -114,10 +123,29 @@ function handleKey(e: KeyboardEvent): boolean {
   if (e.key === 'Enter') {
     if (matches.length > 0) {
       const target = matches[selectedIndex];
+      const cb = selectCallback;
       deactivateElementSearch();
-      pushFocus(target.el);
-      activateSearchTarget(target.el);
+      if (cb) {
+        cb(target.el);
+      } else {
+        pushFocus(target.el);
+        activateSearchTarget(target.el);
+      }
     }
+    return true;
+  }
+
+  if (e.altKey && e.code === 'KeyV' && matches.length > 0) {
+    const target = matches[selectedIndex].el;
+    deactivateElementSearch();
+    jumpCaretToElement(target);
+    return true;
+  }
+
+  if (e.altKey && e.code === 'KeyR') {
+    useRegex = !useRegex;
+    updateRegexIndicator();
+    search();
     return true;
   }
 
@@ -227,6 +255,17 @@ function search(): void {
 
   if (text.length === 0) {
     matches = filtered;
+  } else if (useRegex) {
+    let re: RegExp;
+    try {
+      re = new RegExp(text, 'i');
+    } catch {
+      matches = [];
+      selectedIndex = 0;
+      updateCount();
+      return;
+    }
+    matches = filtered.filter((el) => re.test(getSearchableText(el.el)));
   } else {
     const q = text.toLowerCase();
     matches = filtered.filter((el) => {
@@ -412,6 +451,23 @@ function updateScopeIndicator(scope: ScopeFilter | null): void {
   }
 }
 
+function updateRegexIndicator(): void {
+  if (!panel) return;
+  let indicator = panel.querySelector('.search-regex');
+  if (useRegex) {
+    if (!indicator) {
+      indicator = document.createElement('span');
+      indicator.className = 'search-regex';
+      const hintEl = panel.querySelector('.search-hint');
+      if (hintEl) panel.insertBefore(indicator, hintEl);
+      else panel.appendChild(indicator);
+    }
+    indicator.textContent = '[.*]';
+  } else if (indicator) {
+    indicator.textContent = '';
+  }
+}
+
 function updateCount(): void {
   if (!panel) return;
   const countEl = panel.querySelector('.search-count');
@@ -469,6 +525,12 @@ function getStyles(): string {
       color: ${UI.colors.textMuted};
       font: ${UI.font.sizeSm} ${UI.font.base};
       margin-left: 8px;
+    }
+    .search-regex {
+      color: ${UI.colors.accent};
+      font: bold ${UI.font.sizeXs} ${UI.font.mono};
+      margin-left: 6px;
+      opacity: 0.9;
     }
     .search-hint {
       color: ${UI.colors.textDim};

@@ -1,6 +1,8 @@
 import { buildComboString } from '../shared/keys';
 import type { Settings } from '../shared/types';
+import { activateSearchWithCallback } from './element-search';
 import { getLastPickedElement } from './hint-mode';
+import { revealElement } from './hover-manager';
 import { announce, showToast } from './indicator';
 import { registerKeyHandler } from './key-handler';
 import { releaseMode, requestMode } from './mode-manager';
@@ -45,6 +47,37 @@ export function deactivateCaretMode(): void {
   window.getSelection()?.removeAllRanges();
   updateBadge();
   hideCaretIndicator();
+}
+
+export function jumpCaretToElement(el: HTMLElement): void {
+  const sel = window.getSelection();
+  if (!sel) return;
+
+  targetElement = el;
+  sel.removeAllRanges();
+
+  const textNode = findFirstTextNode(el);
+  if (textNode) {
+    const range = document.createRange();
+    range.setStart(textNode, 0);
+    range.collapse(true);
+    sel.addRange(range);
+  } else {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(true);
+    sel.addRange(range);
+  }
+
+  requestMode('caret', deactivateCaretMode);
+  active = true;
+  state = 'caret';
+  countBuffer = '';
+  updateBadge();
+  showCaretIndicator();
+  updateCaretPosition();
+  revealElement(el);
+  announce('Caret mode: jumped to element');
 }
 
 export function isCaretModeActive(): boolean {
@@ -196,6 +229,12 @@ function handleKey(e: KeyboardEvent): boolean {
     return true;
   }
 
+  if (e.key === '/' && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
+    countBuffer = '';
+    activateSearchWithCallback(jumpCaretToElement);
+    return true;
+  }
+
   countBuffer = '';
   return true;
 }
@@ -235,23 +274,36 @@ function activate(): void {
   announce('Caret mode: h/j/k/l move, v toggles visual, w/b words, y copies');
 }
 
+function hasOwnText(el: HTMLElement): boolean {
+  for (const child of el.childNodes) {
+    if (child.nodeType === Node.TEXT_NODE && child.textContent?.trim()) return true;
+  }
+  return false;
+}
+
 function findElementNearViewportCenter(): HTMLElement {
   const cx = document.documentElement.clientWidth / 2;
   const cy = document.documentElement.clientHeight / 2;
-  const candidates = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, td, th, span, a, div');
+  const candidates = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, td, th, a, button, label, span');
   let best: HTMLElement = document.documentElement;
-  let bestDist = Number.POSITIVE_INFINITY;
+  let bestScore = -Infinity;
 
   for (const el of candidates) {
-    const rect = el.getBoundingClientRect();
+    const htmlEl = el as HTMLElement;
+    if (!hasOwnText(htmlEl)) continue;
+    const rect = htmlEl.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) continue;
-    if (!el.textContent?.trim()) continue;
-    const ex = rect.left + rect.width / 2;
-    const ey = rect.top + rect.height / 2;
-    const dist = Math.hypot(ex - cx, ey - cy);
-    if (dist < bestDist) {
-      bestDist = dist;
-      best = el as HTMLElement;
+    if (rect.bottom < 0 || rect.top > cy * 2) continue;
+
+    const dx = rect.left + rect.width / 2 - cx;
+    const dy = rect.top + rect.height / 2 - cy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const ownText = (htmlEl.textContent?.trim() || '').length;
+    const textBonus = Math.min(ownText, 50) * 0.5;
+    const score = -dist + textBonus;
+    if (score > bestScore) {
+      bestScore = score;
+      best = htmlEl;
     }
   }
   return best;
