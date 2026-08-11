@@ -511,6 +511,13 @@ function hideSpotlight(): void {
 
 // === Zone Spotlight Mechanics ===
 
+function positionModalForZone(zoneIdx: number): void {
+  if (!modalEl) return;
+  const bottomRow = zoneIdx >= 0 && Math.floor(zoneIdx / ZONE_COLS) === 1;
+  modalEl.style.bottom = bottomRow ? 'auto' : '';
+  modalEl.style.top = bottomRow ? '24px' : '';
+}
+
 function spotlightZone(zoneIdx: number): void {
   activeZone = zoneIdx;
   phase = 'zone-zoomed';
@@ -522,6 +529,7 @@ function spotlightZone(zoneIdx: number): void {
   updateMiniMap(zoneIdx);
 
   renderLabelsForZone(zoneIdx);
+  positionModalForZone(zoneIdx);
   if (modalEl) modalEl.classList.remove('hidden');
   updateModal();
 }
@@ -529,6 +537,7 @@ function spotlightZone(zoneIdx: number): void {
 function unselectZone(): void {
   phase = 'zone-select';
   activeZone = -1;
+  positionModalForZone(-1);
 
   if (labelsContainer) labelsContainer.innerHTML = '';
   allHints = [];
@@ -551,6 +560,7 @@ function exitPickerWithSelection(target: IndexedElement): void {
   phase = 'inactive';
   activeZone = -1;
   ringSupressed = false;
+  positionModalForZone(-1);
 
   if (labelsContainer) labelsContainer.innerHTML = '';
   if (modalEl) modalEl.classList.add('hidden');
@@ -580,6 +590,7 @@ function exitPicker(): void {
   phase = 'inactive';
   activeZone = -1;
   ringSupressed = false;
+  positionModalForZone(-1);
 
   if (labelsContainer) labelsContainer.innerHTML = '';
   if (modalEl) modalEl.classList.add('hidden');
