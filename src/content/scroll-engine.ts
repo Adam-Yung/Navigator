@@ -112,7 +112,8 @@ function scrollTick(): void {
   }
 
   if (state.velocity < 0.5 && !state.accelerating) {
-    const target = findMagnetTarget();
+    const scrollTarget = getScrollTarget(direction);
+    const target = findMagnetTarget(scrollTarget);
     if (target) applyMagnetism(target);
     stopScrolling();
     return;

@@ -2,11 +2,10 @@ import { NAV_SELECTORS } from '../shared/constants';
 
 const MAGNET_RANGE_PX = 60;
 
-export function findMagnetTarget(): HTMLElement | null {
-  const _vcx = window.innerWidth / 2;
+export function findMagnetTarget(container?: Element | Window): HTMLElement | null {
   const vcy = window.innerHeight / 2;
-
-  const elements = document.querySelectorAll<HTMLElement>(NAV_SELECTORS);
+  const root = container && container !== window ? (container as Element) : document;
+  const elements = root.querySelectorAll<HTMLElement>(NAV_SELECTORS);
   let best: HTMLElement | null = null;
   let bestDist = MAGNET_RANGE_PX;
 
