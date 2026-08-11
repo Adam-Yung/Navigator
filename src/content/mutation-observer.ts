@@ -55,14 +55,42 @@ function queryShadowRoots(root: Document | ShadowRoot, selector: string): HTMLEl
   return results;
 }
 
+function detectActiveModal(): HTMLElement | null {
+  const dialog = document.querySelector('dialog[open]') as HTMLElement | null;
+  if (dialog) return dialog;
+
+  const ariaModal = document.querySelector('[aria-modal="true"]') as HTMLElement | null;
+  if (ariaModal) {
+    const style = getComputedStyle(ariaModal);
+    if (style.display !== 'none' && style.visibility !== 'hidden') return ariaModal;
+  }
+
+  const vw = document.documentElement.clientWidth;
+  const vh = document.documentElement.clientHeight;
+  const vpArea = vw * vh;
+  const candidates = document.querySelectorAll('[role="dialog"], [role="alertdialog"]');
+  for (const el of candidates) {
+    const style = getComputedStyle(el);
+    if (style.display === 'none' || style.visibility === 'hidden') continue;
+    if (style.position !== 'fixed' && style.position !== 'absolute') continue;
+    const rect = (el as HTMLElement).getBoundingClientRect();
+    if (rect.width * rect.height > vpArea * 0.15) return el as HTMLElement;
+  }
+
+  return null;
+}
+
 export function scanVisibleElements(): IndexedElement[] {
   if (cacheValid && cachedElements !== null) {
     return cachedElements;
   }
 
+  const modalScope = detectActiveModal();
+  const root = modalScope || document;
+
   const result: IndexedElement[] = [];
-  const elements = document.querySelectorAll<HTMLElement>(NAV_SELECTORS);
-  const shadowElements = queryShadowRoots(document, NAV_SELECTORS);
+  const elements = root.querySelectorAll<HTMLElement>(NAV_SELECTORS);
+  const shadowElements = modalScope ? [] : queryShadowRoots(document, NAV_SELECTORS);
   const vw = window.innerWidth;
   const vh = window.innerHeight;
 
