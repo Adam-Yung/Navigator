@@ -298,10 +298,16 @@ function highlightAllMatches(): void {
   const { text } = parseScope(query);
   if (text.length < 2) return;
 
+  const maxHighlights = 20;
+  let highlighted = 0;
   for (let i = 0; i < matches.length; i++) {
     if (i === selectedIndex) continue;
+    if (highlighted >= maxHighlights) break;
     const cleanup = highlightMatchInElement(matches[i].el, text, false);
-    if (cleanup) clearHighlights.push(cleanup);
+    if (cleanup) {
+      clearHighlights.push(cleanup);
+      highlighted++;
+    }
   }
 }
 
@@ -473,6 +479,14 @@ function getStyles(): string {
     @keyframes blink {
       0%, 100% { opacity: 1; }
       50% { opacity: 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 50ms !important;
+      }
     }
   `;
 }

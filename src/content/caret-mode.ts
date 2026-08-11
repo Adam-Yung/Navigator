@@ -18,6 +18,12 @@ let settings: Settings | null = null;
 let unregisterKey: (() => void) | null = null;
 let targetElement: HTMLElement | null = null;
 let caretRaf: number | null = null;
+let countBuffer = '';
+
+function matchesMotion(e: KeyboardEvent, logicalKey: string, physicalCode: string): boolean {
+  if (settings?.usePhysicalKeys) return e.code === physicalCode;
+  return e.key === logicalKey || e.key === logicalKey.toUpperCase();
+}
 
 export function initCaretMode(initialSettings: Settings): void {
   settings = initialSettings;
@@ -31,6 +37,7 @@ export function updateCaretModeSettings(newSettings: Settings): void {
 
 export function deactivateCaretMode(): void {
   if (!active) return;
+  countBuffer = '';
   active = false;
   releaseMode('caret');
   state = 'inactive';
@@ -80,6 +87,12 @@ function createDOM(): void {
   document.documentElement.appendChild(host);
 }
 
+function consumeCount(): number {
+  const n = countBuffer ? Math.min(parseInt(countBuffer, 10), 999) : 1;
+  countBuffer = '';
+  return n;
+}
+
 function handleKey(e: KeyboardEvent): boolean {
   if (!settings) return false;
 
@@ -93,16 +106,27 @@ function handleKey(e: KeyboardEvent): boolean {
   }
 
   if (e.key === 'Escape') {
+    countBuffer = '';
     deactivateCaretMode();
     return true;
   }
 
-  if (e.key === 'y' || e.key === 'Y') {
+  // Count prefix: accumulate digits
+  if (/^[1-9]$/.test(e.key) && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    countBuffer += e.key;
+    return true;
+  }
+  if (e.key === '0' && countBuffer.length > 0 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    countBuffer += '0';
+    return true;
+  }
+
+  if (matchesMotion(e, 'y', 'KeyY')) {
     copySelection();
     return true;
   }
 
-  if (e.key === 'v' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+  if (matchesMotion(e, 'v', 'KeyV') && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
     if (state === 'caret') {
       state = 'visual';
       updateBadge();
@@ -119,23 +143,27 @@ function handleKey(e: KeyboardEvent): boolean {
     return true;
   }
 
-  if (e.key === 'w' || e.key === 'W') {
-    moveCaret('word', 'forward', state === 'visual');
+  if (matchesMotion(e, 'w', 'KeyW')) {
+    const count = consumeCount();
+    for (let i = 0; i < count; i++) moveCaret('word', 'forward', state === 'visual');
     updateCaretPosition();
     return true;
   }
-  if (e.key === 'b' || e.key === 'B') {
-    moveCaret('word', 'backward', state === 'visual');
+  if (matchesMotion(e, 'b', 'KeyB')) {
+    const count = consumeCount();
+    for (let i = 0; i < count; i++) moveCaret('word', 'backward', state === 'visual');
     updateCaretPosition();
     return true;
   }
 
   if (e.key === '0') {
+    countBuffer = '';
     moveCaret('lineboundary', 'backward', state === 'visual');
     updateCaretPosition();
     return true;
   }
   if (e.key === '$') {
+    countBuffer = '';
     moveCaret('lineboundary', 'forward', state === 'visual');
     updateCaretPosition();
     return true;
@@ -143,27 +171,32 @@ function handleKey(e: KeyboardEvent): boolean {
 
   const extend = state === 'visual';
 
-  if (e.key === 'h' || e.key === 'ArrowLeft') {
-    moveCaret('character', 'backward', extend);
+  if (matchesMotion(e, 'h', 'KeyH') || e.key === 'ArrowLeft') {
+    const count = consumeCount();
+    for (let i = 0; i < count; i++) moveCaret('character', 'backward', extend);
     updateCaretPosition();
     return true;
   }
-  if (e.key === 'l' || e.key === 'ArrowRight') {
-    moveCaret('character', 'forward', extend);
+  if (matchesMotion(e, 'l', 'KeyL') || e.key === 'ArrowRight') {
+    const count = consumeCount();
+    for (let i = 0; i < count; i++) moveCaret('character', 'forward', extend);
     updateCaretPosition();
     return true;
   }
-  if (e.key === 'k' || e.key === 'ArrowUp') {
-    moveCaret('line', 'backward', extend);
+  if (matchesMotion(e, 'k', 'KeyK') || e.key === 'ArrowUp') {
+    const count = consumeCount();
+    for (let i = 0; i < count; i++) moveCaret('line', 'backward', extend);
     updateCaretPosition();
     return true;
   }
-  if (e.key === 'j' || e.key === 'ArrowDown') {
-    moveCaret('line', 'forward', extend);
+  if (matchesMotion(e, 'j', 'KeyJ') || e.key === 'ArrowDown') {
+    const count = consumeCount();
+    for (let i = 0; i < count; i++) moveCaret('line', 'forward', extend);
     updateCaretPosition();
     return true;
   }
 
+  countBuffer = '';
   return true;
 }
 
@@ -401,6 +434,14 @@ function getStyles(): string {
     @keyframes caret-blink {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.3; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 50ms !important;
+      }
     }
   `;
 }

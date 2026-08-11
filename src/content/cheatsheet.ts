@@ -530,5 +530,13 @@ function getStyles(): string {
       background: ${UI.colors.border};
       border-radius: 2px;
     }
+
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 50ms !important;
+      }
+    }
   `;
 }

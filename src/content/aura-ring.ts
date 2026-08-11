@@ -284,12 +284,10 @@ function getStyles(): string {
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .aura-ring {
-        animation: none;
-        transition-duration: 50ms;
-      }
-      .aura-ghost {
-        display: none;
+      * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 50ms !important;
       }
     }
   `;

@@ -11,7 +11,9 @@ import { registerKeyHandler } from './key-handler';
 import { releaseMode, requestMode } from './mode-manager';
 import { scanVisibleElements } from './mutation-observer';
 
-const HINT_CHARS = 'asdfghjklqwertyuiopzxcvbnm'.split('');
+function getHintChars(): string[] {
+  return (settings?.hintChars || 'asdfghjklqwertyuiopzxcvbnm').split('');
+}
 
 type PickerPhase = 'inactive' | 'zone-select' | 'zone-zoomed';
 let phase: PickerPhase = 'inactive';
@@ -638,11 +640,12 @@ function navigateZone(direction: string): void {
 
 function getElementLabelPosition(el: HTMLElement): { x: number; y: number } {
   const rect = el.getBoundingClientRect();
-  const isLarge = rect.width > 200 || rect.height > 100;
-  if (isLarge) {
-    return { x: rect.left + rect.width / 2 - 14, y: rect.top + rect.height / 2 - 10 };
+  const labelWidth = 28;
+  const labelHeight = 20;
+  if (rect.width > 120) {
+    return { x: rect.left + rect.width / 2 - labelWidth / 2, y: rect.top + rect.height / 2 - labelHeight / 2 };
   }
-  return { x: rect.left - 2, y: rect.top - 4 };
+  return { x: rect.left, y: rect.top - labelHeight - 2 };
 }
 
 function renderLabelsForZone(zoneIdx: number): void {
@@ -724,13 +727,14 @@ function renderLabelsForScope(scope: HTMLElement | null, preFiltered?: IndexedEl
     labelEl.appendChild(textNode);
 
     const rect = entry.el.getBoundingClientRect();
-    const isLarge = rect.width > 200 || rect.height > 100;
-    if (isLarge) {
-      labelEl.style.top = `${rect.top + rect.height / 2 - 10}px`;
-      labelEl.style.left = `${rect.left + rect.width / 2 - 14}px`;
+    const labelWidth = 28;
+    const labelHeight = 20;
+    if (rect.width > 120) {
+      labelEl.style.left = `${rect.left + rect.width / 2 - labelWidth / 2}px`;
+      labelEl.style.top = `${rect.top + rect.height / 2 - labelHeight / 2}px`;
     } else {
-      labelEl.style.top = `${rect.top - 4}px`;
-      labelEl.style.left = `${rect.left - 2}px`;
+      labelEl.style.left = `${rect.left}px`;
+      labelEl.style.top = `${rect.top - labelHeight - 2}px`;
     }
 
     const semanticClass = getSemanticClass(entry.el);
@@ -1082,7 +1086,7 @@ function flashNoMatch(): void {
 }
 
 function generateLabels(count: number): string[] {
-  if (count <= HINT_CHARS.length) return HINT_CHARS.slice(0, count);
+  if (count <= getHintChars().length) return getHintChars().slice(0, count);
 
   const labels: string[] = [];
   let depth = 1;
@@ -1100,7 +1104,7 @@ function addLabelsOfLength(len: number, max: number, out: string[]): void {
       out.push(prefix);
       return;
     }
-    for (const c of HINT_CHARS) {
+    for (const c of getHintChars()) {
       if (out.length >= max) return;
       generate(prefix + c, remaining - 1);
     }
@@ -1571,15 +1575,10 @@ function getHintStyles(): string {
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .hint-label {
-        transition: none;
-      }
-
-      .hint-modal {
-        transition-duration: 50ms;
-      }
-      .zone-marker {
-        animation: none;
+      * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 50ms !important;
       }
     }
   `;

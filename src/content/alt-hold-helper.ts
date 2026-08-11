@@ -245,5 +245,13 @@ function getStyles(): string {
       font: 600 ${UI.font.sizeXs} ${UI.font.mono};
       color: ${UI.colors.text};
     }
+
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 50ms !important;
+      }
+    }
   `;
 }
