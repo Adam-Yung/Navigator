@@ -241,7 +241,9 @@ function nodeCouldBeFocusable(node: Node): boolean {
 
   if (el.children.length === 0) return false;
 
+  let checked = 0;
   for (const child of el.getElementsByTagName('*')) {
+    if (++checked > 200) return true;
     if (FOCUSABLE_TAGS.has(child.tagName)) return true;
     if (child.hasAttribute('tabindex') || child.hasAttribute('role')) return true;
   }
