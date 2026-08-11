@@ -754,24 +754,30 @@ function renderLabelsForScope(scope: HTMLElement | null, preFiltered?: IndexedEl
   const vcy = document.documentElement.clientHeight / 2;
   const maxDist = Math.sqrt(vcx * vcx + vcy * vcy);
 
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
   for (const hint of allHints) {
     const rect = hint.element.el.getBoundingClientRect();
     const dx = rect.left + rect.width / 2 - vcx;
     const dy = rect.top + rect.height / 2 - vcy;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    const delay = (dist / maxDist) * 120;
 
     const opacity = dist < 300 ? 1 : dist < 600 ? 0.7 : 0.4;
     hint.labelEl.style.setProperty('--hint-opacity', String(opacity));
 
-    hint.labelEl.animate(
-      [
-        { opacity: '0', transform: 'scale(0.8)' },
-        { opacity: String(opacity), transform: 'scale(1)' },
-      ],
-      { duration: 150, delay, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)', fill: 'forwards' },
-    );
-    hint.labelEl.style.opacity = '0';
+    if (prefersReducedMotion) {
+      hint.labelEl.style.opacity = String(opacity);
+    } else {
+      const delay = (dist / maxDist) * 120;
+      hint.labelEl.animate(
+        [
+          { opacity: '0', transform: 'scale(0.8)' },
+          { opacity: String(opacity), transform: 'scale(1)' },
+        ],
+        { duration: 150, delay, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)', fill: 'forwards' },
+      );
+      hint.labelEl.style.opacity = '0';
+    }
   }
 
   updateRingPosition();
@@ -949,7 +955,7 @@ function activateQuickPick(idx: number): void {
       const area = rect.width * rect.height;
       return { el, inViewport, area };
     })
-    .filter((s) => s.area < vpArea * 0.5);
+    .filter((s) => s.area < vpArea * 0.8);
 
   scored.sort((a, b) => {
     if (a.inViewport !== b.inViewport) return a.inViewport ? -1 : 1;
@@ -1062,25 +1068,27 @@ function flashNoMatch(): void {
 }
 
 function generateLabels(count: number): string[] {
-  if (count <= getHintChars().length) return getHintChars().slice(0, count);
+  const chars = getHintChars();
+  if (chars.length === 0) return Array.from({ length: count }, (_, i) => String(i + 1));
+  if (count <= chars.length) return chars.slice(0, count);
 
   const labels: string[] = [];
   let depth = 1;
   while (labels.length < count && depth <= 5) {
-    addLabelsOfLength(depth, count, labels);
+    addLabelsOfLength(depth, count, labels, chars);
     depth++;
   }
   return labels;
 }
 
-function addLabelsOfLength(len: number, max: number, out: string[]): void {
+function addLabelsOfLength(len: number, max: number, out: string[], chars: string[]): void {
   const generate = (prefix: string, remaining: number): void => {
     if (out.length >= max) return;
     if (remaining === 0) {
       out.push(prefix);
       return;
     }
-    for (const c of getHintChars()) {
+    for (const c of chars) {
       if (out.length >= max) return;
       generate(prefix + c, remaining - 1);
     }
