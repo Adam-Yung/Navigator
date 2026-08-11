@@ -1,6 +1,6 @@
 {
   "name": "navigator",
-  "version": "2.4.1",
+  "version": "2.4.2",
   "description": "Alt-layer keyboard navigation for the modern web \u2014 modeless, instant, always-on",
   "scripts": {
     "dev": "webpack --watch --mode development",
