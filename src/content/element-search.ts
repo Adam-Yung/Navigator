@@ -6,7 +6,7 @@ import { pushFocus } from './focus-history';
 import { revealElement } from './hover-manager';
 import { registerKeyHandler } from './key-handler';
 import { releaseMode, requestMode } from './mode-manager';
-import { scanVisibleElements } from './mutation-observer';
+import { queryDeepAll, scanVisibleElements } from './mutation-observer';
 import { UI } from './ui-tokens';
 
 let host: HTMLElement | null = null;
@@ -251,6 +251,16 @@ function search(): void {
 
   if (scope) {
     filtered = filtered.filter((el) => scope.selector(el.el));
+  } else {
+    const textSelector = 'p, h1, h2, h3, h4, h5, h6, li, td, th, label, span';
+    const deepTextEls = queryDeepAll(textSelector, 200);
+    const existingSet = new Set(filtered.map((e) => e.el));
+    for (const el of deepTextEls) {
+      if (existingSet.has(el)) continue;
+      if (!el.textContent?.trim()) continue;
+      const rect = el.getBoundingClientRect();
+      filtered.push({ el, cx: rect.left + rect.width / 2, cy: rect.top + rect.height / 2, rect });
+    }
   }
 
   if (text.length === 0) {

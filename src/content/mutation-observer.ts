@@ -293,6 +293,48 @@ function rescan(): void {
   callback(elements);
 }
 
+export function queryDeepAll(selector: string, maxResults = 500): HTMLElement[] {
+  const results: HTMLElement[] = [];
+  const vw = document.documentElement.clientWidth;
+  const vh = document.documentElement.clientHeight;
+
+  function walk(root: Document | ShadowRoot): void {
+    if (results.length >= maxResults) return;
+    const els = root.querySelectorAll<HTMLElement>(selector);
+    for (const el of els) {
+      if (results.length >= maxResults) return;
+      const rect = el.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) continue;
+      if (rect.bottom <= 0 || rect.top >= vh || rect.right <= 0 || rect.left >= vw) continue;
+      results.push(el);
+    }
+    for (const el of root.querySelectorAll('*')) {
+      if (results.length >= maxResults) return;
+      if (el.shadowRoot) walk(el.shadowRoot);
+    }
+  }
+  walk(document);
+  return results;
+}
+
+export function collectDeepTextNodes(): Text[] {
+  const nodes: Text[] = [];
+  function walk(root: Node): void {
+    if (root.nodeType === Node.TEXT_NODE) {
+      if (root.textContent?.trim()) nodes.push(root as Text);
+      return;
+    }
+    if ((root as Element).shadowRoot) {
+      walk((root as Element).shadowRoot!);
+    }
+    for (const child of root.childNodes) {
+      walk(child);
+    }
+  }
+  walk(document.body);
+  return nodes;
+}
+
 function isVisible(el: HTMLElement): boolean {
   if ((el as HTMLInputElement).disabled) return false;
   if (el.getAttribute('aria-hidden') === 'true') return false;

@@ -6,6 +6,7 @@ import { revealElement } from './hover-manager';
 import { announce, showToast } from './indicator';
 import { registerKeyHandler } from './key-handler';
 import { releaseMode, requestMode } from './mode-manager';
+import { collectDeepTextNodes, queryDeepAll } from './mutation-observer';
 import { UI } from './ui-tokens';
 
 type CaretState = 'inactive' | 'caret' | 'visual';
@@ -44,6 +45,7 @@ export function deactivateCaretMode(): void {
   releaseMode('caret');
   state = 'inactive';
   targetElement = null;
+  cachedTextNodes = null;
   window.getSelection()?.removeAllRanges();
   updateBadge();
   hideCaretIndicator();
@@ -284,29 +286,36 @@ function hasOwnText(el: HTMLElement): boolean {
 function findElementNearViewportCenter(): HTMLElement {
   const cx = document.documentElement.clientWidth / 2;
   const cy = document.documentElement.clientHeight / 2;
-  const candidates = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, td, th, a, button, label, span');
+  const candidates = queryDeepAll('p, h1, h2, h3, h4, h5, h6, li, td, th, a, button, label, span');
   let best: HTMLElement = document.documentElement;
   let bestScore = -Infinity;
 
   for (const el of candidates) {
-    const htmlEl = el as HTMLElement;
-    if (!hasOwnText(htmlEl)) continue;
-    const rect = htmlEl.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) continue;
-    if (rect.bottom < 0 || rect.top > cy * 2) continue;
-
+    if (!hasOwnText(el)) continue;
+    const rect = el.getBoundingClientRect();
     const dx = rect.left + rect.width / 2 - cx;
     const dy = rect.top + rect.height / 2 - cy;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    const ownText = (htmlEl.textContent?.trim() || '').length;
+    const ownText = (el.textContent?.trim() || '').length;
     const textBonus = Math.min(ownText, 50) * 0.5;
     const score = -dist + textBonus;
     if (score > bestScore) {
       bestScore = score;
-      best = htmlEl;
+      best = el;
     }
   }
   return best;
+}
+
+let cachedTextNodes: Text[] | null = null;
+
+function getTextNodes(): Text[] {
+  if (!cachedTextNodes) cachedTextNodes = collectDeepTextNodes();
+  return cachedTextNodes;
+}
+
+function invalidateTextNodeCache(): void {
+  cachedTextNodes = null;
 }
 
 function moveCaret(
@@ -315,9 +324,63 @@ function moveCaret(
   extend: boolean,
 ): void {
   const sel = window.getSelection();
-  if (!sel) return;
+  if (!sel || sel.rangeCount === 0) return;
+
+  const beforeNode = sel.focusNode;
+  const beforeOffset = sel.focusOffset;
 
   sel.modify(extend ? 'extend' : 'move', direction === 'forward' ? 'forward' : 'backward', granularity);
+
+  if (sel.focusNode === beforeNode && sel.focusOffset === beforeOffset) {
+    jumpToAdjacentTextNode(direction, extend);
+  }
+}
+
+function jumpToAdjacentTextNode(direction: 'forward' | 'backward', extend: boolean): void {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return;
+
+  const nodes = getTextNodes();
+  if (nodes.length === 0) return;
+
+  const currentNode = sel.focusNode;
+  let currentIdx = -1;
+
+  if (currentNode?.nodeType === Node.TEXT_NODE) {
+    currentIdx = nodes.indexOf(currentNode as Text);
+  }
+  if (currentIdx === -1) {
+    for (let i = 0; i < nodes.length; i++) {
+      if (currentNode?.contains(nodes[i]) || nodes[i].parentNode === currentNode) {
+        currentIdx = i;
+        break;
+      }
+    }
+  }
+  if (currentIdx === -1) return;
+
+  const nextIdx = direction === 'forward' ? currentIdx + 1 : currentIdx - 1;
+  if (nextIdx < 0 || nextIdx >= nodes.length) return;
+
+  const targetNode = nodes[nextIdx];
+  const offset = direction === 'forward' ? 0 : targetNode.textContent?.length || 0;
+
+  const range = document.createRange();
+  range.setStart(targetNode, offset);
+  range.collapse(true);
+
+  if (extend) {
+    sel.extend(targetNode, offset);
+  } else {
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+
+  const parentEl = targetNode.parentElement;
+  if (parentEl) {
+    targetElement = parentEl;
+    parentEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
 }
 
 async function copySelection(): Promise<void> {
@@ -339,6 +402,10 @@ async function copySelection(): Promise<void> {
 function findFirstTextNode(el: Node): Text | null {
   if (el.nodeType === Node.TEXT_NODE && el.textContent?.trim()) {
     return el as Text;
+  }
+  if ((el as Element).shadowRoot) {
+    const found = findFirstTextNode((el as Element).shadowRoot!);
+    if (found) return found;
   }
   for (const child of el.childNodes) {
     const found = findFirstTextNode(child);
