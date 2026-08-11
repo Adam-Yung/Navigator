@@ -9,7 +9,7 @@ import { revealElement } from './hover-manager';
 import { announce } from './indicator';
 import { registerKeyHandler } from './key-handler';
 import { releaseMode, requestMode } from './mode-manager';
-import { scanVisibleElements } from './mutation-observer';
+import { detectActiveModal, scanVisibleElements } from './mutation-observer';
 
 function getHintChars(): string[] {
   return (settings?.hintChars || 'asdfghjklqwertyuiopzxcvbnm').split('');
@@ -818,27 +818,7 @@ function isMeaningfulScope(el: HTMLElement): boolean {
 }
 
 function detectCenterstage(): HTMLElement | null {
-  const vw = document.documentElement.clientWidth;
-  const vh = document.documentElement.clientHeight;
-  const vpArea = vw * vh;
-
-  const candidates = document.querySelectorAll<HTMLElement>('[role="dialog"], [role="alertdialog"]');
-
-  for (const el of candidates) {
-    const style = getComputedStyle(el);
-    if (style.display === 'none' || style.visibility === 'hidden') continue;
-    if (parseFloat(style.opacity) < 0.1) continue;
-    if (style.position !== 'fixed' && style.position !== 'absolute') continue;
-
-    const rect = el.getBoundingClientRect();
-    const area = rect.width * rect.height;
-    const zIndex = parseInt(style.zIndex, 10) || 0;
-    if (area > vpArea * 0.1 && area < vpArea * 0.95 && zIndex > 100) {
-      return el;
-    }
-  }
-
-  return null;
+  return detectActiveModal();
 }
 
 // === Target Activation ===

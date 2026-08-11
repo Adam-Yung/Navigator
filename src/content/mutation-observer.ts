@@ -55,7 +55,7 @@ function queryShadowRoots(root: Document | ShadowRoot, selector: string): HTMLEl
   return results;
 }
 
-function detectActiveModal(): HTMLElement | null {
+export function detectActiveModal(): HTMLElement | null {
   const dialog = document.querySelector('dialog[open]') as HTMLElement | null;
   if (dialog) return dialog;
 
@@ -210,7 +210,13 @@ function nodeCouldBeFocusable(node: Node): boolean {
   if (el.hasAttribute('contenteditable')) return true;
   if (el.hasAttribute('role')) return true;
 
-  return el.children.length > 0;
+  if (el.children.length === 0) return false;
+
+  for (const child of el.getElementsByTagName('*')) {
+    if (FOCUSABLE_TAGS.has(child.tagName)) return true;
+    if (child.hasAttribute('tabindex') || child.hasAttribute('role')) return true;
+  }
+  return false;
 }
 
 function handleScroll(): void {
