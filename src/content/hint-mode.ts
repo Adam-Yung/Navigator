@@ -464,21 +464,17 @@ function showSpotlight(zoneIdx: number): void {
 
   spotlightEl.innerHTML = '';
 
+  const wrapper = document.createElement('div');
+  wrapper.className = 'spot-blur-wrap';
   const overlay = document.createElement('div');
   overlay.className = 'spot-overlay';
-
-  const f = 16;
-  const maskSvg = `<svg xmlns='http://www.w3.org/2000/svg' width='${vw}' height='${vh}'>` +
-    `<defs><filter id='f'><feGaussianBlur stdDeviation='${f}'/></filter></defs>` +
-    `<rect width='100%' height='100%' fill='white'/>` +
-    `<rect x='${l}' y='${t}' width='${r - l}' height='${b - t}' fill='black' filter='url(#f)'/>` +
-    `</svg>`;
-  const encoded = `data:image/svg+xml,${encodeURIComponent(maskSvg)}`;
-  overlay.style.maskImage = `url("${encoded}")`;
-  overlay.style.webkitMaskImage = overlay.style.maskImage;
-  overlay.style.maskSize = '100% 100%';
-
-  spotlightEl.appendChild(overlay);
+  overlay.style.clipPath = `polygon(
+    evenodd,
+    0 0, ${vw}px 0, ${vw}px ${vh}px, 0 ${vh}px, 0 0,
+    ${l}px ${t}px, ${l}px ${b}px, ${r}px ${b}px, ${r}px ${t}px, ${l}px ${t}px
+  )`;
+  wrapper.appendChild(overlay);
+  spotlightEl.appendChild(wrapper);
   spotlightEl.classList.remove('hidden');
 }
 
@@ -1313,7 +1309,7 @@ function getHintStyles(): string {
       z-index: 1;
       white-space: nowrap;
       transition: opacity 80ms ease, transform 80ms ease;
-      backdrop-filter: blur(8px);
+      backdrop-filter: blur(14px);
       opacity: var(--hint-opacity, 1);
     }
 
@@ -1368,8 +1364,17 @@ function getHintStyles(): string {
 
     .hint-typed {
       color: #fff;
-      border-right: 2px solid ${AURA_COLOR};
-      padding-right: 1px;
+      position: relative;
+      padding-right: 4px;
+    }
+    .hint-typed::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: ${AURA_COLOR};
       animation: blink 1s step-end infinite;
     }
 
@@ -1626,9 +1631,14 @@ function getHintStyles(): string {
       opacity: 0;
     }
 
-    .spot-overlay {
+    .spot-blur-wrap {
       position: fixed;
-      inset: 0;
+      inset: -20px;
+      filter: blur(8px);
+    }
+    .spot-overlay {
+      position: absolute;
+      inset: 20px;
       background: rgba(0, 0, 0, 0.5);
     }
 

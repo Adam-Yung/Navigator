@@ -1,6 +1,6 @@
 import { comboToDisplayKey } from '../shared/keys';
-import { getQuickPickPriority } from './element-scoring';
 import type { Settings } from '../shared/types';
+import { getQuickPickPriority } from './element-scoring';
 import { registerKeyHandler, registerKeyupHandler } from './key-handler';
 import { scanVisibleElements } from './mutation-observer';
 import { UI } from './ui-tokens';

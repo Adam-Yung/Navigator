@@ -507,8 +507,17 @@ function getStyles(): string {
     .search-input {
       color: ${UI.colors.text};
       font: 14px ${UI.font.mono};
-      border-right: 2px solid ${UI.colors.accent};
-      padding-right: 1px;
+      position: relative;
+      padding-right: 4px;
+    }
+    .search-input::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: ${UI.colors.accent};
       animation: blink 1s step-end infinite;
     }
     .search-count {

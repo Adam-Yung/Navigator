@@ -145,7 +145,10 @@ function getScrollTarget(direction: ScrollDirection): Element | Window {
     if (isScrollable(el, direction)) return el;
   }
 
-  let node: Element | null = document.elementFromPoint(document.documentElement.clientWidth / 2, document.documentElement.clientHeight / 2);
+  let node: Element | null = document.elementFromPoint(
+    document.documentElement.clientWidth / 2,
+    document.documentElement.clientHeight / 2,
+  );
   while (node && node !== document.documentElement) {
     if (isScrollable(node, direction)) return node;
     node = node.parentElement;

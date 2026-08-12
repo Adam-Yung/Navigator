@@ -252,6 +252,9 @@ function applyFilter(): void {
 function renderList(): void {
   if (!listEl) return;
   listEl.innerHTML = '';
+  const itemHeight = 52;
+  const maxItems = Math.min(filteredTabs.length, 20);
+  listEl.style.maxHeight = maxItems > 0 ? `${maxItems * itemHeight}px` : '52px';
 
   if (filteredTabs.length === 0) {
     listEl.innerHTML = '<div class="tab-empty">No matching tabs</div>';
@@ -389,11 +392,24 @@ function getStyles(): string {
 
     .tab-input-text {
       color: #fff;
-      border-right: 2px solid ${UI.colors.accent};
-      padding-right: 1px;
+      position: relative;
+      padding-right: 4px;
+    }
+    .tab-input-text::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: ${UI.colors.accent};
       animation: blink 1s step-end infinite;
     }
 
+    .tab-list {
+      overflow: hidden;
+      transition: max-height 500ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
     @keyframes blink {
       0%, 100% { opacity: 1; }
       50% { opacity: 0; }

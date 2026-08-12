@@ -411,7 +411,13 @@ input[type="text"] {
   border: 1px solid #3a3a5a;
   border-radius: 8px;
   color: #e4e4ef;
-  font: 13px ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+  font:
+    13px ui-monospace,
+    "SF Mono",
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
   outline: none;
   transition: border-color 0.2s ease;
   box-sizing: border-box;
@@ -432,7 +438,13 @@ input[type="text"]::placeholder {
   border: 1px solid #3a3a5a;
   border-radius: 8px;
   color: #e4e4ef;
-  font: 14px ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+  font:
+    14px ui-monospace,
+    "SF Mono",
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
   letter-spacing: 4px;
   transition: border-color 0.2s ease;
 }
