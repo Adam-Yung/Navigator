@@ -10,7 +10,7 @@ import { revealElement } from './hover-manager';
 import { announce } from './indicator';
 import { registerKeyHandler } from './key-handler';
 import { releaseMode, requestMode } from './mode-manager';
-import { detectActiveModal, scanVisibleElements } from './mutation-observer';
+import { detectActiveModal, invalidateElementCache, scanVisibleElements } from './mutation-observer';
 
 function getHintChars(): string[] {
   return (settings?.hintChars || 'asdfghjklqwertyuiopzxcvbnm').split('');
@@ -296,6 +296,7 @@ function handlePickerKeydown(e: KeyboardEvent): boolean {
 
 function startZoneSelection(): void {
   if (!labelsContainer || !modalEl) return;
+  invalidateElementCache();
   const active = document.activeElement as HTMLElement | null;
   if (active && active !== document.body && active !== document.documentElement) {
     active.blur();
@@ -456,50 +457,21 @@ function showSpotlight(zoneIdx: number): void {
   const col = zoneIdx % ZONE_COLS;
   const row = Math.floor(zoneIdx / ZONE_COLS);
 
-  const left = col * zoneW;
-  const top = row * zoneH;
-  const right = left + zoneW;
-  const bottom = top + zoneH;
-  const feather = 24;
+  const l = col * zoneW;
+  const t = row * zoneH;
+  const r = l + zoneW;
+  const b = t + zoneH;
 
   spotlightEl.innerHTML = '';
 
-  if (top > 0) {
-    const topDiv = document.createElement('div');
-    topDiv.className = 'spot-panel spot-top';
-    topDiv.style.cssText = `top:0;left:0;right:0;height:${top + feather}px;`;
-    topDiv.style.maskImage = `linear-gradient(to bottom, black calc(100% - ${feather}px), transparent 100%)`;
-    topDiv.style.webkitMaskImage = topDiv.style.maskImage;
-    spotlightEl.appendChild(topDiv);
-  }
-
-  if (bottom < vh) {
-    const bottomDiv = document.createElement('div');
-    bottomDiv.className = 'spot-panel spot-bottom';
-    bottomDiv.style.cssText = `bottom:0;left:0;right:0;height:${vh - bottom + feather}px;`;
-    bottomDiv.style.maskImage = `linear-gradient(to top, black calc(100% - ${feather}px), transparent 100%)`;
-    bottomDiv.style.webkitMaskImage = bottomDiv.style.maskImage;
-    spotlightEl.appendChild(bottomDiv);
-  }
-
-  if (left > 0) {
-    const leftDiv = document.createElement('div');
-    leftDiv.className = 'spot-panel spot-left';
-    leftDiv.style.cssText = `top:${top}px;left:0;width:${left + feather}px;height:${zoneH}px;`;
-    leftDiv.style.maskImage = `linear-gradient(to right, black calc(100% - ${feather}px), transparent 100%)`;
-    leftDiv.style.webkitMaskImage = leftDiv.style.maskImage;
-    spotlightEl.appendChild(leftDiv);
-  }
-
-  if (right < vw) {
-    const rightDiv = document.createElement('div');
-    rightDiv.className = 'spot-panel spot-right';
-    rightDiv.style.cssText = `top:${top}px;right:0;width:${vw - right + feather}px;height:${zoneH}px;`;
-    rightDiv.style.maskImage = `linear-gradient(to left, black calc(100% - ${feather}px), transparent 100%)`;
-    rightDiv.style.webkitMaskImage = rightDiv.style.maskImage;
-    spotlightEl.appendChild(rightDiv);
-  }
-
+  const overlay = document.createElement('div');
+  overlay.className = 'spot-overlay';
+  overlay.style.clipPath = `polygon(
+    evenodd,
+    0 0, ${vw}px 0, ${vw}px ${vh}px, 0 ${vh}px, 0 0,
+    ${l}px ${t}px, ${l}px ${b}px, ${r}px ${b}px, ${r}px ${t}px, ${l}px ${t}px
+  )`;
+  spotlightEl.appendChild(overlay);
   spotlightEl.classList.remove('hidden');
 }
 
@@ -1651,10 +1623,10 @@ function getHintStyles(): string {
       opacity: 0;
     }
 
-    .spot-panel {
+    .spot-overlay {
       position: fixed;
-      background: rgba(0, 0, 0, 0.55);
-      transition: opacity 300ms cubic-bezier(0.16, 1, 0.3, 1);
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
     }
 
     @media (prefers-reduced-motion: reduce) {
