@@ -276,34 +276,17 @@ function search(): void {
       return;
     }
     matches = filtered.filter((el) => re.test(getVisibleText(el.el)));
-    if (matches.length < 3) {
-      const metaExtra = filtered.filter(
-        (el) => !matches.includes(el) && re.test(getMetadataText(el.el)),
-      );
-      matches.push(...metaExtra);
-    }
   } else {
     const q = text.toLowerCase();
     matches = filtered.filter((el) => fuzzyScore(getVisibleText(el.el), q) > 0);
-    if (matches.length < 3) {
-      const metaExtra = filtered.filter(
-        (el) => !matches.includes(el) && fuzzyScore(getMetadataText(el.el), q) > 0,
-      );
-      matches.push(...metaExtra);
-    }
     matches.sort((a, b) => {
-      const sa = fuzzyScore(getVisibleText(a.el), q) || fuzzyScore(getMetadataText(a.el), q) * 0.5;
-      const sb = fuzzyScore(getVisibleText(b.el), q) || fuzzyScore(getMetadataText(b.el), q) * 0.5;
+      const sa = fuzzyScore(getVisibleText(a.el), q);
+      const sb = fuzzyScore(getVisibleText(b.el), q);
       return sb - sa;
     });
   }
 
-  matches = matches.filter((m) => {
-    const vis = getVisibleText(m.el);
-    if (vis.length > 0) return true;
-    if (m.el.tagName === 'INPUT' && (m.el as HTMLInputElement).placeholder) return true;
-    return false;
-  });
+  matches = matches.filter((m) => getVisibleText(m.el).length > 0);
 
   selectedIndex = 0;
   updateCount();
@@ -312,18 +295,11 @@ function search(): void {
 }
 
 function getVisibleText(el: HTMLElement): string {
-  return el.innerText?.trim() || el.textContent?.trim() || '';
-}
-
-function getMetadataText(el: HTMLElement): string {
-  const parts: string[] = [];
-  const ariaLabel = el.getAttribute('aria-label');
-  if (ariaLabel) parts.push(ariaLabel);
+  const text = el.innerText?.trim() || el.textContent?.trim() || '';
+  if (text) return text;
   const placeholder = (el as HTMLInputElement).placeholder;
-  if (placeholder) parts.push(placeholder);
-  const title = el.getAttribute('title');
-  if (title) parts.push(title);
-  return parts.join(' ');
+  if (placeholder) return placeholder;
+  return '';
 }
 
 function fuzzyScore(text: string, query: string): number {
