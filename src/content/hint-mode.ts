@@ -896,7 +896,7 @@ function activateTarget(indexed: IndexedElement, newTab: boolean): void {
       indexed.el.dispatchEvent(new MouseEvent('mousedown', eventInit));
       indexed.el.dispatchEvent(new PointerEvent('pointerup', eventInit));
       indexed.el.dispatchEvent(new MouseEvent('mouseup', eventInit));
-      indexed.el.dispatchEvent(new MouseEvent('click', eventInit));
+      indexed.el.click();
     }
   }
 }
