@@ -1,5 +1,6 @@
 import { buildComboString } from '../shared/keys';
 import type { Settings } from '../shared/types';
+import { getActiveMode } from './mode-manager';
 
 type KeyCallback = (e: KeyboardEvent) => boolean;
 
@@ -59,10 +60,15 @@ function isEditableActive(): boolean {
   return role === 'textbox' || role === 'searchbox' || role === 'combobox';
 }
 
+function isModalModeActive(): boolean {
+  const mode = getActiveMode();
+  return mode === 'caret' || mode === 'picker' || mode === 'search';
+}
+
 function handleKeydown(e: KeyboardEvent): void {
   if (!settings || !extensionEnabled) return;
 
-  if (!e.altKey && isEditableActive()) return;
+  if (!e.altKey && isEditableActive() && !isModalModeActive()) return;
 
   const combo = buildComboString(e);
 
