@@ -22,6 +22,9 @@ let unregisterKey: (() => void) | null = null;
 let targetElement: HTMLElement | null = null;
 let caretRaf: number | null = null;
 let countBuffer = '';
+let lastSearchMatches: HTMLElement[] = [];
+let lastSearchIndex = 0;
+let gPending = false;
 
 function matchesMotion(e: KeyboardEvent, logicalKey: string, physicalCode: string): boolean {
   if (settings?.usePhysicalKeys) return e.code === physicalCode;
@@ -183,6 +186,69 @@ function handleKey(e: KeyboardEvent): boolean {
     return true;
   }
 
+  if (matchesMotion(e, 'n', 'KeyN') && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    if (lastSearchMatches.length > 0) {
+      lastSearchIndex = (lastSearchIndex + 1) % lastSearchMatches.length;
+      jumpCaretToElement(lastSearchMatches[lastSearchIndex]);
+    }
+    countBuffer = '';
+    return true;
+  }
+  if (e.key === 'N' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    if (lastSearchMatches.length > 0) {
+      lastSearchIndex = (lastSearchIndex - 1 + lastSearchMatches.length) % lastSearchMatches.length;
+      jumpCaretToElement(lastSearchMatches[lastSearchIndex]);
+    }
+    countBuffer = '';
+    return true;
+  }
+
+  if (e.key === 'G' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    countBuffer = '';
+    gPending = false;
+    const nodes = getTextNodes();
+    if (nodes.length > 0) {
+      const last = nodes[nodes.length - 1];
+      const sel = window.getSelection();
+      if (sel) {
+        const range = document.createRange();
+        range.setStart(last, last.textContent?.length || 0);
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        last.parentElement?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
+    }
+    updateCaretPosition();
+    return true;
+  }
+  if (e.key === 'g' && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
+    if (gPending) {
+      gPending = false;
+      countBuffer = '';
+      const nodes = getTextNodes();
+      if (nodes.length > 0) {
+        const first = nodes[0];
+        const sel = window.getSelection();
+        if (sel) {
+          const range = document.createRange();
+          range.setStart(first, 0);
+          range.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(range);
+          first.parentElement?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+      }
+      updateCaretPosition();
+      return true;
+    }
+    gPending = true;
+    setTimeout(() => { gPending = false; }, 500);
+    countBuffer = '';
+    return true;
+  }
+  gPending = false;
+
   if (matchesMotion(e, 'w', 'KeyW')) {
     const count = consumeCount();
     for (let i = 0; i < count; i++) moveCaret('word', 'forward', state === 'visual');
@@ -238,7 +304,11 @@ function handleKey(e: KeyboardEvent): boolean {
 
   if (e.key === '/' && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
     countBuffer = '';
-    activateSearchWithCallback(jumpCaretToElement);
+    activateSearchWithCallback((el) => {
+      jumpCaretToElement(el);
+      lastSearchMatches = [el];
+      lastSearchIndex = 0;
+    });
     return true;
   }
 
