@@ -390,7 +390,6 @@ function getStyles(): string {
 
     .tab-input-text {
       color: #fff;
-      letter-spacing: 1px;
     }
 
     .tab-cursor {

@@ -511,7 +511,6 @@ function getStyles(): string {
     .search-input {
       color: ${UI.colors.text};
       font: 14px ${UI.font.mono};
-      letter-spacing: 0.5px;
     }
     .search-cursor {
       color: ${UI.colors.accent};

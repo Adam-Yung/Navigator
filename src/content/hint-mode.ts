@@ -466,6 +466,7 @@ function showSpotlight(zoneIdx: number): void {
 
   const overlay = document.createElement('div');
   overlay.className = 'spot-overlay';
+  overlay.style.filter = 'blur(12px)';
   overlay.style.clipPath = `polygon(
     evenodd,
     0 0, ${vw}px 0, ${vw}px ${vh}px, 0 ${vh}px, 0 0,
@@ -1311,8 +1312,7 @@ function getHintStyles(): string {
     }
 
     .hint-label.dimmed {
-      opacity: 0.15;
-      transform: scale(0.9);
+      display: none;
     }
 
     .matched {
@@ -1354,7 +1354,6 @@ function getHintStyles(): string {
     .hint-input {
       font: 16px ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
       color: #e4e4ef;
-      letter-spacing: 3px;
       min-height: 22px;
       display: flex;
       align-items: center;
