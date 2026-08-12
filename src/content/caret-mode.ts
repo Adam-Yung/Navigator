@@ -86,6 +86,7 @@ export function jumpCaretToElement(el: HTMLElement): void {
   updateBadge();
   showCaretIndicator();
   updateCaretPosition();
+  animateCaretEntry();
   revealElement(el);
   announce('Caret mode: jumped to element');
 }
@@ -355,6 +356,7 @@ function activate(): void {
   updateBadge();
   showCaretIndicator();
   updateCaretPosition();
+  animateCaretEntry();
   announce('Caret mode: h/j/k/l move, v toggles visual, w/b words, y copies');
 }
 
@@ -495,11 +497,43 @@ function findFirstTextNode(el: Node): Text | null {
 // === Visual Caret Indicator ===
 
 function showCaretIndicator(): void {
-  if (caretEl) caretEl.classList.remove('hidden');
+  if (caretEl) {
+    caretEl.style.display = '';
+    caretEl.classList.remove('hidden');
+  }
+}
+
+function animateCaretEntry(): void {
+  if (!shadow || !caretEl) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  const cx = document.documentElement.clientWidth / 2;
+  const cy = document.documentElement.clientHeight / 2;
+  const caretTop = parseFloat(caretEl.style.top) || cy;
+  const caretLeft = parseFloat(caretEl.style.left) || cx;
+
+  const ghost = document.createElement('div');
+  ghost.className = 'caret-entry-ghost';
+  ghost.style.top = `${cy - 12}px`;
+  ghost.style.left = `${cx}px`;
+  shadow.appendChild(ghost);
+
+  ghost.animate(
+    [
+      { top: `${cy - 12}px`, left: `${cx}px`, transform: 'scaleY(2.5) scaleX(2)', opacity: '1' },
+      { top: `${caretTop}px`, left: `${caretLeft}px`, transform: 'scaleY(1) scaleX(1)', opacity: '0.8' },
+    ],
+    { duration: 300, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', fill: 'forwards' },
+  );
+
+  setTimeout(() => ghost.remove(), 350);
 }
 
 function hideCaretIndicator(): void {
-  if (caretEl) caretEl.classList.add('hidden');
+  if (caretEl) {
+    caretEl.classList.add('hidden');
+    caretEl.style.display = 'none';
+  }
   if (caretRaf) {
     cancelAnimationFrame(caretRaf);
     caretRaf = null;
@@ -612,6 +646,17 @@ function getStyles(): string {
       color: ${UI.colors.accent};
     }
 
+    .caret-entry-ghost {
+      position: fixed;
+      width: 3px;
+      height: 24px;
+      background: ${UI.colors.accent};
+      border-radius: 2px;
+      pointer-events: none;
+      box-shadow: 0 0 20px ${UI.colors.accentGlow}, 0 0 40px rgba(100, 80, 255, 0.3);
+      z-index: 10;
+    }
+
     .caret-indicator {
       position: fixed;
       background: ${UI.colors.accent};
@@ -623,6 +668,7 @@ function getStyles(): string {
     }
     .caret-indicator.hidden {
       opacity: 0;
+      display: none;
     }
     .caret-indicator.selection-mode {
       background: ${UI.colors.accent};
