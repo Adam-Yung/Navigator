@@ -52,6 +52,11 @@ export function deactivateCaretMode(): void {
 }
 
 export function jumpCaretToElement(el: HTMLElement): void {
+  const focused = document.activeElement as HTMLElement | null;
+  if (focused && focused !== document.body && focused !== document.documentElement) {
+    focused.blur();
+  }
+
   const sel = window.getSelection();
   if (!sel) return;
 
@@ -140,7 +145,7 @@ function handleKey(e: KeyboardEvent): boolean {
     return false;
   }
 
-  if (e.key === 'Escape') {
+  if (e.key === 'Escape' || (e.key === 'q' && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey)) {
     countBuffer = '';
     deactivateCaretMode();
     return true;
@@ -242,6 +247,11 @@ function handleKey(e: KeyboardEvent): boolean {
 }
 
 function activate(): void {
+  const focused = document.activeElement as HTMLElement | null;
+  if (focused && focused !== document.body && focused !== document.documentElement) {
+    focused.blur();
+  }
+
   const sel = window.getSelection();
   if (!sel) return;
 
