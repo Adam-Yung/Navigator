@@ -79,6 +79,7 @@ function renderBehavior(): void {
   document.getElementById('scroll-decel-factor-val')!.textContent = String(settings.scrollDecelFactor);
 
   (document.getElementById('use-physical-keys') as HTMLInputElement).checked = settings.usePhysicalKeys;
+  (document.getElementById('colorful-hints') as HTMLInputElement).checked = settings.colorfulHints;
   (document.getElementById('hint-chars') as HTMLInputElement).value = settings.hintChars.split('').join(' ');
 }
 
@@ -149,6 +150,11 @@ function setupListeners(): void {
 
   document.getElementById('use-physical-keys')?.addEventListener('change', (e) => {
     settings.usePhysicalKeys = (e.target as HTMLInputElement).checked;
+    save().catch(() => {});
+  });
+
+  document.getElementById('colorful-hints')?.addEventListener('change', (e) => {
+    settings.colorfulHints = (e.target as HTMLInputElement).checked;
     save().catch(() => {});
   });
 

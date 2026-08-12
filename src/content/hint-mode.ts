@@ -760,6 +760,15 @@ function renderLabelsForScope(scope: HTMLElement | null, preFiltered?: IndexedEl
 
   resolveOverlaps(allHints);
 
+  const colorIndices = settings?.colorfulHints ? assignHintColors(allHints) : [];
+  if (settings?.colorfulHints && colorIndices.length > 0) {
+    for (let i = 0; i < allHints.length; i++) {
+      const c = HINT_COLORS[colorIndices[i]];
+      allHints[i].labelEl.style.borderColor = c.border;
+    }
+  }
+  createLeaderLines(allHints, colorIndices);
+
   filteredHints = [...allHints];
 
   const vcx = document.documentElement.clientWidth / 2;
@@ -1143,6 +1152,76 @@ function addLabelsOfLength(len: number, max: number, out: string[], chars: strin
   generate('', len);
 }
 
+const HINT_COLORS = [
+  { bg: 'rgba(15, 15, 30, 0.92)', border: 'rgba(100, 80, 255, 0.4)', line: 'rgba(100, 80, 255, 0.25)' },
+  { bg: 'rgba(15, 15, 30, 0.92)', border: 'rgba(56, 189, 248, 0.4)', line: 'rgba(56, 189, 248, 0.25)' },
+  { bg: 'rgba(15, 15, 30, 0.92)', border: 'rgba(251, 146, 60, 0.4)', line: 'rgba(251, 146, 60, 0.25)' },
+  { bg: 'rgba(15, 15, 30, 0.92)', border: 'rgba(74, 222, 128, 0.4)', line: 'rgba(74, 222, 128, 0.25)' },
+  { bg: 'rgba(15, 15, 30, 0.92)', border: 'rgba(251, 191, 36, 0.4)', line: 'rgba(251, 191, 36, 0.25)' },
+  { bg: 'rgba(15, 15, 30, 0.92)', border: 'rgba(244, 114, 182, 0.4)', line: 'rgba(244, 114, 182, 0.25)' },
+];
+
+function assignHintColors(hints: HintEntry[]): number[] {
+  const colors: number[] = new Array(hints.length).fill(-1);
+  const PROXIMITY = 60;
+
+  for (let i = 0; i < hints.length; i++) {
+    const usedByNeighbors = new Set<number>();
+    const x = parseFloat(hints[i].labelEl.style.left);
+    const y = parseFloat(hints[i].labelEl.style.top);
+
+    for (let j = 0; j < i; j++) {
+      const ox = parseFloat(hints[j].labelEl.style.left);
+      const oy = parseFloat(hints[j].labelEl.style.top);
+      if (Math.hypot(x - ox, y - oy) < PROXIMITY) {
+        usedByNeighbors.add(colors[j]);
+      }
+    }
+
+    for (let c = 0; c < HINT_COLORS.length; c++) {
+      if (!usedByNeighbors.has(c)) {
+        colors[i] = c;
+        break;
+      }
+    }
+    if (colors[i] === -1) colors[i] = i % HINT_COLORS.length;
+  }
+  return colors;
+}
+
+function createLeaderLines(hints: HintEntry[], colorIndices: number[]): void {
+  if (!labelsContainer) return;
+  const labelHeight = 20;
+  const labelWidth = 28;
+
+  for (let i = 0; i < hints.length; i++) {
+    const hint = hints[i];
+    const rect = hint.element.el.getBoundingClientRect();
+    const lLeft = parseFloat(hint.labelEl.style.left);
+    const lTop = parseFloat(hint.labelEl.style.top);
+
+    const lx = lLeft + labelWidth / 2;
+    const ly = lTop + labelHeight;
+    const ex = rect.left + 4;
+    const ey = rect.top + 4;
+
+    const length = Math.hypot(ex - lx, ey - ly);
+    if (length < 5) continue;
+
+    const angle = Math.atan2(ey - ly, ex - lx) * (180 / Math.PI);
+    const line = document.createElement('div');
+    line.className = 'hint-leader';
+    line.style.cssText = `left:${lx}px;top:${ly}px;width:${length}px;transform:rotate(${angle}deg);`;
+
+    const colorIdx = colorIndices[i];
+    if (settings?.colorfulHints && colorIdx >= 0) {
+      line.style.background = HINT_COLORS[colorIdx].line;
+    }
+
+    labelsContainer.appendChild(line);
+  }
+}
+
 function resolveOverlaps(hints: HintEntry[]): void {
   const LABEL_HEIGHT = 20;
   const LABEL_WIDTH = 28;
@@ -1420,6 +1499,15 @@ function getHintStyles(): string {
     .multi-badge.hidden {
       opacity: 0;
       pointer-events: none;
+    }
+
+    .hint-leader {
+      position: fixed;
+      height: 1px;
+      background: rgba(255, 255, 255, 0.12);
+      transform-origin: 0 0;
+      pointer-events: none;
+      z-index: 0;
     }
 
     .hint-label.capped {

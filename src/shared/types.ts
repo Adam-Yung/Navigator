@@ -46,4 +46,5 @@ export interface Settings {
   scrollDecelFactor: number;
   usePhysicalKeys: boolean;
   hintChars: string;
+  colorfulHints: boolean;
 }

@@ -41,6 +41,7 @@ export const DEFAULT_SETTINGS: Settings = {
   scrollDecelFactor: 0.92,
   usePhysicalKeys: false,
   hintChars: 'asdfghjklqwertyuiopzxcvbnm',
+  colorfulHints: true,
 };
 
 export const NAV_SELECTORS = [
