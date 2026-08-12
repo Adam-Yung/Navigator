@@ -38,7 +38,7 @@ function jumpToSection(direction: 'next' | 'prev'): void {
   if (landmarks.length === 0) return;
 
   const scrollY = window.scrollY;
-  const viewportMiddle = scrollY + window.innerHeight / 2;
+  const viewportMiddle = scrollY + document.documentElement.clientHeight / 2;
 
   if (direction === 'next') {
     for (const el of landmarks) {

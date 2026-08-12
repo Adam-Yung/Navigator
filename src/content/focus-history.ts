@@ -88,7 +88,7 @@ function jumpTo(el: HTMLElement): void {
   const indexed: IndexedElement = { el, cx: rect.left + rect.width / 2, cy: rect.top + rect.height / 2, rect };
 
   // Scroll into view if needed
-  const inView = rect.top >= 0 && rect.bottom <= window.innerHeight;
+  const inView = rect.top >= 0 && rect.bottom <= document.documentElement.clientHeight;
   if (!inView) {
     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     setTimeout(() => {

@@ -83,7 +83,7 @@ function focusFirstInput(): void {
   const inputs = document.querySelectorAll<HTMLElement>(selectors);
   for (const input of inputs) {
     const rect = input.getBoundingClientRect();
-    if (rect.width > 0 && rect.height > 0 && rect.top >= 0 && rect.top < window.innerHeight) {
+    if (rect.width > 0 && rect.height > 0 && rect.top >= 0 && rect.top < document.documentElement.clientHeight) {
       input.focus();
       showToast('Input focused', 1500, 'success');
       return;

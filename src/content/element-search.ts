@@ -20,6 +20,7 @@ let query = '';
 let matches: IndexedElement[] = [];
 let selectedIndex = 0;
 let clearHighlights: (() => void)[] = [];
+let activeCleanup: (() => void) | null = null;
 let lastQuery = '';
 let selectCallback: ((el: HTMLElement) => void) | null = null;
 let useRegex = false;
@@ -314,39 +315,6 @@ function getVisibleText(el: HTMLElement): string {
   return '';
 }
 
-function fuzzyScore(text: string, query: string): number {
-  const lower = text.toLowerCase();
-  const q = query.toLowerCase();
-
-  const exactIdx = lower.indexOf(q);
-  if (exactIdx !== -1) {
-    const atStart = exactIdx === 0 ? 20 : 0;
-    const atWordBoundary = exactIdx > 0 && /\s/.test(lower[exactIdx - 1]) ? 10 : 0;
-    return 100 + atStart + atWordBoundary;
-  }
-
-  let qi = 0;
-  let consecutiveBonus = 0;
-  let totalScore = 0;
-  let lastMatchIdx = -2;
-
-  for (let ti = 0; ti < lower.length && qi < q.length; ti++) {
-    if (lower[ti] === q[qi]) {
-      const consecutive = ti === lastMatchIdx + 1;
-      consecutiveBonus = consecutive ? consecutiveBonus + 5 : 0;
-      totalScore += 10 + consecutiveBonus;
-      if (ti === 0 || /[\s_\-./]/.test(lower[ti - 1])) totalScore += 8;
-      lastMatchIdx = ti;
-      qi++;
-    }
-  }
-
-  if (qi < q.length) return 0;
-  const coverage = q.length / Math.max(lower.length, 1);
-  if (coverage < 0.02) return 0;
-  return totalScore * (0.5 + coverage * 0.5);
-}
-
 // === Highlighting ===
 
 function highlightAllMatches(): void {
@@ -368,8 +336,10 @@ function highlightAllMatches(): void {
 }
 
 function highlightCurrent(): void {
-  // Remove only the active highlight marker class, re-add for current
-  removeActiveHighlight();
+  if (activeCleanup) {
+    activeCleanup();
+    activeCleanup = null;
+  }
   if (matches.length > 0 && matches[selectedIndex]) {
     const target = matches[selectedIndex];
     const rect = target.el.getBoundingClientRect();
@@ -380,17 +350,9 @@ function highlightCurrent(): void {
     transitionTo(target);
     revealElement(target.el);
     const { text } = parseScope(query);
-    const cleanup = highlightMatchInElement(target.el, text, true);
-    if (cleanup) clearHighlights.push(cleanup);
+    activeCleanup = highlightMatchInElement(target.el, text, true);
   }
   updateCount();
-}
-
-function removeActiveHighlight(): void {
-  // Remove highlights on the previously active element and re-highlight as inactive
-  // Simplification: remove all and re-highlight
-  removeAllHighlights();
-  highlightAllMatches();
 }
 
 function removeAllHighlights(): void {
@@ -398,6 +360,10 @@ function removeAllHighlights(): void {
     fn();
   }
   clearHighlights = [];
+  if (activeCleanup) {
+    activeCleanup();
+    activeCleanup = null;
+  }
 }
 
 function highlightMatchInElement(el: HTMLElement, q: string, isActive: boolean): (() => void) | null {
@@ -423,7 +389,11 @@ function highlightMatchInElement(el: HTMLElement, q: string, isActive: boolean):
     mark.style.cssText = isActive
       ? 'background: rgba(100, 80, 255, 0.4); color: inherit; border-radius: 2px; padding: 0 1px; outline: 1px solid rgba(100, 80, 255, 0.6);'
       : 'background: rgba(100, 80, 255, 0.15); color: inherit; border-radius: 2px; padding: 0 1px;';
-    range.surroundContents(mark);
+    try {
+      range.surroundContents(mark);
+    } catch {
+      return null;
+    }
 
     return () => {
       const parent = mark.parentNode;

@@ -3,7 +3,7 @@ import { NAV_SELECTORS } from '../shared/constants';
 const MAGNET_RANGE_PX = 60;
 
 export function findMagnetTarget(container?: Element | Window): HTMLElement | null {
-  const vcy = window.innerHeight / 2;
+  const vcy = document.documentElement.clientHeight / 2;
   const root = container && container !== window ? (container as Element) : document;
   const elements = root.querySelectorAll<HTMLElement>(NAV_SELECTORS);
   let best: HTMLElement | null = null;
@@ -25,7 +25,7 @@ export function findMagnetTarget(container?: Element | Window): HTMLElement | nu
 
 export function applyMagnetism(target: HTMLElement): void {
   const rect = target.getBoundingClientRect();
-  const vcy = window.innerHeight / 2;
+  const vcy = document.documentElement.clientHeight / 2;
   const offset = rect.top + rect.height / 2 - vcy;
   if (Math.abs(offset) > 5) {
     const scroller = findScrollableAncestor(target);

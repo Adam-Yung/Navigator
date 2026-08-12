@@ -1,4 +1,5 @@
 import { AURA_COLOR } from '../shared/constants';
+import { getQuickPickPriority } from './element-scoring';
 import { buildComboString } from '../shared/keys';
 import type { IndexedElement, Settings } from '../shared/types';
 import { escapeHtml } from '../shared/utils';
@@ -302,7 +303,7 @@ function startZoneSelection(): void {
   cancelAltHoldTimer();
   requestMode('picker', exitPicker);
   ringSupressed = true;
-  announce('Element picker: press A through H to select a zone, or Enter for all');
+  announce('Element picker: press A, S, D, F, G, or H to select a zone, or Enter for all');
 
   const scope = getPickerScope();
   if (scope) {
@@ -614,6 +615,7 @@ function getNavDirection(e: KeyboardEvent): string | null {
 }
 
 function navigateZone(direction: string): void {
+  if (activeZone < 0) return;
   const col = activeZone % ZONE_COLS;
   const row = Math.floor(activeZone / ZONE_COLS);
 
@@ -894,6 +896,7 @@ function activateTarget(indexed: IndexedElement, newTab: boolean): void {
       const eventInit = { bubbles: true, cancelable: true, clientX: cx, clientY: cy, view: window };
       indexed.el.dispatchEvent(new PointerEvent('pointerdown', eventInit));
       indexed.el.dispatchEvent(new MouseEvent('mousedown', eventInit));
+      if (!indexed.el.isConnected) return;
       indexed.el.dispatchEvent(new PointerEvent('pointerup', eventInit));
       indexed.el.dispatchEvent(new MouseEvent('mouseup', eventInit));
       indexed.el.click();
@@ -974,37 +977,6 @@ function executeBatchAction(elements: IndexedElement[]): void {
 }
 
 // === Quick-pick ===
-
-function getQuickPickPriority(el: HTMLElement): number {
-  const tag = el.tagName;
-  const role = el.getAttribute('role');
-  const type = (el as HTMLInputElement).type?.toLowerCase() || '';
-  const inNav = !!el.closest('nav, header, [role="navigation"], [role="banner"], [role="menubar"]');
-  const inSidebar = !!el.closest('aside, [role="complementary"]');
-  const ariaLabel = (el.getAttribute('aria-label') || '').toLowerCase();
-
-  if (
-    tag === 'A' &&
-    inNav &&
-    (ariaLabel.includes('home') ||
-      ariaLabel.includes('logo') ||
-      !!el.closest('.logo, .brand, [class*="logo"], [class*="brand"]'))
-  )
-    return 100;
-
-  if (tag === 'INPUT' && (type === 'search' || type === 'text')) return 95;
-  if (tag === 'TEXTAREA') return 93;
-  if (role === 'searchbox' || role === 'combobox' || role === 'textbox') return 95;
-
-  if ((tag === 'BUTTON' || role === 'button') && inNav) return 75;
-  if (tag === 'A' && inNav && !inSidebar) return 70;
-
-  if (tag === 'BUTTON' || role === 'button') return 45;
-  if (tag === 'A' && !inSidebar) return 40;
-
-  if (inSidebar) return 15;
-  return 10;
-}
 
 function activateQuickPick(idx: number): void {
   const elements = scanVisibleElements();
