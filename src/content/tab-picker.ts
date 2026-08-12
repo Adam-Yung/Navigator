@@ -80,7 +80,6 @@ function createDOM(): void {
     </div>
     <div class="tab-input-wrap">
       <span class="tab-input-text"></span>
-      <span class="tab-cursor">|</span>
     </div>
     <div class="tab-list" role="listbox"></div>
     <div class="tab-footer">Enter to switch \u2022 d to close tab \u2022 Esc to cancel</div>
@@ -390,10 +389,8 @@ function getStyles(): string {
 
     .tab-input-text {
       color: #fff;
-    }
-
-    .tab-cursor {
-      color: ${UI.colors.accent};
+      border-right: 2px solid ${UI.colors.accent};
+      padding-right: 1px;
       animation: blink 1s step-end infinite;
     }
 

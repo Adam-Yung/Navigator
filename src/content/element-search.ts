@@ -504,18 +504,12 @@ function getStyles(): string {
       font: 600 13px ${UI.font.mono};
       opacity: 0.9;
     }
-    .search-input-wrap {
-      display: inline-flex;
-      align-items: center;
-    }
     .search-input {
       color: ${UI.colors.text};
       font: 14px ${UI.font.mono};
-    }
-    .search-cursor {
-      color: ${UI.colors.accent};
+      border-right: 2px solid ${UI.colors.accent};
+      padding-right: 1px;
       animation: blink 1s step-end infinite;
-      margin-left: 0;
     }
     .search-count {
       color: ${UI.colors.textMuted};

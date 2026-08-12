@@ -98,7 +98,7 @@ export function initHintMode(): void {
   modalEl.setAttribute('role', 'dialog');
   modalEl.setAttribute('aria-label', 'Element picker');
   modalEl.innerHTML = `
-    <div class="hint-input" aria-live="polite"><span class="hint-typed"></span><span class="hint-cursor">|</span></div>
+    <div class="hint-input" aria-live="polite"><span class="hint-typed"></span></div>
     <div class="hint-count"></div>
     <div class="hint-preview"></div>
     <div class="hint-help">Type to filter \u2022 Enter to select \u2022 Shift+Enter new tab \u2022 Esc to cancel</div>
@@ -466,12 +466,18 @@ function showSpotlight(zoneIdx: number): void {
 
   const overlay = document.createElement('div');
   overlay.className = 'spot-overlay';
-  overlay.style.filter = 'blur(12px)';
-  overlay.style.clipPath = `polygon(
-    evenodd,
-    0 0, ${vw}px 0, ${vw}px ${vh}px, 0 ${vh}px, 0 0,
-    ${l}px ${t}px, ${l}px ${b}px, ${r}px ${b}px, ${r}px ${t}px, ${l}px ${t}px
-  )`;
+
+  const f = 16;
+  const maskSvg = `<svg xmlns='http://www.w3.org/2000/svg' width='${vw}' height='${vh}'>` +
+    `<defs><filter id='f'><feGaussianBlur stdDeviation='${f}'/></filter></defs>` +
+    `<rect width='100%' height='100%' fill='white'/>` +
+    `<rect x='${l}' y='${t}' width='${r - l}' height='${b - t}' fill='black' filter='url(#f)'/>` +
+    `</svg>`;
+  const encoded = `data:image/svg+xml,${encodeURIComponent(maskSvg)}`;
+  overlay.style.maskImage = `url("${encoded}")`;
+  overlay.style.webkitMaskImage = overlay.style.maskImage;
+  overlay.style.maskSize = '100% 100%';
+
   spotlightEl.appendChild(overlay);
   spotlightEl.classList.remove('hidden');
 }
@@ -1362,10 +1368,8 @@ function getHintStyles(): string {
 
     .hint-typed {
       color: #fff;
-    }
-
-    .hint-cursor {
-      color: ${AURA_COLOR};
+      border-right: 2px solid ${AURA_COLOR};
+      padding-right: 1px;
       animation: blink 1s step-end infinite;
     }
 
