@@ -56,7 +56,7 @@ function buildBarHTML(): string {
       <span class="helper-item"><kbd>${d(k.quickActions)}</kbd> Actions</span>
       <span class="helper-item"><kbd>${d(k.caretMode)}</kbd> Select</span>
       <span class="helper-item"><kbd>?</kbd> Help</span>
-      <span class="helper-item"><kbd>1-9</kbd> Quick Pick</span>
+      <span class="helper-item"><kbd>1-9</kbd> Quick pick</span>
     </div>
   `;
 }
