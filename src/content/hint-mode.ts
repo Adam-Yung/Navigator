@@ -730,6 +730,8 @@ function renderLabelsForScope(scope: HTMLElement | null, preFiltered?: IndexedEl
     const vpW = document.documentElement.clientWidth;
     const vpH = document.documentElement.clientHeight;
 
+    if (rect.right < 10 || rect.left > vpW - 10 || rect.bottom < 10 || rect.top > vpH - 10) continue;
+
     let lLeft = rect.left;
     let lTop = rect.top - labelHeight - 2;
 
@@ -738,8 +740,9 @@ function renderLabelsForScope(scope: HTMLElement | null, preFiltered?: IndexedEl
       lLeft = rect.left + 2;
     }
 
-    lLeft = Math.max(0, Math.min(lLeft, vpW - labelWidth));
-    lTop = Math.max(0, Math.min(lTop, vpH - labelHeight));
+    if (lLeft < 0) lLeft = rect.left + 2;
+    if (lLeft > vpW - labelWidth) lLeft = vpW - labelWidth;
+    if (lTop > vpH - labelHeight) lTop = vpH - labelHeight;
 
     labelEl.style.left = `${lLeft}px`;
     labelEl.style.top = `${lTop}px`;
@@ -884,7 +887,16 @@ function activateTarget(indexed: IndexedElement, newTab: boolean): void {
     if (isEditable) {
       indexed.el.focus();
     } else {
-      indexed.el.click();
+      indexed.el.focus();
+      const rect = indexed.el.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const eventInit = { bubbles: true, cancelable: true, clientX: cx, clientY: cy, view: window };
+      indexed.el.dispatchEvent(new PointerEvent('pointerdown', eventInit));
+      indexed.el.dispatchEvent(new MouseEvent('mousedown', eventInit));
+      indexed.el.dispatchEvent(new PointerEvent('pointerup', eventInit));
+      indexed.el.dispatchEvent(new MouseEvent('mouseup', eventInit));
+      indexed.el.dispatchEvent(new MouseEvent('click', eventInit));
     }
   }
 }
@@ -1191,16 +1203,26 @@ function assignHintColors(hints: HintEntry[]): number[] {
 
 function highlightTargetElements(hints: HintEntry[], colorIndices: number[]): void {
   if (!labelsContainer) return;
+  const vpW = document.documentElement.clientWidth;
+  const vpH = document.documentElement.clientHeight;
 
   for (let i = 0; i < hints.length; i++) {
     const hint = hints[i];
     const rect = hint.element.el.getBoundingClientRect();
+
+    if (rect.right < 0 || rect.left > vpW || rect.bottom < 0 || rect.top > vpH) continue;
+
     const colorIdx = colorIndices.length > 0 ? colorIndices[i] : 0;
     const borderColor = settings?.colorfulHints ? HINT_COLORS[colorIdx].border : 'rgba(100, 80, 255, 0.3)';
 
+    const left = Math.max(0, rect.left - 2);
+    const top = Math.max(0, rect.top - 2);
+    const width = Math.min(rect.width + 4, vpW - left);
+    const height = Math.min(rect.height + 4, vpH - top);
+
     const outline = document.createElement('div');
     outline.className = 'hint-target-outline';
-    outline.style.cssText = `left:${rect.left - 2}px;top:${rect.top - 2}px;width:${rect.width + 4}px;height:${rect.height + 4}px;border-color:${borderColor};`;
+    outline.style.cssText = `left:${left}px;top:${top}px;width:${width}px;height:${height}px;border-color:${borderColor};`;
     labelsContainer.appendChild(outline);
   }
 }
