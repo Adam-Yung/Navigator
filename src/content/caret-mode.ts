@@ -243,7 +243,9 @@ function handleKey(e: KeyboardEvent): boolean {
       return true;
     }
     gPending = true;
-    setTimeout(() => { gPending = false; }, 500);
+    setTimeout(() => {
+      gPending = false;
+    }, 500);
     countBuffer = '';
     return true;
   }
@@ -392,10 +394,6 @@ let cachedTextNodes: Text[] | null = null;
 function getTextNodes(): Text[] {
   if (!cachedTextNodes) cachedTextNodes = collectDeepTextNodes();
   return cachedTextNodes;
-}
-
-function invalidateTextNodeCache(): void {
-  cachedTextNodes = null;
 }
 
 function moveCaret(

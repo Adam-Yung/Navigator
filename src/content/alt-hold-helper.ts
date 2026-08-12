@@ -128,7 +128,14 @@ function getQuickPickPriority(el: HTMLElement): number {
   const inSidebar = !!el.closest('aside, [role="complementary"]');
   const ariaLabel = (el.getAttribute('aria-label') || '').toLowerCase();
 
-  if (tag === 'A' && inNav && (ariaLabel.includes('home') || ariaLabel.includes('logo') || !!el.closest('.logo, .brand, [class*="logo"], [class*="brand"]'))) return 100;
+  if (
+    tag === 'A' &&
+    inNav &&
+    (ariaLabel.includes('home') ||
+      ariaLabel.includes('logo') ||
+      !!el.closest('.logo, .brand, [class*="logo"], [class*="brand"]'))
+  )
+    return 100;
 
   if (tag === 'INPUT' && (type === 'search' || type === 'text')) return 95;
   if (tag === 'TEXTAREA') return 93;
