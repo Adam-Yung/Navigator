@@ -99,7 +99,7 @@ function createDOM(): void {
   `;
   shadow.appendChild(panel);
 
-  inputEl = panel.querySelector('.search-input')!;
+  inputEl = panel.querySelector('.search-input') as HTMLElement;
   document.documentElement.appendChild(host);
 }
 
@@ -278,11 +278,18 @@ function search(): void {
     matches = filtered.filter((el) => re.test(getVisibleText(el.el)));
   } else {
     const q = text.toLowerCase();
-    matches = filtered.filter((el) => fuzzyScore(getVisibleText(el.el), q) > 0);
+    matches = filtered.filter((el) => {
+      const vis = getVisibleText(el.el).toLowerCase();
+      return vis.includes(q);
+    });
     matches.sort((a, b) => {
-      const sa = fuzzyScore(getVisibleText(a.el), q);
-      const sb = fuzzyScore(getVisibleText(b.el), q);
-      return sb - sa;
+      const visA = getVisibleText(a.el).toLowerCase();
+      const visB = getVisibleText(b.el).toLowerCase();
+      const idxA = visA.indexOf(q);
+      const idxB = visB.indexOf(q);
+      if (idxA === 0 && idxB !== 0) return -1;
+      if (idxB === 0 && idxA !== 0) return 1;
+      return visA.length - visB.length;
     });
   }
 
@@ -295,10 +302,15 @@ function search(): void {
 }
 
 function getVisibleText(el: HTMLElement): string {
-  const text = el.innerText?.trim() || el.textContent?.trim() || '';
+  if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+    const val = (el as HTMLInputElement).value?.trim();
+    if (val) return val;
+    const placeholder = (el as HTMLInputElement).placeholder;
+    if (placeholder) return placeholder;
+    return '';
+  }
+  const text = el.innerText?.trim();
   if (text) return text;
-  const placeholder = (el as HTMLInputElement).placeholder;
-  if (placeholder) return placeholder;
   return '';
 }
 
@@ -522,6 +534,10 @@ function getStyles(): string {
       font: 600 13px ${UI.font.mono};
       opacity: 0.9;
     }
+    .search-input-wrap {
+      display: inline-flex;
+      align-items: center;
+    }
     .search-input {
       color: ${UI.colors.text};
       font: 14px ${UI.font.mono};
@@ -530,6 +546,7 @@ function getStyles(): string {
     .search-cursor {
       color: ${UI.colors.accent};
       animation: blink 1s step-end infinite;
+      margin-left: 0;
     }
     .search-count {
       color: ${UI.colors.textMuted};
