@@ -176,12 +176,6 @@ function handlePickerKeydown(e: KeyboardEvent): boolean {
       startZoneSelection();
       return true;
     }
-    if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && /^Digit[0-9]$/.test(e.code)) {
-      const digit = parseInt(e.code.replace('Digit', ''), 10);
-      const idx = digit === 0 ? 9 : digit - 1;
-      activateQuickPick(idx);
-      return true;
-    }
     return false;
   }
 
