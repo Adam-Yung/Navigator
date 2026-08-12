@@ -961,6 +961,30 @@ function executeBatchAction(elements: IndexedElement[]): void {
 
 // === Quick-pick ===
 
+function getQuickPickPriority(el: HTMLElement): number {
+  const tag = el.tagName;
+  const role = el.getAttribute('role');
+  const type = (el as HTMLInputElement).type?.toLowerCase() || '';
+  const inNav = !!el.closest('nav, header, [role="navigation"], [role="banner"], [role="menubar"]');
+  const inSidebar = !!el.closest('aside, [role="complementary"]');
+  const ariaLabel = (el.getAttribute('aria-label') || '').toLowerCase();
+
+  if (tag === 'A' && inNav && (ariaLabel.includes('home') || ariaLabel.includes('logo') || !!el.closest('.logo, .brand, [class*="logo"], [class*="brand"]'))) return 100;
+
+  if (tag === 'INPUT' && (type === 'search' || type === 'text')) return 95;
+  if (tag === 'TEXTAREA') return 93;
+  if (role === 'searchbox' || role === 'combobox' || role === 'textbox') return 95;
+
+  if ((tag === 'BUTTON' || role === 'button') && inNav) return 75;
+  if (tag === 'A' && inNav && !inSidebar) return 70;
+
+  if (tag === 'BUTTON' || role === 'button') return 45;
+  if (tag === 'A' && !inSidebar) return 40;
+
+  if (inSidebar) return 15;
+  return 10;
+}
+
 function activateQuickPick(idx: number): void {
   const elements = scanVisibleElements();
   const vh = document.documentElement.clientHeight;
@@ -972,13 +996,15 @@ function activateQuickPick(idx: number): void {
       const rect = el.el.getBoundingClientRect();
       const inViewport = rect.top < vh && rect.bottom > 0 && rect.left < vw && rect.right > 0;
       const area = rect.width * rect.height;
-      return { el, inViewport, area };
+      const priority = getQuickPickPriority(el.el);
+      return { el, inViewport, area, priority, rect };
     })
-    .filter((s) => s.area < vpArea * 0.8);
+    .filter((s) => s.inViewport && s.area < vpArea * 0.8);
 
   scored.sort((a, b) => {
-    if (a.inViewport !== b.inViewport) return a.inViewport ? -1 : 1;
-    return b.area - a.area;
+    if (a.priority !== b.priority) return b.priority - a.priority;
+    if (a.rect.top !== b.rect.top) return a.rect.top - b.rect.top;
+    return a.rect.left - b.rect.left;
   });
 
   if (idx >= scored.length) return;
