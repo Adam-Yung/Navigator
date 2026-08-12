@@ -434,8 +434,10 @@ function updateMiniMapDensity(): void {
     const zoneBottom = zoneTop + zoneH;
 
     const count = all.filter((indexed) => {
-      const pos = getElementLabelPosition(indexed.el);
-      return pos.x >= zoneLeft && pos.x < zoneRight && pos.y >= zoneTop && pos.y < zoneBottom;
+      const rect = indexed.el.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      return cx >= zoneLeft && cx < zoneRight && cy >= zoneTop && cy < zoneBottom;
     }).length;
 
     const density = Math.min(count / 20, 1);
@@ -458,41 +460,45 @@ function showSpotlight(zoneIdx: number): void {
   const top = row * zoneH;
   const right = left + zoneW;
   const bottom = top + zoneH;
-  const feather = window.devicePixelRatio > 1 ? 24 : 48;
+  const feather = 24;
 
   spotlightEl.innerHTML = '';
 
-  // Top overlay
-  const topDiv = document.createElement('div');
-  topDiv.className = 'spot-panel spot-top';
-  topDiv.style.cssText = `top:0;left:0;right:0;height:${top + feather}px;`;
-  topDiv.style.maskImage = `linear-gradient(to bottom, black ${Math.max(0, top - feather)}px, transparent ${top + feather}px)`;
-  topDiv.style.webkitMaskImage = topDiv.style.maskImage;
-  spotlightEl.appendChild(topDiv);
+  if (top > 0) {
+    const topDiv = document.createElement('div');
+    topDiv.className = 'spot-panel spot-top';
+    topDiv.style.cssText = `top:0;left:0;right:0;height:${top + feather}px;`;
+    topDiv.style.maskImage = `linear-gradient(to bottom, black calc(100% - ${feather}px), transparent 100%)`;
+    topDiv.style.webkitMaskImage = topDiv.style.maskImage;
+    spotlightEl.appendChild(topDiv);
+  }
 
-  // Bottom overlay
-  const bottomDiv = document.createElement('div');
-  bottomDiv.className = 'spot-panel spot-bottom';
-  bottomDiv.style.cssText = `bottom:0;left:0;right:0;height:${vh - bottom + feather}px;`;
-  bottomDiv.style.maskImage = `linear-gradient(to top, black ${Math.max(0, vh - bottom - feather)}px, transparent ${vh - bottom + feather}px)`;
-  bottomDiv.style.webkitMaskImage = bottomDiv.style.maskImage;
-  spotlightEl.appendChild(bottomDiv);
+  if (bottom < vh) {
+    const bottomDiv = document.createElement('div');
+    bottomDiv.className = 'spot-panel spot-bottom';
+    bottomDiv.style.cssText = `bottom:0;left:0;right:0;height:${vh - bottom + feather}px;`;
+    bottomDiv.style.maskImage = `linear-gradient(to top, black calc(100% - ${feather}px), transparent 100%)`;
+    bottomDiv.style.webkitMaskImage = bottomDiv.style.maskImage;
+    spotlightEl.appendChild(bottomDiv);
+  }
 
-  // Left overlay
-  const leftDiv = document.createElement('div');
-  leftDiv.className = 'spot-panel spot-left';
-  leftDiv.style.cssText = `top:${top}px;left:0;width:${left + feather}px;height:${zoneH}px;`;
-  leftDiv.style.maskImage = `linear-gradient(to right, black ${Math.max(0, left - feather)}px, transparent ${left + feather}px)`;
-  leftDiv.style.webkitMaskImage = leftDiv.style.maskImage;
-  spotlightEl.appendChild(leftDiv);
+  if (left > 0) {
+    const leftDiv = document.createElement('div');
+    leftDiv.className = 'spot-panel spot-left';
+    leftDiv.style.cssText = `top:${top}px;left:0;width:${left + feather}px;height:${zoneH}px;`;
+    leftDiv.style.maskImage = `linear-gradient(to right, black calc(100% - ${feather}px), transparent 100%)`;
+    leftDiv.style.webkitMaskImage = leftDiv.style.maskImage;
+    spotlightEl.appendChild(leftDiv);
+  }
 
-  // Right overlay
-  const rightDiv = document.createElement('div');
-  rightDiv.className = 'spot-panel spot-right';
-  rightDiv.style.cssText = `top:${top}px;right:0;width:${vw - right + feather}px;height:${zoneH}px;`;
-  rightDiv.style.maskImage = `linear-gradient(to left, black ${Math.max(0, vw - right - feather)}px, transparent ${vw - right + feather}px)`;
-  rightDiv.style.webkitMaskImage = rightDiv.style.maskImage;
-  spotlightEl.appendChild(rightDiv);
+  if (right < vw) {
+    const rightDiv = document.createElement('div');
+    rightDiv.className = 'spot-panel spot-right';
+    rightDiv.style.cssText = `top:${top}px;right:0;width:${vw - right + feather}px;height:${zoneH}px;`;
+    rightDiv.style.maskImage = `linear-gradient(to left, black calc(100% - ${feather}px), transparent 100%)`;
+    rightDiv.style.webkitMaskImage = rightDiv.style.maskImage;
+    spotlightEl.appendChild(rightDiv);
+  }
 
   spotlightEl.classList.remove('hidden');
 }
@@ -672,19 +678,10 @@ function renderLabelsForZone(zoneIdx: number): void {
 
   const all = scanVisibleElements();
   const zoneElements = all.filter((indexed) => {
-    const pos = getElementLabelPosition(indexed.el);
-    if (pos.x >= zoneLeft && pos.x < zoneRight && pos.y >= zoneTop && pos.y < zoneBottom) {
-      return true;
-    }
-    // Fallback: element overlaps zone and label is within 20px of zone boundary
     const rect = indexed.el.getBoundingClientRect();
-    const overlaps = rect.right > zoneLeft && rect.left < zoneRight && rect.bottom > zoneTop && rect.top < zoneBottom;
-    const nearEdge =
-      Math.abs(pos.x - zoneLeft) < 20 ||
-      Math.abs(pos.x - zoneRight) < 20 ||
-      Math.abs(pos.y - zoneTop) < 20 ||
-      Math.abs(pos.y - zoneBottom) < 20;
-    return overlaps && nearEdge;
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    return cx >= zoneLeft && cx < zoneRight && cy >= zoneTop && cy < zoneBottom;
   });
 
   renderLabelsForElements(zoneElements);
@@ -756,7 +753,7 @@ function renderLabelsForScope(scope: HTMLElement | null, preFiltered?: IndexedEl
     allHints.push({ label, element: entry, labelEl, index: i });
   }
 
-  const MAX_VISIBLE_LABELS = 30;
+  const MAX_VISIBLE_LABELS = 50;
   if (allHints.length > MAX_VISIBLE_LABELS) {
     for (let i = MAX_VISIBLE_LABELS; i < allHints.length; i++) {
       allHints[i].labelEl.classList.add('capped');
