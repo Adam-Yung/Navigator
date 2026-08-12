@@ -365,6 +365,11 @@ function highlightCurrent(): void {
   removeActiveHighlight();
   if (matches.length > 0 && matches[selectedIndex]) {
     const target = matches[selectedIndex];
+    const rect = target.el.getBoundingClientRect();
+    const vh = document.documentElement.clientHeight;
+    if (rect.bottom < 0 || rect.top > vh) {
+      target.el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
     transitionTo(target);
     revealElement(target.el);
     const { text } = parseScope(query);

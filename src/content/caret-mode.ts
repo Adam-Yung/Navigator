@@ -1,5 +1,6 @@
 import { buildComboString } from '../shared/keys';
 import type { Settings } from '../shared/types';
+import { hide as hideAura } from './aura-ring';
 import { activateSearchWithCallback } from './element-search';
 import { getLastPickedElement } from './hint-mode';
 import { revealElement } from './hover-manager';
@@ -309,6 +310,7 @@ function handleKey(e: KeyboardEvent): boolean {
     countBuffer = '';
     activateSearchWithCallback((el) => {
       jumpCaretToElement(el);
+      hideAura();
       lastSearchMatches = [el];
       lastSearchIndex = 0;
     });
