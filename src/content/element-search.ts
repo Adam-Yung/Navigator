@@ -275,19 +275,35 @@ function search(): void {
       updateCount();
       return;
     }
-    matches = filtered.filter((el) => re.test(getSearchableText(el.el)));
+    matches = filtered.filter((el) => re.test(getVisibleText(el.el)));
+    if (matches.length < 3) {
+      const metaExtra = filtered.filter(
+        (el) => !matches.includes(el) && re.test(getMetadataText(el.el)),
+      );
+      matches.push(...metaExtra);
+    }
   } else {
     const q = text.toLowerCase();
-    matches = filtered.filter((el) => {
-      const score = fuzzyScore(getSearchableText(el.el), q);
-      return score > 0;
-    });
+    matches = filtered.filter((el) => fuzzyScore(getVisibleText(el.el), q) > 0);
+    if (matches.length < 3) {
+      const metaExtra = filtered.filter(
+        (el) => !matches.includes(el) && fuzzyScore(getMetadataText(el.el), q) > 0,
+      );
+      matches.push(...metaExtra);
+    }
     matches.sort((a, b) => {
-      const sa = fuzzyScore(getSearchableText(a.el), q);
-      const sb = fuzzyScore(getSearchableText(b.el), q);
+      const sa = fuzzyScore(getVisibleText(a.el), q) || fuzzyScore(getMetadataText(a.el), q) * 0.5;
+      const sb = fuzzyScore(getVisibleText(b.el), q) || fuzzyScore(getMetadataText(b.el), q) * 0.5;
       return sb - sa;
     });
   }
+
+  matches = matches.filter((m) => {
+    const vis = getVisibleText(m.el);
+    if (vis.length > 0) return true;
+    if (m.el.tagName === 'INPUT' && (m.el as HTMLInputElement).placeholder) return true;
+    return false;
+  });
 
   selectedIndex = 0;
   updateCount();
@@ -295,10 +311,12 @@ function search(): void {
   highlightCurrent();
 }
 
-function getSearchableText(el: HTMLElement): string {
+function getVisibleText(el: HTMLElement): string {
+  return el.innerText?.trim() || el.textContent?.trim() || '';
+}
+
+function getMetadataText(el: HTMLElement): string {
   const parts: string[] = [];
-  const text = el.textContent?.trim();
-  if (text) parts.push(text);
   const ariaLabel = el.getAttribute('aria-label');
   if (ariaLabel) parts.push(ariaLabel);
   const placeholder = (el as HTMLInputElement).placeholder;
@@ -337,6 +355,7 @@ function fuzzyScore(text: string, query: string): number {
 
   if (qi < q.length) return 0;
   const coverage = q.length / Math.max(lower.length, 1);
+  if (coverage < 0.02) return 0;
   return totalScore * (0.5 + coverage * 0.5);
 }
 
