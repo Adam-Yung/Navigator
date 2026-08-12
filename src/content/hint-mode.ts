@@ -719,13 +719,6 @@ function renderLabelsForScope(scope: HTMLElement | null, preFiltered?: IndexedEl
     const labelEl = document.createElement('span');
     labelEl.className = 'hint-label';
 
-    if (i < 10) {
-      const numBadge = document.createElement('span');
-      numBadge.className = 'hint-number';
-      numBadge.textContent = i < 9 ? String(i + 1) : '0';
-      labelEl.appendChild(numBadge);
-    }
-
     const textNode = document.createElement('span');
     textNode.className = 'hint-text';
     textNode.textContent = label;
@@ -1300,20 +1293,6 @@ function getHintStyles(): string {
     .matched {
       color: #fff;
       text-shadow: 0 0 6px hsla(250, 80%, 65%, 0.6);
-    }
-
-    .hint-number {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 14px;
-      height: 14px;
-      padding: 0 3px;
-      background: hsla(250, 80%, 65%, 0.25);
-      border-radius: 3px;
-      font-size: 9px;
-      font-weight: 700;
-      color: ${AURA_COLOR};
     }
 
     .hint-text {
