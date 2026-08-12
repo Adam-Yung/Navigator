@@ -767,7 +767,7 @@ function renderLabelsForScope(scope: HTMLElement | null, preFiltered?: IndexedEl
       allHints[i].labelEl.style.borderColor = c.border;
     }
   }
-  createLeaderLines(allHints, colorIndices);
+  highlightTargetElements(allHints, colorIndices);
 
   filteredHints = [...allHints];
 
@@ -1153,12 +1153,12 @@ function addLabelsOfLength(len: number, max: number, out: string[], chars: strin
 }
 
 const HINT_COLORS = [
-  { bg: 'rgba(15, 15, 30, 0.92)', border: 'rgba(100, 80, 255, 0.4)', line: 'rgba(100, 80, 255, 0.25)' },
-  { bg: 'rgba(15, 15, 30, 0.92)', border: 'rgba(56, 189, 248, 0.4)', line: 'rgba(56, 189, 248, 0.25)' },
-  { bg: 'rgba(15, 15, 30, 0.92)', border: 'rgba(251, 146, 60, 0.4)', line: 'rgba(251, 146, 60, 0.25)' },
-  { bg: 'rgba(15, 15, 30, 0.92)', border: 'rgba(74, 222, 128, 0.4)', line: 'rgba(74, 222, 128, 0.25)' },
-  { bg: 'rgba(15, 15, 30, 0.92)', border: 'rgba(251, 191, 36, 0.4)', line: 'rgba(251, 191, 36, 0.25)' },
-  { bg: 'rgba(15, 15, 30, 0.92)', border: 'rgba(244, 114, 182, 0.4)', line: 'rgba(244, 114, 182, 0.25)' },
+  { bg: 'rgba(15, 15, 30, 0.92)', border: 'rgba(100, 80, 255, 0.7)' },
+  { bg: 'rgba(15, 15, 30, 0.92)', border: 'rgba(56, 189, 248, 0.7)' },
+  { bg: 'rgba(15, 15, 30, 0.92)', border: 'rgba(251, 146, 60, 0.7)' },
+  { bg: 'rgba(15, 15, 30, 0.92)', border: 'rgba(74, 222, 128, 0.7)' },
+  { bg: 'rgba(15, 15, 30, 0.92)', border: 'rgba(251, 191, 36, 0.7)' },
+  { bg: 'rgba(15, 15, 30, 0.92)', border: 'rgba(244, 114, 182, 0.7)' },
 ];
 
 function assignHintColors(hints: HintEntry[]): number[] {
@@ -1189,36 +1189,19 @@ function assignHintColors(hints: HintEntry[]): number[] {
   return colors;
 }
 
-function createLeaderLines(hints: HintEntry[], colorIndices: number[]): void {
+function highlightTargetElements(hints: HintEntry[], colorIndices: number[]): void {
   if (!labelsContainer) return;
-  const labelHeight = 20;
-  const labelWidth = 28;
 
   for (let i = 0; i < hints.length; i++) {
     const hint = hints[i];
     const rect = hint.element.el.getBoundingClientRect();
-    const lLeft = parseFloat(hint.labelEl.style.left);
-    const lTop = parseFloat(hint.labelEl.style.top);
+    const colorIdx = colorIndices.length > 0 ? colorIndices[i] : 0;
+    const borderColor = settings?.colorfulHints ? HINT_COLORS[colorIdx].border : 'rgba(100, 80, 255, 0.3)';
 
-    const lx = lLeft + labelWidth / 2;
-    const ly = lTop + labelHeight;
-    const ex = rect.left + 4;
-    const ey = rect.top + 4;
-
-    const length = Math.hypot(ex - lx, ey - ly);
-    if (length < 5) continue;
-
-    const angle = Math.atan2(ey - ly, ex - lx) * (180 / Math.PI);
-    const line = document.createElement('div');
-    line.className = 'hint-leader';
-    line.style.cssText = `left:${lx}px;top:${ly}px;width:${length}px;transform:rotate(${angle}deg);`;
-
-    const colorIdx = colorIndices[i];
-    if (settings?.colorfulHints && colorIdx >= 0) {
-      line.style.background = HINT_COLORS[colorIdx].line;
-    }
-
-    labelsContainer.appendChild(line);
+    const outline = document.createElement('div');
+    outline.className = 'hint-target-outline';
+    outline.style.cssText = `left:${rect.left - 2}px;top:${rect.top - 2}px;width:${rect.width + 4}px;height:${rect.height + 4}px;border-color:${borderColor};`;
+    labelsContainer.appendChild(outline);
   }
 }
 
@@ -1501,11 +1484,10 @@ function getHintStyles(): string {
       pointer-events: none;
     }
 
-    .hint-leader {
+    .hint-target-outline {
       position: fixed;
-      height: 1px;
-      background: rgba(255, 255, 255, 0.12);
-      transform-origin: 0 0;
+      border: 1.5px solid rgba(100, 80, 255, 0.3);
+      border-radius: 3px;
       pointer-events: none;
       z-index: 0;
     }
