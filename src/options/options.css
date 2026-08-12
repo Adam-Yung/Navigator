@@ -396,6 +396,28 @@ textarea::placeholder {
   color: #5a5a7a;
 }
 
+.hint-chars-input {
+  width: 100%;
+  padding: 8px 12px;
+  background: #1e1e3a;
+  border: 1px solid #3a3a5a;
+  border-radius: 8px;
+  color: #e4e4ef;
+  font: 14px ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 4px;
+  transition: border-color 0.2s ease;
+}
+
+.hint-chars-input:focus {
+  border-color: hsl(250, 80%, 65%);
+  outline: none;
+}
+
+.hint-chars-input::placeholder {
+  color: #5a5a7a;
+  letter-spacing: 4px;
+}
+
 .field-desc {
   font-size: 12px;
   color: #6a6a8a;

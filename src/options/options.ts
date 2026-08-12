@@ -79,7 +79,7 @@ function renderBehavior(): void {
   document.getElementById('scroll-decel-factor-val')!.textContent = String(settings.scrollDecelFactor);
 
   (document.getElementById('use-physical-keys') as HTMLInputElement).checked = settings.usePhysicalKeys;
-  (document.getElementById('hint-chars') as HTMLInputElement).value = settings.hintChars;
+  (document.getElementById('hint-chars') as HTMLInputElement).value = settings.hintChars.split('').join(' ');
 }
 
 function renderDisabledSites(): void {
@@ -153,13 +153,14 @@ function setupListeners(): void {
   });
 
   document.getElementById('hint-chars')?.addEventListener('change', (e) => {
-    const val = (e.target as HTMLInputElement).value.trim();
-    if (val.length >= 6 && new Set(val.split('')).size === val.length) {
-      settings.hintChars = val;
+    const raw = (e.target as HTMLInputElement).value.replace(/\s+/g, '');
+    if (raw.length >= 6 && new Set(raw.split('')).size === raw.length) {
+      settings.hintChars = raw;
+      (e.target as HTMLInputElement).value = raw.split('').join(' ');
       save().catch(() => {});
     } else {
-      alert('Hint characters must be at least 6 unique characters');
-      (e.target as HTMLInputElement).value = settings.hintChars;
+      alert('Hint characters must be at least 6 unique characters (spaces are ignored)');
+      (e.target as HTMLInputElement).value = settings.hintChars.split('').join(' ');
     }
   });
   document.getElementById('disabled-sites')?.addEventListener('change', (e) => {
