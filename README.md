@@ -1,16 +1,20 @@
 # Navigator
 
-Navigate any web page with your keyboard. Vim-style spatial navigation with a glowing animated focus ring.
+Navigate any web page with your keyboard. Alt-layer navigation with a glowing animated focus ring.
 
 <p align="center">
-  <img src="src/assets/icons/demo.gif" alt="Navigator demo — spatial keyboard navigation with aura ring" width="720">
+  <img src="src/assets/icons/demo.gif" alt="Navigator demo — Alt-layer keyboard navigation with aura ring" width="720">
 </p>
 
 ## Why Navigator?
 
-Keyboard-first browsing shouldn't require memorizing tab order. Navigator lets you move **directionally** — press `j` to go down, `l` to go right — and a cone-based search algorithm finds the most intuitive next element on any layout. Works on grids, sidebars, masonry, flex-wrap, anything.
+Keyboard-first browsing shouldn't mean fighting tab order or hunting for links. Navigator gives you an **Alt-layer** — hold Alt and press a key to scroll, pick elements, search text, or read content. Three focused modes replace every mouse interaction:
 
-**Zero dependencies. ~14KB. Runs on every page.**
+- **Picker** — divide-and-conquer element selection with zone hints
+- **Search** — fuzzy-find anything visible on the page
+- **Caret** — vim-style cursor for reading and copying text
+
+**Zero dependencies. ~14 KB. Runs on every page.**
 
 ## Quick Start
 
@@ -23,28 +27,75 @@ Then load `dist/chromium` as an unpacked extension (Chrome/Edge/Brave) or `dist/
 
 ## Keybindings
 
+### Alt-Layer Shortcuts
+
+| Combo | Action |
+|-------|--------|
+| `Alt+F` | Element Picker |
+| `Alt+/` | Text Search |
+| `Alt+V` | Caret / Visual mode |
+| `Alt+T` | Tab Picker |
+| `Alt+Space` | Quick Actions palette |
+| `Alt+J` / `K` | Scroll down / up |
+| `Alt+H` / `L` | Scroll left / right |
+| `Alt+Shift+J` / `K` | Fast scroll |
+| `Alt+[` / `]` | History back / forward |
+| `Alt+Shift+[` / `]` | Section prev / next |
+| `Alt+U` | URL up one segment |
+| `Alt+G` | Focus first input |
+| `Alt+O` / `I` | Focus history back / forward |
+| `Alt+Y` | Yank mode |
+| `Alt+M` | Set mark |
+| `Alt+'` | Jump to mark |
+| `Alt+.` | Repeat last action |
+| `Alt+?` | Show cheatsheet |
+| `Alt+1-9` | Quick-pick top elements |
+| `Ctrl+Alt+A` | Toggle extension on / off |
+
+### Picker Mode (`Alt+F`)
+
+1. Screen divides into a **3×2 grid** — zones `A` `S` `D` `F` `G` `H`
+2. Press a zone key → that zone spotlights (rest of page dims/blurs)
+3. Hint labels appear on interactive elements within the zone
+4. Type label characters to narrow and select
+5. Numbers `1-9` directly select top elements by priority
+6. `Shift+letter` multi-selects, `Enter` batch-activates
+7. `Shift+Enter` opens links in a new tab
+
+Modal-aware: if a dialog or popover is already open, the zone phase is skipped and hints appear directly inside it.
+
+### Search Mode (`Alt+/`)
+
+- Fuzzy-matches visible text on interactive elements
+- Scope filters: `@link:`, `@btn:`, `@input:` prefixes
+- `Alt+R` toggles regex mode
+- `Tab` / arrows cycle through matches
+- `Enter` activates the selected match
+
+### Caret Mode (`Alt+V`)
+
 | Key | Action |
 |-----|--------|
-| `Ctrl+Alt+N` | Enter Navigation mode |
-| `Ctrl+Alt+E` | Enter Editing mode (inputs only) |
-| `h` `j` `k` `l` or Arrows | Move focus directionally |
-| `f` | Hint mode (jump to any element by label) |
-| `Enter` | Activate focused element |
-| `Shift+Enter` | Activate without leaving mode |
-| `Ctrl+Enter` | Open in new tab |
-| `gg` / `G` | Jump to first / last element |
-| `Ctrl+O` | Go back (jump stack) |
-| `Escape` | Return to Normal mode |
+| `h` `j` `k` `l` | Character / line movement |
+| `w` / `b` | Word forward / back |
+| `0` / `$` | Line start / end |
+| `gg` / `G` | Top / bottom of page |
+| `[count]` prefix | Repeat motion |
+| `v` | Toggle visual selection |
+| `y` | Yank selection to clipboard |
+| `/` | Search-to-jump |
+| `n` / `N` | Next / previous match |
+| `q` or `Esc` | Exit caret mode |
 
-All keybindings are fully configurable in the options page.
-
-> Global shortcuts `Alt+Shift+N` / `Alt+Shift+E` also work via the browser commands API.
+Traverses Shadow DOM boundaries for full coverage.
 
 ## How It Works
 
-From the focused element, a direction key casts a **cone** in that direction. Elements within the cone are scored by distance and angular alignment. The best match gets focus. If nothing is found, the cone widens progressively up to 180 degrees.
+Navigator runs as a lightweight content script injected into every page. When you press an Alt-layer shortcut, a **mode arbiter** routes the key to the correct handler — picker, search, caret, or scroll engine — ensuring only one mode is active at a time.
 
-Smart prioritization gives slight preference to larger elements, buttons/links, and elements inside `<nav>` or `<main>` landmarks.
+The **Aura Ring** — a glowing purple border — wraps the currently targeted element. It animates smoothly between targets, breathes subtly when idle, leaves a ghost trail on departure, and adapts its border-radius to the element shape. Intensity is configurable: *subtle*, *normal*, or *vibrant*.
+
+Hold `Alt` for 200 ms to reveal a helper bar showing all shortcuts plus numbered badges on top-priority elements.
 
 <p align="center">
   <img src="src/assets/icons/screenshot.png" alt="Navigator settings page" width="480">
@@ -54,11 +105,9 @@ Smart prioritization gives slight preference to larger elements, buttons/links, 
 
 Right-click the extension icon and select **Options** to configure:
 
-- **Keybindings** — click a field and press your desired combo
-- **Animation duration** — 0ms (instant) to 500ms (cinematic)
+- **Keybindings** — fully remappable; click a field and press your desired combo
 - **Aura intensity** — Subtle, Normal, or Vibrant glow
-- **Cone angle** — 60° (precise) to 120° (forgiving)
-- **Auto-scroll** — scroll off-screen elements into view
+- **Scroll behavior** — momentum scrolling with magnetic snap
 - **Disabled sites** — URL patterns where Navigator won't activate
 
 ## Browser Support
@@ -66,7 +115,6 @@ Right-click the extension icon and select **Options** to configure:
 | Browser | Minimum Version |
 |---------|-----------------|
 | Chrome / Edge / Brave | 88+ |
-| Opera | 74+ |
 | Firefox | 140+ |
 
 ## Development
@@ -74,21 +122,32 @@ Right-click the extension icon and select **Options** to configure:
 ```bash
 npm run dev        # Watch mode with rebuilds
 npm run build      # Production build (chromium + firefox)
-npm run test       # Unit tests (vitest)
-npm run lint       # Biome linter
+npm run test       # Unit tests
+npm run lint       # Linter
 ```
 
 ## Architecture
 
 ```
-Content Script (14KB)          Background (2KB)         Options Page
-├── Mode Manager               ├── Command Handler      ├── Keybinding Recorder
-├── Key Handler                └── Storage Init         ├── Live Preview
-├── Nav Queue (batching)                                └── Settings UI
-├── Spatial Nav (cone search)
+Content Script (~14 KB)         Background              Options Page
+├── Mode Arbiter                ├── Command Router       ├── Keybinding Recorder
+├── Key Router (Alt-layer)      └── Storage Init         ├── Live Preview
+├── Picker Engine                                        └── Settings UI
+│   ├── Zone Grid (3×2)
+│   ├── Hint Renderer
+│   └── Multi-Select Handler
+├── Search Engine
+│   ├── Fuzzy Matcher
+│   └── Scope Filters
+├── Caret Engine
+│   ├── Cursor + Selection
+│   └── Shadow DOM Walker
+├── Scroll Engine (momentum)
 ├── Aura Ring (Shadow DOM)
-├── Hint Mode (label jump)
-├── Indicator Chip
+├── Alt-Hold Helper
+├── Quick Actions Palette
+├── Tab Picker
+├── Marks & Focus History
 └── Mutation Observer
 ```
 
