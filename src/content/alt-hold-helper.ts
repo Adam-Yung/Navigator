@@ -1,6 +1,7 @@
 import { comboToDisplayKey } from '../shared/keys';
 import type { Settings } from '../shared/types';
 import { getQuickPickPriority } from './element-scoring';
+import { activateQuickPick } from './hint-mode';
 import { registerKeyHandler, registerKeyupHandler } from './key-handler';
 import { scanVisibleElements } from './mutation-observer';
 import { UI } from './ui-tokens';
@@ -94,6 +95,14 @@ function handleKeydown(e: KeyboardEvent): boolean {
       holdTimer = setTimeout(showHelper, settings.altHelperDelay);
     }
     return false;
+  }
+
+  if (visible && e.altKey && /^[0-9]$/.test(e.key)) {
+    const idx = e.key === '0' ? 9 : parseInt(e.key, 10) - 1;
+    cancelTimer();
+    hideHelper();
+    activateQuickPick(idx);
+    return true;
   }
 
   cancelTimer();

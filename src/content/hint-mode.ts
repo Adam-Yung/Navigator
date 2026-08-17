@@ -950,7 +950,7 @@ function executeBatchAction(elements: IndexedElement[]): void {
 
 // === Quick-pick ===
 
-function activateQuickPick(idx: number): void {
+export function activateQuickPick(idx: number): void {
   const elements = scanVisibleElements();
   const vh = document.documentElement.clientHeight;
   const vw = document.documentElement.clientWidth;
