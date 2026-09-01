@@ -3,6 +3,13 @@
 All notable changes to the Navigator browser extension are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v3.1.0 → v3.1.1] — September 1, 2026
+
+### Fixed
+
+- Alt-hold helper overlay no longer gets stuck open when Alt-tabbing away from the browser or switching tabs. Added window blur, visibilitychange, and focus listeners to dismiss the overlay when the page loses focus.
+- Key handler now dispatches a synthetic Alt keyup to all registered handlers on window blur, preventing any Alt-dependent state from getting stuck.
+
 ## [v3.0.0 → v3.1.0] — August 12–31, 2026
 
 ### Changed
