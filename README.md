@@ -107,7 +107,7 @@ Right-click the extension icon and select **Options** to configure:
 
 - **Keybindings** — fully remappable; click a field and press your desired combo
 - **Aura intensity** — Subtle, Normal, or Vibrant glow
-- **Scroll behavior** — momentum scrolling with magnetic snap
+- **Scroll behavior** — momentum scrolling with focus-first target resolution
 - **Disabled sites** — URL patterns where Navigator won't activate
 
 ## Browser Support

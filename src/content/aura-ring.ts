@@ -152,6 +152,10 @@ export function hide(): void {
   stopTracking();
 }
 
+export function getTrackedElement(): HTMLElement | null {
+  return trackedElement;
+}
+
 export function destroyAuraRing(): void {
   stopTracking();
   if (host) {
