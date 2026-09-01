@@ -21,6 +21,9 @@ export function initAltHoldHelper(initialSettings: Settings): void {
   createDOM();
   unregisterDown = registerKeyHandler(handleKeydown);
   unregisterUp = registerKeyupHandler(handleKeyup);
+  window.addEventListener('blur', onFocusLost);
+  window.addEventListener('focus', onFocusRegained);
+  document.addEventListener('visibilitychange', onVisibilityChange);
 }
 
 export function updateAltHoldSettings(newSettings: Settings): void {
@@ -30,6 +33,9 @@ export function updateAltHoldSettings(newSettings: Settings): void {
 
 export function destroyAltHoldHelper(): void {
   hideHelper();
+  window.removeEventListener('blur', onFocusLost);
+  window.removeEventListener('focus', onFocusRegained);
+  document.removeEventListener('visibilitychange', onVisibilityChange);
   if (host) {
     host.remove();
     host = null;
@@ -115,6 +121,22 @@ function handleKeyup(e: KeyboardEvent): void {
     cancelTimer();
     if (visible) hideHelper();
   }
+}
+
+function onFocusLost(): void {
+  cancelTimer();
+  if (visible) hideHelper();
+}
+
+function onVisibilityChange(): void {
+  if (document.hidden) {
+    cancelTimer();
+    if (visible) hideHelper();
+  }
+}
+
+function onFocusRegained(): void {
+  cancelTimer();
 }
 
 function showHelper(): void {

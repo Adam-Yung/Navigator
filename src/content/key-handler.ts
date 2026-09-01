@@ -12,6 +12,7 @@ export function initKeyHandler(initialSettings: Settings): void {
   settings = initialSettings;
   document.addEventListener('keydown', handleKeydown, true);
   document.addEventListener('keyup', handleKeyup, true);
+  window.addEventListener('blur', onWindowBlur);
 }
 
 export function updateKeyHandlerSettings(newSettings: Settings): void {
@@ -37,6 +38,7 @@ export function registerKeyHandler(handler: KeyCallback): () => void {
 export function destroyKeyHandler(): void {
   document.removeEventListener('keydown', handleKeydown, true);
   document.removeEventListener('keyup', handleKeyup, true);
+  window.removeEventListener('blur', onWindowBlur);
   handlers.length = 0;
 }
 
@@ -90,5 +92,12 @@ function handleKeydown(e: KeyboardEvent): void {
 function handleKeyup(e: KeyboardEvent): void {
   for (const handler of keyupHandlers) {
     handler(e);
+  }
+}
+
+function onWindowBlur(): void {
+  const syntheticAltUp = new KeyboardEvent('keyup', { key: 'Alt', code: 'AltLeft', bubbles: true });
+  for (const handler of keyupHandlers) {
+    handler(syntheticAltUp);
   }
 }
