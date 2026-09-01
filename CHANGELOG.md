@@ -3,6 +3,23 @@
 All notable changes to the Navigator browser extension are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v3.0.0 → v3.1.0] — August 12–31, 2026
+
+### Changed
+
+- Rewrote scroll engine with 3-tier target resolution: last focused element (from picker/search/caret) → element under mouse cursor → page fallback. Each tier checks scroll boundaries before accepting.
+- New velocity model: faster base speed (12 px/frame), reaches max in ~0.5s instead of 2.5s, 4x fast mode multiplier.
+
+### Removed
+
+- Removed magnetic scroll stops (snap-to-nearest-element on scroll stop).
+
+### Fixed
+
+- Safety timeout auto-stops scrolling if keyup event is lost (2s failsafe).
+- Scroll stops automatically when tab loses focus or window blurs.
+- Scroll no longer gets stuck on focused elements that are at their scroll boundary.
+
 ## [v2.6.0 → v3.0.0] — August 11–12, 2026
 
 ### Added
