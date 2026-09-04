@@ -3,6 +3,12 @@
 All notable changes to the Navigator browser extension are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v3.1.1 → v3.1.2] — September 3, 2026
+
+### Fixed
+
+- Alt+1-9 quick-pick now works on macOS. Previously, macOS remaps Alt+digit to special characters (e.g. Alt+1 → ¡), so the digit check on `e.key` never matched. Switched to `e.code` (physical key) which is OS-independent.
+
 ## [v3.1.0 → v3.1.1] — September 1, 2026
 
 ### Fixed
