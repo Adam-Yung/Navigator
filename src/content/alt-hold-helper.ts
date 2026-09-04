@@ -103,8 +103,9 @@ function handleKeydown(e: KeyboardEvent): boolean {
     return false;
   }
 
-  if (visible && e.altKey && /^[0-9]$/.test(e.key)) {
-    const idx = e.key === '0' ? 9 : parseInt(e.key, 10) - 1;
+  if (visible && e.altKey && /^Digit[0-9]$/.test(e.code)) {
+    const digit = parseInt(e.code.slice(5), 10);
+    const idx = digit === 0 ? 9 : digit - 1;
     cancelTimer();
     hideHelper();
     activateQuickPick(idx);
